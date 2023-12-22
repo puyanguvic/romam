@@ -21,8 +21,10 @@
 #define STATE_MACHINE_H
 
 #include <iostream>
-#include <unordered_map>
+#include <map>
 #include <functional>
+#include <utility>
+
 namespace ns3
 {
 namespace open_routing
@@ -31,26 +33,28 @@ namespace open_routing
 template <typename StateType, typename EventType>
 class StateMachine {
 public:
-    using TransitionFunction = std::function<void()>;
+    using ActionFunction = std::function<void()>;
 
-    virtual ~StateMachine() {}
+    StateMachine();
+    virtual ~StateMachine();
 
-    virtual void addTransition(StateType fromState, EventType event, StateType toState, TransitionFunction transitionFunction) = 0;
+    void addTransition(const StateType& fromState, const EventType& event,
+                       const StateType& toState, ActionFunction action);
 
-    virtual void processEvent(EventType event) = 0;
+    void handleEvent(const EventType& event);
 
-    virtual StateType getCurrentState() const = 0;
+    StateType getCurrentState() const;
+
+protected:
+    StateType currentState;
+    std::map<std::pair<StateType, EventType>, StateType> transitions;
+    std::map<std::pair<StateType, EventType>, ActionFunction> actions;
 };
 
 } // namespace open_routing
 } // namespace ns3
 
 #endif // STATE_MACHINE_H
-
-
-
-
-
 
 
 

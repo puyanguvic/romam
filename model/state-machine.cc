@@ -27,5 +27,38 @@ namespace ns3
 namespace open_routing
 {
 
+template <typename StateType, typename EventType>
+StateMachine<StateType, EventType>::StateMachine() {}
+
+template <typename StateType, typename EventType>
+StateMachine<StateType, EventType>::~StateMachine() {}
+
+template <typename StateType, typename EventType>
+void StateMachine<StateType, EventType>::addTransition(const StateType& fromState, const EventType& event,
+                                                       const StateType& toState, ActionFunction action) {
+    transitions[{fromState, event}] = toState;
+    actions[{fromState, event}] = action;
+}
+
+template <typename StateType, typename EventType>
+void StateMachine<StateType, EventType>::handleEvent(const EventType& event) {
+    auto transitionKey = std::make_pair(currentState, event);
+    auto transitionIt = transitions.find(transitionKey);
+
+    if (transitionIt != transitions.end()) {
+        auto actionIt = actions.find(transitionKey);
+        if (actionIt != actions.end()) {
+            actionIt->second();
+        }
+
+        currentState = transitionIt->second;
+    }
+}
+
+template <typename StateType, typename EventType>
+StateType StateMachine<StateType, EventType>::getCurrentState() const {
+    return currentState;
+}
+
 }
 }
