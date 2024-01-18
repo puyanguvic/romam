@@ -10,6 +10,10 @@ namespace ns3
 namespace open_routing
 {
 
+//------------------------------------------
+//---------- OSPFHeader
+//------------------------------------------
+
 OSPFHeader::OSPFHeader() : m_version(2), // OSPF version 2 for IPv4
                            m_type(0),
                            m_length(0),
@@ -19,7 +23,7 @@ OSPFHeader::OSPFHeader() : m_version(2), // OSPF version 2 for IPv4
                            m_AuType(0),
                            m_Authentication(0)
 {
-    // Default Constructor Body (if necessary)
+
 }
 
 OSPFHeader::~OSPFHeader ()
@@ -165,6 +169,146 @@ OSPFHeader::Deserialize(Buffer::Iterator start)
 
     return GetSerializedSize();
 }
+
+//------------------------------------------
+//---------- HelloHeader
+//------------------------------------------
+
+HelloHeader::HelloHeader() 
+    : m_networkMask(), // Initialize with default Ipv4Address
+      m_helloInterval(0),
+      m_options(0),
+      m_routerPriority(0),
+      m_routerDeadInterval(0),
+      m_designatedRouter(), // Initialize with default Ipv4Address
+      m_backupDesignatedRouter() // Initialize with default Ipv4Address
+{
+
+}
+
+HelloHeader::~HelloHeader()
+{
+
+}
+
+void
+HelloHeader::SetNetworkMask(Ipv4Address mask)
+{
+    m_networkMask = mask;
+}
+
+Ipv4Address
+HelloHeader::GetNetworkMask() const
+{
+    return m_networkMask;
+}
+
+void
+HelloHeader::SetHelloInterval(uint16_t interval)
+{
+    m_helloInterval = interval;
+}
+
+uint16_t
+HelloHeader::GetHelloInterval() const
+{
+    return m_helloInterval;
+}
+
+void
+HelloHeader::SetOptions(uint8_t options)
+{
+    m_options = options;
+}
+
+uint8_t
+HelloHeader::GetOptions() const
+{
+    return m_options;
+}
+
+TypeId
+HelloHeader::GetTypeId()
+{
+    static TypeId tid = TypeId("ns3::open_routing::HelloHeader")
+        .SetParent<Header>()
+        .SetGroupName("open_routing")
+        .AddConstructor<HelloHeader>();
+    return tid;
+}
+
+TypeId
+HelloHeader::GetInstanceTypeId() const
+{
+    return GetTypeId();
+}
+
+void
+HelloHeader::Print(std::ostream &os) const
+{
+    os << "Hello Header: Network Mask=" << m_networkMask
+       << ", Hello Interval=" << m_helloInterval
+       << ", Options=" << (uint32_t)m_options
+       << ", Router Priority=" << (uint32_t)m_routerPriority
+       << ", Dead Interval=" << m_routerDeadInterval
+       << ", Designated Router=" << m_designatedRouter
+       << ", Backup Designated Router=" << m_backupDesignatedRouter
+       << std::endl;
+}
+
+uint32_t HelloHeader::GetSerializedSize() const
+{
+    // The size of HelloHeader is 20 bytes + with Neighbor IpAddresses size
+    return 20 + 4 * m_neighbors.size ();
+}
+
+void HelloHeader::Serialize(Buffer::Iterator start) const
+{
+    Buffer::Iterator i = start;
+    i.WriteHtonU32 (m_networkMask.Get());
+    i.WriteHtolsbU16 (m_helloInterval);
+    i.WriteU8 (m_options);
+    i.WriteU8 (m_routerPriority);
+    i.WriteHtonU32 (m_routerDeadInterval);
+    i.WriteHtonU32 (m_designatedRouter.Get ());
+    i.WriteHtonU32 (m_backupDesignatedRouter.Get ());
+
+    for (std::list<Ipv4Address>::const_iterator iter = m_neighbors.begin ();
+         iter != m_neighbors.end ();
+         iter ++)
+        {
+           i.WriteHtonU32 (iter->Get ());
+        }
+}
+
+uint32_t HelloHeader::Deserialize(Buffer::Iterator start)
+{
+    Buffer::Iterator i = start;
+    
+    m_networkMask = Ipv4Address(i.ReadNtohU32());
+    m_helloInterval = i.ReadNtohU16();
+    m_options = i.ReadU8();
+    m_routerPriority = i.ReadU8();
+    m_routerDeadInterval = i.ReadNtohU32();
+    m_designatedRouter = Ipv4Address(i.ReadNtohU32());
+    m_backupDesignatedRouter = Ipv4Address(i.ReadNtohU32());
+
+    // Clear existing neighbors
+    m_neighbors.clear();
+
+    // Calculate the number of neighbors from the remaining size
+    uint32_t remainingSize = GetSerializedSize() - 20; // 20 bytes for the fixed part
+    uint32_t neighborCount = remainingSize / 4;
+
+    for (uint32_t j = 0; j < neighborCount; ++j)
+    {
+        Ipv4Address neighborAddress(i.ReadNtohU32());
+        m_neighbors.push_back(neighborAddress);
+    }
+
+    return GetSerializedSize();
+}
+
 
 } // namespace open_routing
 } // namespace ns3

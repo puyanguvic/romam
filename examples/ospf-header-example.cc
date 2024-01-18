@@ -44,6 +44,8 @@ main(int argc, char* argv[])
     std::cout << "Deserialized OSPF Header:" << std::endl;
     deserializedHeader.Print(std::cout);
 
+    
+
     Simulator::Run();
     Simulator::Destroy();
     return 0;

@@ -202,61 +202,35 @@ private:
 class HelloHeader : public Header 
 {
 public:
-  /**
-   * @brief Construct a null Hello Header
-   * 
-   * Initializes a new Hello packet with default values for each field.
-   */
-  HelloHeader ();
-
+  HelloHeader (); //!< Construct a null Hello Header
   ~HelloHeader () override;
 
-  /**
-   * @brief Set the Network Mask
-   * 
-   * @param mask Network Mask associated with the router's sending interface
-   */
-  void SetNetworkMask (Ipv4Address mask);
-  
-  /**
-   * @brief Get the Network Mask
-   * 
-   * @return Network mask 
-   */
-  Ipv4Address GetNetworkMask () const;
-  
-  /**
-   * @brief Set the Hello Interval object
-   * 
-   * @param interval 
-   */
-  void SetHelloInterval (uint16_t interval);
-  uint16_t GetHelloInterval () const;
+  void SetNetworkMask (Ipv4Address mask); //!< Set the Network Mask for the interface
+  Ipv4Address GetNetworkMask () const;    //!< Get the Network Mask of the interface
 
-  void SetOptions (uint8_t options);
-  uint8_t GetOptions () const;
+  void SetHelloInterval (uint16_t interval); //!< Set the Hello Interval
+  uint16_t GetHelloInterval () const;        //!< Get the Hello Interval
 
-  void SetRouterPriority (uint8_t priority);
-  uint8_t GetRouterPriority () const;
+  void SetOptions (uint8_t options);     //!< Set OSPF options
+  uint8_t GetOptions () const;           //!< Get OSPF options
 
-  void SetRouterDeadInterval (uint32_t interval);
-  uint32_t GetRouterDeadInterval () const;
+  void SetRouterPriority (uint8_t priority); //!< Set the Router Priority
+  uint8_t GetRouterPriority () const;        //!< Get the Router Priority
 
-  void SetDesignatedRouter (Ipv4Address address);
-  Ipv4Address GetDesignatedRouter () const;
+  void SetRouterDeadInterval (uint32_t interval); //!< Set Router Dead Interval
+  uint32_t GetRouterDeadInterval () const;        //!< Get Router Dead Interval
 
-  void SetBackupDesignatedRouter (Ipv4Address address);
-  Ipv4Address GetBackupDesignatedRouter () const;
+  void SetDesignatedRouter (Ipv4Address address); //!< Set the Designated Router address
+  Ipv4Address GetDesignatedRouter () const;       //!< Get the Designated Router address
 
-  void AddNeighbor(Ipv4Address addr);
-  void ClearNeighbors ();
-  uint16_t GetNNeighbors () const;
-  Ipv4Address GetNeighbor(uint16_t n) const;
-  
-  /**
-   * \brief Get the type ID.
-   * \return the object TypeId
-   */
+  void SetBackupDesignatedRouter (Ipv4Address address); //!< Set the Backup Designated Router address
+  Ipv4Address GetBackupDesignatedRouter () const;       //!< Get the Backup Designated Router address
+
+  void AddNeighbor(Ipv4Address addr);              //!< Add a neighbor router
+  void ClearNeighbors ();                          //!< Clear the list of neighbor routers
+  uint16_t GetNNeighbors () const;                 //!< Get the number of neighbor routers
+  Ipv4Address GetNeighbor(uint16_t n) const;       //!< Get a specific neighbor router by index
+
   static TypeId GetTypeId();
   TypeId GetInstanceTypeId() const override;
   void Print(std::ostream& os) const override;
@@ -265,33 +239,16 @@ public:
   uint32_t Deserialize(Buffer::Iterator start) override;
 
 private:
-  // Network mask associated with the router's sending interface. If
-  // two routers have different network masks, they cannot become neighbors.
-  Ipv4Address m_networkMask;      
-  
-  // Interval for sending hello packets. If two routers have different intervals,
-  // they cannot become neighbors.
-  uint16_t m_helloInterval;
-
-  uint8_t m_options;
-  
-  // Rtr Pri, Router priority. A value of 0 means the router cannot become the DR or BDR.
-  uint8_t m_routerPriority;
-  
-  // Time before declaring a silent router down. If two routers have different
-  // dead intervals, they cannot become neighbors.
-  uint32_t m_routerDeadInterval;
-  
-  // IP address of DR
-  Ipv4Address m_designatedRouter;
-  
-  // IP address of BDR
-  Ipv4Address m_backupDesignatedRouter;
-
-  typedef std::list<Ipv4Address> ListOfNeighbors_t;
-  // Neighbor, Router ID of the neighbor router.
-  ListOfNeighbors_t m_neighbors;
+  Ipv4Address m_networkMask;              //!< Network mask of the router's interface
+  uint16_t m_helloInterval;               //!< Interval for sending Hello packets
+  uint8_t m_options;                      //!< OSPF options for the Hello packet
+  uint8_t m_routerPriority;               //!< Priority of the router in the OSPF network
+  uint32_t m_routerDeadInterval;          //!< Time before declaring a silent router down
+  Ipv4Address m_designatedRouter;         //!< IP address of the Designated Router
+  Ipv4Address m_backupDesignatedRouter;   //!< IP address of the Backup Designated Router
+  std::list<Ipv4Address> m_neighbors;     //!< List of neighbor routers
 };
+
 
 /**
  * \ingroup open_routing
