@@ -220,16 +220,15 @@ public:
   void SetRouterDeadInterval (uint32_t interval); //!< Set Router Dead Interval
   uint32_t GetRouterDeadInterval () const;        //!< Get Router Dead Interval
 
-  void SetDesignatedRouter (Ipv4Address address); //!< Set the Designated Router address
+  void SetDesignatedRouter (Ipv4Address addr); //!< Set the Designated Router address
   Ipv4Address GetDesignatedRouter () const;       //!< Get the Designated Router address
 
-  void SetBackupDesignatedRouter (Ipv4Address address); //!< Set the Backup Designated Router address
+  void SetBackupDesignatedRouter (Ipv4Address addr); //!< Set the Backup Designated Router address
   Ipv4Address GetBackupDesignatedRouter () const;       //!< Get the Backup Designated Router address
 
   void AddNeighbor(Ipv4Address addr);              //!< Add a neighbor router
   void ClearNeighbors ();                          //!< Clear the list of neighbor routers
   uint16_t GetNNeighbors () const;                 //!< Get the number of neighbor routers
-  Ipv4Address GetNeighbor(uint16_t n) const;       //!< Get a specific neighbor router by index
 
   static TypeId GetTypeId();
   TypeId GetInstanceTypeId() const override;
@@ -337,36 +336,36 @@ private:
  * +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
  * 
  */
-class LSRHeader : public Header{
-public:
-    LSRHeader ();
-    ~LSRHeader ();
+// class LSRHeader : public Header{
+// public:
+//     LSRHeader ();
+//     ~LSRHeader ();
     
-    void SetlsType(uint32_t lsType);
-    uint32_t GetlsType() const;
+//     void SetlsType(uint32_t lsType);
+//     uint32_t GetlsType() const;
     
-    void SetLinkStateId (uint32_t linkStateId);
-    uint32_t GetLinkStateId () const;
+//     void SetLinkStateId (uint32_t linkStateId);
+//     uint32_t GetLinkStateId () const;
 
-    void SetAdvertisingRouter (Ipv4Address ipv4);
-    Ipv4Address GetAdvertisingRouter () const;
+//     void SetAdvertisingRouter (Ipv4Address ipv4);
+//     Ipv4Address GetAdvertisingRouter () const;
 
-    /**
-     * \brief Get the type ID.
-     * \return the object TypeId
-     */
-    static TypeId GetTypeId();
-    TypeId GetInstanceTypeId() const override;
-    void Print(std::ostream& os) const override;
-    uint32_t GetSerializedSize() const override;
-    void Serialize(Buffer::Iterator start) const override;
-    uint32_t Deserialize(Buffer::Iterator start) override;
+//     /**
+//      * \brief Get the type ID.
+//      * \return the object TypeId
+//      */
+//     static TypeId GetTypeId();
+//     TypeId GetInstanceTypeId() const override;
+//     void Print(std::ostream& os) const override;
+//     uint32_t GetSerializedSize() const override;
+//     void Serialize(Buffer::Iterator start) const override;
+//     uint32_t Deserialize(Buffer::Iterator start) override;
 
-private:
-    uint32_t m_lsType; //!< Type of the LSA to be requested. Type 1 for example indicate the Router LSA
-    uint32_t m_linkStateId; //!< Determined by LSA type.
-    Ipv4Address m_advertisingRouter; //!< ID of the router that sent the LSA.
-};
+// private:
+//     uint32_t m_lsType; //!< Type of the LSA to be requested. Type 1 for example indicate the Router LSA
+//     uint32_t m_linkStateId; //!< Determined by LSA type.
+//     Ipv4Address m_advertisingRouter; //!< ID of the router that sent the LSA.
+// };
 
 /**
  * \ingroup open_routing
@@ -389,23 +388,23 @@ private:
  * +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
  * 
  */
-class LSU : public Header{
-public:
-    LSU ();
-    ~LSU ();
+// class LSU : public Header{
+// public:
+//     LSU ();
+//     ~LSU ();
 
-    void SetNLSAs (uint32_t num);
-    uint32_t GetNLSAs () const;
+//     void SetNLSAs (uint32_t num);
+//     uint32_t GetNLSAs () const;
 
-    void AddLSA(LSA lsa);
-    void ClearLSAs ();
-    LSAHeader GetLSA(uint16_t n) const;
+//     void AddLSA(LSA lsa);
+//     void ClearLSAs ();
+//     LSAHeader GetLSA(uint16_t n) const;
 
-private:
-    uint32_t m_nLSAs; //!< Number of LSAs
-    typedef std::list<LSA> ListOfLSAs_t;
-    ListOfLSAs_t m_LSAs; //!< List of LSAs
-};
+// private:
+//     uint32_t m_nLSAs; //!< Number of LSAs
+//     typedef std::list<LSA> ListOfLSAs_t;
+//     ListOfLSAs_t m_LSAs; //!< List of LSAs
+// };
 
 /**
  * \ingroup open_routing
@@ -425,20 +424,20 @@ private:
  * +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
  * 
  */
-class LSAck : public Header {
-public:
-    LSAck ();
-    ~LSAck ();
+// class LSAck : public Header {
+// public:
+//     LSAck ();
+//     ~LSAck ();
 
-    uint32_t GetNLSAHeaders () const;
-    void AddLSAHeader(LSAHeader lsaHeader);
-    void ClearLSAHeaders ();
-    LSAHeader GetLSAHeader(uint16_t n) const;
+//     uint32_t GetNLSAHeaders () const;
+//     void AddLSAHeader(LSAHeader lsaHeader);
+//     void ClearLSAHeaders ();
+//     LSAHeader GetLSAHeader(uint16_t n) const;
 
-private:
-    typedef std::list<LSAHeader> ListOfLSAHeaders_t;
-    ListOfLSAHeaders_t m_LSAHeaders; //!< List of LSAs
-};
+// private:
+//     typedef std::list<LSAHeader> ListOfLSAHeaders_t;
+//     ListOfLSAHeaders_t m_LSAHeaders; //!< List of LSAs
+// };
 
 /**
  * \ingroup open_routing
@@ -460,21 +459,21 @@ private:
  * |      LS checksum              |             Length            |
  * +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
  */
-class LSAHeader : public Header {
-public:
-    LSAHeader ();
-    ~LSAHeader ();
+// class LSAHeader : public Header {
+// public:
+//     LSAHeader ();
+//     ~LSAHeader ();
 
-private:
-    uint16_t m_lsAge;
-    uint8_t m_options;
-    uint8_t m_lsType;
-    uint32_t m_linkStateId;
-    uint32_t m_advertisingRouter;
-    uint32_t m_lsSequenceNumber;
-    uint16_t m_lsChecksum;
-    uint16_t m_length;
-};
+// private:
+//     uint16_t m_lsAge;
+//     uint8_t m_options;
+//     uint8_t m_lsType;
+//     uint32_t m_linkStateId;
+//     uint32_t m_advertisingRouter;
+//     uint32_t m_lsSequenceNumber;
+//     uint16_t m_lsChecksum;
+//     uint16_t m_length;
+// };
 
 /**
  * \ingroup open_routing
@@ -495,19 +494,19 @@ private:
  * |                              ...                              |
  * +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
  */
-class RouterLSA : public Header {
-public:
-    RouterLSA ();
-    ~RouterLSA ();
+// class RouterLSA : public Header {
+// public:
+//     RouterLSA ();
+//     ~RouterLSA ();
 
-private:
-    // uinfinished bits
-    uint32_t m_linkId;
-    uint32_t m_linkData;
-    uint8_t m_type;
-    uint8_t m_tos;
-    uint16_t m_metrix;
-};
+// private:
+//     // uinfinished bits
+//     uint32_t m_linkId;
+//     uint32_t m_linkData;
+//     uint8_t m_type;
+//     uint8_t m_tos;
+//     uint16_t m_metrix;
+// };
 
 /**
  * \ingroup open_routing
@@ -526,13 +525,13 @@ private:
  * |                              ...                              |
  * +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
  */
-class NetworkLSA : public Header {
-public:
+// class NetworkLSA : public Header {
+// public:
 
-private:
-    Ipv4Address m_networkMask;
-    Ipv4Address m_attachedRouter;
-};
+// private:
+//     Ipv4Address m_networkMask;
+//     Ipv4Address m_attachedRouter;
+// };
 
 
 /**

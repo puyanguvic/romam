@@ -227,6 +227,72 @@ HelloHeader::GetOptions() const
     return m_options;
 }
 
+void
+HelloHeader::SetRouterPriority (uint8_t priority)
+{
+    m_routerPriority = priority;
+}
+
+uint8_t
+HelloHeader::GetRouterPriority () const
+{
+    return m_routerPriority;
+}
+
+void
+HelloHeader::SetRouterDeadInterval (uint32_t interval)
+{
+    m_helloInterval = interval;
+}
+
+uint32_t
+HelloHeader::GetRouterDeadInterval () const
+{
+    return m_helloInterval;
+}
+
+void
+HelloHeader::SetDesignatedRouter (Ipv4Address addr)
+{
+    m_designatedRouter = addr;
+}
+
+Ipv4Address
+HelloHeader::GetDesignatedRouter () const
+{
+    return m_designatedRouter;
+}
+
+void
+HelloHeader::SetBackupDesignatedRouter (Ipv4Address addr)
+{
+    m_backupDesignatedRouter = addr;
+}
+
+Ipv4Address
+HelloHeader::GetBackupDesignatedRouter () const
+{
+    return m_backupDesignatedRouter;
+}
+
+void
+HelloHeader::AddNeighbor(Ipv4Address addr)
+{
+    m_neighbors.push_back (addr);
+}
+
+void
+HelloHeader::ClearNeighbors ()
+{
+    m_neighbors.clear ();
+}
+
+uint16_t
+HelloHeader::GetNNeighbors () const
+{
+    return m_neighbors.size ();
+}
+
 TypeId
 HelloHeader::GetTypeId()
 {
@@ -246,23 +312,34 @@ HelloHeader::GetInstanceTypeId() const
 void
 HelloHeader::Print(std::ostream &os) const
 {
-    os << "Hello Header: Network Mask=" << m_networkMask
+    os << "Hello Header: Network Mask=" << m_networkMask << "\n"
        << ", Hello Interval=" << m_helloInterval
        << ", Options=" << (uint32_t)m_options
-       << ", Router Priority=" << (uint32_t)m_routerPriority
-       << ", Dead Interval=" << m_routerDeadInterval
-       << ", Designated Router=" << m_designatedRouter
-       << ", Backup Designated Router=" << m_backupDesignatedRouter
-       << std::endl;
+       << ", Router Priority=" << (uint32_t)m_routerPriority << "\n"
+       << ", Dead Interval=" << m_routerDeadInterval <<"\n"
+       << ", Designated Router=" << m_designatedRouter << "\n"
+       << ", Backup Designated Router=" << m_backupDesignatedRouter << "\n"
+       << "The neighbor's addresses" << std::endl;
+
+    for (std::list<Ipv4Address>::const_iterator iter = m_neighbors.begin ();
+         iter != m_neighbors.end ();
+         iter ++)
+        {
+           iter->Print (os);
+           os << ", ";
+        }
+
 }
 
-uint32_t HelloHeader::GetSerializedSize() const
+uint32_t
+HelloHeader::GetSerializedSize() const
 {
     // The size of HelloHeader is 20 bytes + with Neighbor IpAddresses size
     return 20 + 4 * m_neighbors.size ();
 }
 
-void HelloHeader::Serialize(Buffer::Iterator start) const
+void
+HelloHeader::Serialize(Buffer::Iterator start) const
 {
     Buffer::Iterator i = start;
     i.WriteHtonU32 (m_networkMask.Get());
@@ -281,7 +358,8 @@ void HelloHeader::Serialize(Buffer::Iterator start) const
         }
 }
 
-uint32_t HelloHeader::Deserialize(Buffer::Iterator start)
+uint32_t
+HelloHeader::Deserialize(Buffer::Iterator start)
 {
     Buffer::Iterator i = start;
     
@@ -297,9 +375,8 @@ uint32_t HelloHeader::Deserialize(Buffer::Iterator start)
     m_neighbors.clear();
 
     // Calculate the number of neighbors from the remaining size
-    uint32_t remainingSize = GetSerializedSize() - 20; // 20 bytes for the fixed part
+    uint32_t remainingSize = i.GetRemainingSize (); // 20 bytes for the fixed part
     uint32_t neighborCount = remainingSize / 4;
-
     for (uint32_t j = 0; j < neighborCount; ++j)
     {
         Ipv4Address neighborAddress(i.ReadNtohU32());
