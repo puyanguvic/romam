@@ -13,9 +13,11 @@ endif()
 build_lib(
     LIBNAME open-routing
     SOURCE_FILES model/state-machine.cc
+                 model/ospf-header.cc
 #                 model/open-routing.cc
 #                 helper/open-routing-helper.cc
     HEADER_FILES model/state-machine.h
+                 model/ospf-header.cc
 #                 model/open-routing.h    
 #                 helper/open-routing-helper.h
     LIBRARIES_TO_LINK ${libcore}

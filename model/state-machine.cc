@@ -19,46 +19,52 @@
 
 #include "state-machine.h"
 
-namespace ns3
-{
+namespace ns3 {
+namespace open_routing {
 
-// NS_LOG_COMPONENT_DEFINE("StateMachine");
+// State base class Implementation
 
-namespace open_routing
-{
-
-template <typename StateType, typename EventType>
-StateMachine<StateType, EventType>::StateMachine() {}
-
-template <typename StateType, typename EventType>
-StateMachine<StateType, EventType>::~StateMachine() {}
-
-template <typename StateType, typename EventType>
-void StateMachine<StateType, EventType>::addTransition(const StateType& fromState, const EventType& event,
-                                                       const StateType& toState, ActionFunction action) {
-    transitions[{fromState, event}] = toState;
-    actions[{fromState, event}] = action;
+State::~State() {
 }
 
-template <typename StateType, typename EventType>
-void StateMachine<StateType, EventType>::handleEvent(const EventType& event) {
-    auto transitionKey = std::make_pair(currentState, event);
-    auto transitionIt = transitions.find(transitionKey);
+void
+State::Set_context(Context *context) {
+    this->m_context = context;
+}
 
-    if (transitionIt != transitions.end()) {
-        auto actionIt = actions.find(transitionKey);
-        if (actionIt != actions.end()) {
-            actionIt->second();
-        }
+// Context base class Implementation
 
-        currentState = transitionIt->second;
+Context::Context(State *state) : m_state(nullptr) {
+    this->TransitionTo(state);
+}
+
+Context::~Context() {
+    delete m_state;  // Ensure proper deletion of the current state
+}
+
+void
+Context::TransitionTo(State *state) {
+    if (state == nullptr) {
+        std::cerr << "Error: Trying to transition to a null state." << std::endl;
+        return;
+    }
+
+    std::cout << "Context: Transition to " << typeid(*state).name() << ".\n";
+    if (this->m_state != nullptr) {
+        delete this->m_state;
+    }
+    this->m_state = state;
+    this->m_state->Set_context(this);
+}
+
+void
+Context::Request() {
+    if (this->m_state != nullptr) {
+        this->m_state->Handle();
+    } else {
+        std::cerr << "Error: No current state to handle request." << std::endl;
     }
 }
 
-template <typename StateType, typename EventType>
-StateType StateMachine<StateType, EventType>::getCurrentState() const {
-    return currentState;
-}
-
-}
-}
+} // namespace open_routing
+} // namespace ns3

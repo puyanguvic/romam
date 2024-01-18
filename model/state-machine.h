@@ -29,106 +29,48 @@ namespace ns3
 {
 namespace open_routing
 {
+    /**
+     * @brief The base state class declares methods that all Concrete State should
+     * implement and also provides a backreference to the Context object, associated
+     * with the State. This backreference can be used by States to transition the 
+     * context to another State.
+     */
+    class Context;
 
-template <typename StateType, typename EventType>
-class StateMachine {
-public:
-    using ActionFunction = std::function<void()>;
+    class State {
+        public:
+            virtual ~State();
 
-    StateMachine();
-    virtual ~StateMachine();
+            void Set_context(Context *context);
+            virtual void Handle() = 0;
 
-    void addTransition(const StateType& fromState, const EventType& event,
-                       const StateType& toState, ActionFunction action);
+        protected:
+            Context *m_context;
+        };
 
-    void handleEvent(const EventType& event);
 
-    StateType getCurrentState() const;
+    /**
+     * @brief This Context defines the interface of interest to clients. It also 
+     * maintains a reference to an instance of a State subclass, which represents
+     * the current state of Context.
+     */
+    class Context
+    {
+    
+    public:
+        Context (State *state);
+        
+        ~Context();
 
-protected:
-    StateType currentState;
-    std::map<std::pair<StateType, EventType>, StateType> transitions;
-    std::map<std::pair<StateType, EventType>, ActionFunction> actions;
-};
+        // The context allows changing the State Object at runtime.
+        void TransitionTo (State *state);
 
+        // The context delegates part of its behavior to the current State Object.
+        void Request ();
+    private:
+        State *m_state;
+    };
 } // namespace open_routing
 } // namespace ns3
 
 #endif // STATE_MACHINE_H
-
-
-
-
-
-
-
-// // Define the states for the routing protocol
-// enum class RouterState {
-//     Idle,
-//     Configuring,
-//     Active,
-//     Error
-// };
-
-// // Define the events for the routing protocol
-// enum class RouterEvent {
-//     Start,
-//     Configure,
-//     Activate,
-//     Deactivate,
-//     ErrorDetected
-// };
-
-
-
-// // Define the states for the routing protocol
-// enum class RouterState {
-//     Idle,
-//     Configuring,
-//     Active,
-//     Error
-// };
-
-// // Define the events for the routing protocol
-// enum class RouterEvent {
-//     Start,
-//     Configure,
-//     Activate,
-//     Deactivate,
-//     ErrorDetected
-// };
-
-
-
-// // Example usage
-// int main() {
-//     // Instantiate the RoutingProtocol with an initial state
-//     RoutingProtocol<RouterState, RouterEvent> router(RouterState::Idle);
-
-//     // Add transitions based on the routing protocol's logic
-//     router.addTransition(RouterState::Idle, RouterEvent::Start, RouterState::Configuring, [](){
-//         std::cout << "Transitioning to Configuring state..." << std::endl;
-//     });
-
-//     router.addTransition(RouterState::Configuring, RouterEvent::Configure, RouterState::Active, [](){
-//         std::cout << "Transitioning to Active state..." << std::endl;
-//     });
-
-//     router.addTransition(RouterState::Active, RouterEvent::Deactivate, RouterState::Idle, [](){
-//         std::cout << "Transitioning to Idle state..." << std::endl;
-//     });
-
-//     router.addTransition(RouterState::Active, RouterEvent::ErrorDetected, RouterState::Error, [](){
-//         std::cout << "Transitioning to Error state..." << std::endl;
-//     });
-
-//     // Process events to trigger state transitions
-//     router.processEvent(RouterEvent::Start);
-//     router.processEvent(RouterEvent::Configure);
-//     router.processEvent(RouterEvent::Deactivate);
-
-//     // Get the current state of the routing protocol
-//     std::cout << "Current State: " << static_cast<int>(router.getCurrentState()) << std::endl;
-
-//     return 0;
-// }

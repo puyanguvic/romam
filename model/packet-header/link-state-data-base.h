@@ -562,7 +562,7 @@ class SPFVertex
  * @brief The Link State DataBase (LSDB) of the Global Route Manager.
  *
  * Each node in the simulation participating in global routing has a
- * GlobalRouter interface.  The primary job of this interface is to export
+ * GlobalRouter interface.    The primary job of this interface is to export
  * Global Router Link State Advertisements (LSAs).  These advertisements in
  * turn contain a number of Global Router Link Records that describe the
  * point to point links from the underlying node to other nodes (that will
