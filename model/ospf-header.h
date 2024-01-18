@@ -10,6 +10,9 @@ namespace ns3
 namespace open_routing
 {
 
+class LSAHeader;
+class LSA;
+
 /**
  * \ingroup open_routing
  *
@@ -199,48 +202,67 @@ private:
 class HelloHeader : public Header 
 {
 public:
+  /**
+   * @brief Construct a null Hello Header
+   * 
+   * Initializes a new Hello packet with default values for each field.
+   */
   HelloHeader ();
-  ~HelloHeader ();
 
-  // ns-3 type declaration
-  static TypeId GetTypeId (void);
-  virtual TypeId GetInstanceTypeId (void) const;
+  ~HelloHeader () override;
 
-  // Override Header methods
-  virtual void Serialize (Buffer::Iterator start) const;
-  virtual uint32_t Deserialize (Buffer::Iterator start);
-  virtual uint32_t GetSerializedSize () const;
-  virtual void Print (std::ostream &os) const;
-
-  // Setters
+  /**
+   * @brief Set the Network Mask
+   * 
+   * @param mask Network Mask associated with the router's sending interface
+   */
   void SetNetworkMask (Ipv4Address mask);
-  void SetHelloInterval (uint16_t interval);
-  void SetOptions (uint8_t options);
-  void SetRouterPriority (uint8_t priority);
-  void SetRouterDeadInterval (uint32_t interval);
-  void SetDesignatedRouter (Ipv4Address address);
-  void SetBackupDesignatedRouter (Ipv4Address address);
-  // Add methods to handle the Neighbor field
-
-  // Getters
+  
+  /**
+   * @brief Get the Network Mask
+   * 
+   * @return Network mask 
+   */
   Ipv4Address GetNetworkMask () const;
+  
+  /**
+   * @brief Set the Hello Interval object
+   * 
+   * @param interval 
+   */
+  void SetHelloInterval (uint16_t interval);
   uint16_t GetHelloInterval () const;
-  uint8_t GetOptions () const;
-  uint8_t GetRouterPriority () const;
-  uint32_t GetRouterDeadInterval () const;
-  Ipv4Address GetDesignatedRouter () const;
-  Ipv4Address GetBackupDesignatedRouter () const;
-  // Add methods to retrieve the Neighbor field
 
-    /**
-     * \brief Get the type ID.
-     * \return the object TypeId
-     */
+  void SetOptions (uint8_t options);
+  uint8_t GetOptions () const;
+
+  void SetRouterPriority (uint8_t priority);
+  uint8_t GetRouterPriority () const;
+
+  void SetRouterDeadInterval (uint32_t interval);
+  uint32_t GetRouterDeadInterval () const;
+
+  void SetDesignatedRouter (Ipv4Address address);
+  Ipv4Address GetDesignatedRouter () const;
+
+  void SetBackupDesignatedRouter (Ipv4Address address);
+  Ipv4Address GetBackupDesignatedRouter () const;
+
+  void AddNeighbor(Ipv4Address addr);
+  void ClearNeighbors ();
+  uint16_t GetNNeighbors () const;
+  Ipv4Address GetNeighbor(uint16_t n) const;
+  
+  /**
+   * \brief Get the type ID.
+   * \return the object TypeId
+   */
   static TypeId GetTypeId();
   TypeId GetInstanceTypeId() const override;
   void Print(std::ostream& os) const override;
   uint32_t GetSerializedSize() const override;
-  void Serialize(Buffer::Iterator start) const override;uint32_t Deserialize(Buffer::Iterator start) override;
+  void Serialize(Buffer::Iterator start) const override;
+  uint32_t Deserialize(Buffer::Iterator start) override;
 
 private:
   // Network mask associated with the router's sending interface. If
@@ -291,32 +313,47 @@ private:
  * +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
  * 
  */
-
-class DBDHeader : public Header{
+class DDHeader : public Header{
 public:
-    // Setters and Getters for each field
-    void SetInterfaceMTU(uint16_t mtu) { interfaceMTU = mtu; }
-    uint16_t GetInterfaceMTU() const { return interfaceMTU; }
+    DDHeader ();
+    ~DDHeader ();
+    
+    void SetInterfaceMTU(uint16_t mtu);
+    uint16_t GetInterfaceMTU() const;
 
-    void SetOptions(uint8_t opts) { options = opts; }
-    uint8_t GetOptions() const { return options; }
+    void SetOptions(uint8_t opts);
+    uint8_t GetOptions() const;
 
-    void SetFlags(uint8_t flgs) { flags = flgs; }
-    uint8_t GetFlags() const { return flags; }
+    void SetFlags(uint8_t flgs);
+    uint8_t GetFlags() const;
 
-    void SetDDSequenceNumber(uint32_t seqNum) { ddSequenceNumber = seqNum; }
-    uint32_t GetDDSequenceNumber() const { return ddSequenceNumber; }
+    void SetDDSequenceNumber(uint32_t seqNum);
+    uint32_t GetDDSequenceNumber() const;
 
-    // Methods to handle LSA Headers (e.g., adding, retrieving)
-    // ...
+    void AddLSAHeader(LSAHeader lsaHeader);
+    void ClearLSAHeaders ();
+    uint16_t GetNLSAHeaders () const;
+    LSAHeader GetLSAHeader(uint16_t n) const;
+
+    /**
+     * \brief Get the type ID.
+     * \return the object TypeId
+     */
+    static TypeId GetTypeId();
+    TypeId GetInstanceTypeId() const override;
+    void Print(std::ostream& os) const override;
+    uint32_t GetSerializedSize() const override;
+    void Serialize(Buffer::Iterator start) const override;
+    uint32_t Deserialize(Buffer::Iterator start) override;
 
 private:
     uint16_t interfaceMTU;      // Interface Maximum Transmission Unit
     uint8_t options;            // OSPF-specific options
     uint8_t flags;              // Flags (Init, More, Master/Slave)
     uint32_t ddSequenceNumber;  // Database Descriptor sequence number
-    // Container for LSA Headers
-    // std::vector<LSAHeader> lsaHeaders;
+    typedef std::list<LSAHeader> ListOfLSAHeaders_t;
+    // Neighbor, Router ID of the neighbor router.
+    ListOfLSAHeaders_t m_LSAHeaders;
 };
 
 
@@ -324,6 +361,11 @@ private:
  * \ingroup open_routing
  *
  * \brief Link State Request (LSR) header for OSPF
+ * 
+ * After exchanging DD packets, two routers know which LSAs of the peer
+ * are missing from the local LSDB. Then, they send (link state request)
+ * LSR packets to request the missing LSAs. An LSR packet contains the 
+ * brief of the missing LSAs.
  *
  *  0                   1                   2                   3
  *  0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1
@@ -338,11 +380,44 @@ private:
  * +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
  * 
  */
+class LSRHeader : public Header{
+public:
+    LSRHeader ();
+    ~LSRHeader ();
+    
+    void SetlsType(uint32_t lsType);
+    uint32_t GetlsType() const;
+    
+    void SetLinkStateId (uint32_t linkStateId);
+    uint32_t GetLinkStateId () const;
+
+    void SetAdvertisingRouter (Ipv4Address ipv4);
+    Ipv4Address GetAdvertisingRouter () const;
+
+    /**
+     * \brief Get the type ID.
+     * \return the object TypeId
+     */
+    static TypeId GetTypeId();
+    TypeId GetInstanceTypeId() const override;
+    void Print(std::ostream& os) const override;
+    uint32_t GetSerializedSize() const override;
+    void Serialize(Buffer::Iterator start) const override;
+    uint32_t Deserialize(Buffer::Iterator start) override;
+
+private:
+    uint32_t m_lsType; //!< Type of the LSA to be requested. Type 1 for example indicate the Router LSA
+    uint32_t m_linkStateId; //!< Determined by LSA type.
+    Ipv4Address m_advertisingRouter; //!< ID of the router that sent the LSA.
+};
 
 /**
  * \ingroup open_routing
  *
  * \brief Link State Update (LSU) header for OSPF
+ * 
+ * LSU (Link State Update) packets are used to send the requested LSAs
+ * to the peer. Each packet carries a collection of LSAs.
  *
  *  0                   1                   2                   3
  *  0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1
@@ -357,6 +432,23 @@ private:
  * +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
  * 
  */
+class LSU : public Header{
+public:
+    LSU ();
+    ~LSU ();
+
+    void SetNLSAs (uint32_t num);
+    uint32_t GetNLSAs () const;
+
+    void AddLSA(LSA lsa);
+    void ClearLSAs ();
+    LSAHeader GetLSA(uint16_t n) const;
+
+private:
+    uint32_t m_nLSAs; //!< Number of LSAs
+    typedef std::list<LSA> ListOfLSAs_t;
+    ListOfLSAs_t m_LSAs; //!< List of LSAs
+};
 
 /**
  * \ingroup open_routing
@@ -376,6 +468,20 @@ private:
  * +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
  * 
  */
+class LSAck : public Header {
+public:
+    LSAck ();
+    ~LSAck ();
+
+    uint32_t GetNLSAHeaders () const;
+    void AddLSAHeader(LSAHeader lsaHeader);
+    void ClearLSAHeaders ();
+    LSAHeader GetLSAHeader(uint16_t n) const;
+
+private:
+    typedef std::list<LSAHeader> ListOfLSAHeaders_t;
+    ListOfLSAHeaders_t m_LSAHeaders; //!< List of LSAs
+};
 
 /**
  * \ingroup open_routing
@@ -397,6 +503,21 @@ private:
  * |      LS checksum              |             Length            |
  * +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
  */
+class LSAHeader : public Header {
+public:
+    LSAHeader ();
+    ~LSAHeader ();
+
+private:
+    uint16_t m_lsAge;
+    uint8_t m_options;
+    uint8_t m_lsType;
+    uint32_t m_linkStateId;
+    uint32_t m_advertisingRouter;
+    uint32_t m_lsSequenceNumber;
+    uint16_t m_lsChecksum;
+    uint16_t m_length;
+};
 
 /**
  * \ingroup open_routing
@@ -417,12 +538,26 @@ private:
  * |                              ...                              |
  * +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
  */
+class RouterLSA : public Header {
+public:
+    RouterLSA ();
+    ~RouterLSA ();
 
+private:
+    // uinfinished bits
+    uint32_t m_linkId;
+    uint32_t m_linkData;
+    uint8_t m_type;
+    uint8_t m_tos;
+    uint16_t m_metrix;
+};
 
 /**
  * \ingroup open_routing
  *
  * \brief Network LSAs format
+ * 
+ * The Link state ID of a network LSA is the interface address of the DR
  *
  *  0                   1                   2                   3
  *  0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1
@@ -434,6 +569,14 @@ private:
  * |                              ...                              |
  * +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
  */
+class NetworkLSA : public Header {
+public:
+
+private:
+    Ipv4Address m_networkMask;
+    Ipv4Address m_attachedRouter;
+};
+
 
 /**
  * \ingroup open_routing
