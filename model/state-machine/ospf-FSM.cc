@@ -33,24 +33,43 @@ namespace open_routing
 void
 Down::Handle ()
 {
-    // Send Hello packets
+    // Check for received Hello Packets
+    if (/* condition to check for received Hello packets */) {
+        // If a Hello packet is received, transition to the next state (e.g., Init or Attempt state)
+        TransitionToNextState();
+    } else {
+        // If no Hello packet is received, continue to send Hello packets
+        SendHelloPackets();
 
-    // Set timer to wait for replies
-
-    // Transition to Attempt state if in NBMA network
-
-    // Transition to Init state upon receiving a Hello packet
+        // Check the RouterDeadInterval
+        if (/* condition to check if the RouterDeadInterval has expired */) {
+            // If the RouterDeadInterval has expired, take necessary action
+            // This might include logging the event, alerting the system, or other actions
+            HandleRouterDeadIntervalExpiration();
+        }
+    }
 }
 
 void
 Attempt::Handle () 
 {
-    // Send unicast Hello packet in NBMA networks
+    // Send a unicast Hello packet to the neighbor.
+    // This is specifically for NBMA networks where multicast is not effective.
+    SendUnicastHello();
 
-    // Transition to Down state if no reply within the dead interval
-
-    // Transition to Init State upon receiveing a Hello packet
+    // Check for Hello packet response within the dead interval.
+    if (IsDeadIntervalExpired()) {
+        // If there's no Hello response within the dead interval,
+        // transition back to the Down state.
+        TransitionToDownState();
+    } else if (IsHelloReceived()) {
+        // If a Hello packet is received from the neighbor,
+        // transition to the Init state.
+        TransitionToInitState();
+    }
 }
+
+
 
 void
 Init::Handle ()

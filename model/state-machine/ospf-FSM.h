@@ -52,9 +52,7 @@ class  Down : public State {
  * from which hellos have not been received within the dead interval.
  */
 class Attempt : public State {
-    void Handle () override {
-        std::cout << "ConcreteStateB handles request.\n";
-    }
+    void Handle () override;
 };
 
 /**

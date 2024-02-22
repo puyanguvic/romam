@@ -22,12 +22,12 @@
 
 #include "ns3/ipv4-routing-protocol.h"
 #include "ns3/ipv4-header.h"
-#include "ns3/ipv4-routing-protocol.h"
 #include "ns3/ipv4.h"
 
 #include "ns3/ipv4-address.h"
 #include "ns3/ptr.h"
 #include "ns3/socket.h"
+#include "ns3/open-routing-module.h"
 
 #include <list>
 #include <stdint.h>
@@ -115,6 +115,27 @@ private:
      * \brief state machine 
      * 
      */
+    Ptr<open_routing::Context> m_context;
+
+    /**
+     * \brief Receive Open routing packets.
+     * 
+     * \param socket the socket the packet was received to 
+     */
+    void Receive (Ptr<Socket> socket);
+
+    // note: we can not trust the result of socket->GetBoundNetDevice ()->GetIfIndex ();
+    // it is dependent on the interface initialization (i.e., if the loopback is already up).
+    /// Socket list type
+    typedef std::map<Ptr<Socket>, uint32_t> SocketList;
+    /// Socket list type iterator
+    typedef std::map<Ptr<Socket>, uint32_t>::iterator SocketListI;
+    /// Socket list type const iterator
+    typedef std::map<Ptr<Socket>, uint32_t>::const_iterator SocketListCI;
+
+    SocketList
+        m_unicastSocketList; //!< list of sockets for unicast messages (socket, interface index)
+    Ptr<Socket> m_multicastRecvSocket; //!< multicast receive socket
 };
 
 

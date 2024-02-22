@@ -70,6 +70,7 @@ namespace open_routing
     private:
         State *m_state;
     };
+
 } // namespace open_routing
 } // namespace ns3
 

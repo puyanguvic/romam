@@ -252,7 +252,10 @@ private:
 /**
  * \ingroup open_routing
  *
- * \brief Database Descriptor (DBD) header for OSPF
+ * \brief Database Descriptor (DD) header for OSPF
+ *
+ * This class represents the Database Descriptor header used in OSPF for exchanging database information.
+ * It includes fields like Interface MTU, Options, Flags, and DD Sequence Number, followed by LSA Headers.
  *
  *  0                   1                   2                   3
  *  0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1
@@ -269,60 +272,51 @@ private:
  * +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
  * 
  */
-class DDHeader : public Header{
+class DDHeader : public Header {
 public:
-    DDHeader ();
-    ~DDHeader ();
-    
-    void SetInterfaceMTU(uint16_t mtu);
-    uint16_t GetInterfaceMTU() const;
+    DDHeader (); //!< Constructor for the DDHeader
+    ~DDHeader (); //!< Destructor for the DDHeader
 
-    void SetOptions(uint8_t opts);
-    uint8_t GetOptions() const;
+    void SetInterfaceMTU(uint16_t mtu); //!< Set the Interface MTU
+    uint16_t GetInterfaceMTU() const;   //!< Get the Interface MTU
 
-    void SetFlags(uint8_t flgs);
-    uint8_t GetFlags() const;
+    void SetOptions(uint8_t opts); //!< Set OSPF-specific options
+    uint8_t GetOptions() const;    //!< Get OSPF-specific options
 
-    void SetDDSequenceNumber(uint32_t seqNum);
-    uint32_t GetDDSequenceNumber() const;
+    void SetFlags(uint8_t flgs); //!< Set Flags (Init, More, Master/Slave)
+    uint8_t GetFlags() const;    //!< Get Flags (Init, More, Master/Slave)
 
-    void AddLSAHeader(LSAHeader lsaHeader);
-    void ClearLSAHeaders ();
-    uint16_t GetNLSAHeaders () const;
-    LSAHeader GetLSAHeader(uint16_t n) const;
+    void SetDDSequenceNumber(uint32_t seqNum); //!< Set the DD Sequence Number
+    uint32_t GetDDSequenceNumber() const;     //!< Get the DD Sequence Number
 
-    /**
-     * \brief Get the type ID.
-     * \return the object TypeId
-     */
-    static TypeId GetTypeId();
-    TypeId GetInstanceTypeId() const override;
-    void Print(std::ostream& os) const override;
-    uint32_t GetSerializedSize() const override;
-    void Serialize(Buffer::Iterator start) const override;
-    uint32_t Deserialize(Buffer::Iterator start) override;
+    void AddLSAHeader(LSAHeader lsaHeader); //!< Add an LSA Header to the DBD
+    void ClearLSAHeaders ();                //!< Clear all LSA Headers
+    uint16_t GetNLSAHeaders () const;       //!< Get the number of LSA Headers
+    LSAHeader GetLSAHeader(uint16_t n) const; //!< Get a specific LSA Header
+
+    static TypeId GetTypeId();              //!< Get the TypeId of the object
+    TypeId GetInstanceTypeId() const override; //!< Get the instance TypeId
+    void Print(std::ostream& os) const override; //!< Print the header information
+    uint32_t GetSerializedSize() const override; //!< Get the size of the serialized header
+    void Serialize(Buffer::Iterator start) const override; //!< Serialize the header
+    uint32_t Deserialize(Buffer::Iterator start) override; //!< Deserialize the header
 
 private:
-    uint16_t interfaceMTU;      // Interface Maximum Transmission Unit
-    uint8_t options;            // OSPF-specific options
-    uint8_t flags;              // Flags (Init, More, Master/Slave)
-    uint32_t ddSequenceNumber;  // Database Descriptor sequence number
-    typedef std::list<LSAHeader> ListOfLSAHeaders_t;
-    // Neighbor, Router ID of the neighbor router.
-    ListOfLSAHeaders_t m_LSAHeaders;
+    uint16_t m_interfaceMTU;      //!< Interface Maximum Transmission Unit
+    uint8_t m_options;            //!< OSPF-specific options
+    uint8_t m_flags;              //!< Flags (Init, More, Master/Slave)
+    uint32_t m_ddSequenceNumber;  //!< Database Descriptor sequence number
+    std::list<LSAHeader> m_LSAHeaders; //!< List of LSA Headers
 };
-
 
 /**
  * \ingroup open_routing
  *
  * \brief Link State Request (LSR) header for OSPF
  * 
- * After exchanging DD packets, two routers know which LSAs of the peer
- * are missing from the local LSDB. Then, they send (link state request)
- * LSR packets to request the missing LSAs. An LSR packet contains the 
- * brief of the missing LSAs.
- *
+ * This class represents the LSR (Link State Request) header used in OSPF. LSR packets are used to request
+ * specific LSAs that are missing in the local Link State Database (LSDB) after exchanging Database Descriptor (DD) packets.
+ * Each LSR packet contains details of the requested LSAs such as LS type, Link State ID, and Advertising Router. 
  *  0                   1                   2                   3
  *  0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1
  * +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
@@ -336,36 +330,33 @@ private:
  * +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
  * 
  */
-// class LSRHeader : public Header{
-// public:
-//     LSRHeader ();
-//     ~LSRHeader ();
-    
-//     void SetlsType(uint32_t lsType);
-//     uint32_t GetlsType() const;
-    
-//     void SetLinkStateId (uint32_t linkStateId);
-//     uint32_t GetLinkStateId () const;
+class LSRHeader : public Header {
+public:
+    LSRHeader (); //!< Constructor for LSRHeader
+    ~LSRHeader (); //!< Destructor for LSRHeader
 
-//     void SetAdvertisingRouter (Ipv4Address ipv4);
-//     Ipv4Address GetAdvertisingRouter () const;
+    void SetLsType(uint32_t lsType); //!< Set the LS type of the LSA to be requested
+    uint32_t GetLsType() const; //!< Get the LS type of the LSA to be requested
 
-//     /**
-//      * \brief Get the type ID.
-//      * \return the object TypeId
-//      */
-//     static TypeId GetTypeId();
-//     TypeId GetInstanceTypeId() const override;
-//     void Print(std::ostream& os) const override;
-//     uint32_t GetSerializedSize() const override;
-//     void Serialize(Buffer::Iterator start) const override;
-//     uint32_t Deserialize(Buffer::Iterator start) override;
+    void SetLinkStateId(uint32_t linkStateId); //!< Set the Link State ID of the LSA to be requested
+    uint32_t GetLinkStateId() const; //!< Get the Link State ID of the LSA to be requested
 
-// private:
-//     uint32_t m_lsType; //!< Type of the LSA to be requested. Type 1 for example indicate the Router LSA
-//     uint32_t m_linkStateId; //!< Determined by LSA type.
-//     Ipv4Address m_advertisingRouter; //!< ID of the router that sent the LSA.
-// };
+    void SetAdvertisingRouter(Ipv4Address ipv4); //!< Set the Advertising Router's ID
+    Ipv4Address GetAdvertisingRouter() const; //!< Get the Advertising Router's ID
+
+    static TypeId GetTypeId(); //!< Get the TypeId of the object
+    TypeId GetInstanceTypeId() const override; //!< Get the instance TypeId
+    void Print(std::ostream& os) const override; //!< Print the header information
+    uint32_t GetSerializedSize() const override; //!< Get the size of the serialized header
+    void Serialize(Buffer::Iterator start) const override; //!< Serialize the header
+    uint32_t Deserialize(Buffer::Iterator start) override; //!< Deserialize the header
+
+private:
+    uint32_t m_lsType; //!< Type of the LSA to be requested. For example, type 1 indicates the Router LSA
+    uint32_t m_linkStateId; //!< Determined by the LSA type.
+    Ipv4Address m_advertisingRouter; //!< ID of the router that sent the LSA.
+};
+
 
 /**
  * \ingroup open_routing
@@ -388,23 +379,31 @@ private:
  * +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
  * 
  */
-// class LSU : public Header{
-// public:
-//     LSU ();
-//     ~LSU ();
+class LSU : public Header{
+public:
+    LSU ();
+    ~LSU ();
 
-//     void SetNLSAs (uint32_t num);
-//     uint32_t GetNLSAs () const;
+    void SetNLSAs (uint32_t num);
+    uint32_t GetNLSAs () const;
 
-//     void AddLSA(LSA lsa);
-//     void ClearLSAs ();
-//     LSAHeader GetLSA(uint16_t n) const;
+    void AddLSA(LSA lsa);
+    void ClearLSAs ();
+    LSAHeader GetLSA(uint16_t n) const;
 
-// private:
-//     uint32_t m_nLSAs; //!< Number of LSAs
-//     typedef std::list<LSA> ListOfLSAs_t;
-//     ListOfLSAs_t m_LSAs; //!< List of LSAs
-// };
+    static TypeId GetTypeId(); //!< Get the TypeId of the object
+    TypeId GetInstanceTypeId() const override; //!< Get the instance TypeId
+    void Print(std::ostream& os) const override; //!< Print the header information
+    uint32_t GetSerializedSize() const override; //!< Get the size of the serialized header
+    void Serialize(Buffer::Iterator start) const override; //!< Serialize the header
+    uint32_t Deserialize(Buffer::Iterator start) override; //!< Deserialize the header
+
+
+private:
+    uint32_t m_nLSAs; //!< Number of LSAs
+    typedef std::list<LSA> ListOfLSAs_t;
+    ListOfLSAs_t m_LSAs; //!< List of LSAs
+};
 
 /**
  * \ingroup open_routing
@@ -424,20 +423,26 @@ private:
  * +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
  * 
  */
-// class LSAck : public Header {
-// public:
-//     LSAck ();
-//     ~LSAck ();
+class LSAck : public Header {
+public:
+    LSAck ();
+    ~LSAck ();
 
-//     uint32_t GetNLSAHeaders () const;
-//     void AddLSAHeader(LSAHeader lsaHeader);
-//     void ClearLSAHeaders ();
-//     LSAHeader GetLSAHeader(uint16_t n) const;
+    uint32_t GetNLSAHeaders () const;
+    void AddLSAHeader(LSAHeader lsaHeader);
+    void ClearLSAHeaders ();
+    LSAHeader GetLSAHeader(uint16_t n) const;
 
-// private:
-//     typedef std::list<LSAHeader> ListOfLSAHeaders_t;
-//     ListOfLSAHeaders_t m_LSAHeaders; //!< List of LSAs
-// };
+    static TypeId GetTypeId(); //!< Get the TypeId of the object
+    TypeId GetInstanceTypeId() const override; //!< Get the instance TypeId
+    void Print(std::ostream& os) const override; //!< Print the header information
+    uint32_t GetSerializedSize() const override; //!< Get the size of the serialized header
+    void Serialize(Buffer::Iterator start) const override; //!< Serialize the header
+    uint32_t Deserialize(Buffer::Iterator start) override; //!< Deserialize the header
+private:
+    typedef std::list<LSAHeader> ListOfLSAHeaders_t;
+    ListOfLSAHeaders_t m_LSAHeaders; //!< List of LSAs
+};
 
 /**
  * \ingroup open_routing
@@ -459,21 +464,48 @@ private:
  * |      LS checksum              |             Length            |
  * +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
  */
-// class LSAHeader : public Header {
-// public:
-//     LSAHeader ();
-//     ~LSAHeader ();
+class LSAHeader : public Header {
+public:
+    LSAHeader ();
+    ~LSAHeader ();
 
-// private:
-//     uint16_t m_lsAge;
-//     uint8_t m_options;
-//     uint8_t m_lsType;
-//     uint32_t m_linkStateId;
-//     uint32_t m_advertisingRouter;
-//     uint32_t m_lsSequenceNumber;
-//     uint16_t m_lsChecksum;
-//     uint16_t m_length;
-// };
+    // Setters
+    void SetLsAge(uint16_t age);
+    void SetOptions(uint8_t options);
+    void SetLsType(uint8_t type);
+    void SetLinkStateId(uint32_t id);
+    void SetAdvertisingRouter(uint32_t routerId);
+    void SetLsSequenceNumber(uint32_t sequenceNumber);
+    void SetLsChecksum(uint16_t checksum);
+    void SetLength(uint16_t length);
+
+    // Getters
+    uint16_t GetLsAge() const;
+    uint8_t GetOptions() const;
+    uint8_t GetLsType() const;
+    uint32_t GetLinkStateId() const;
+    uint32_t GetAdvertisingRouter() const;
+    uint32_t GetLsSequenceNumber() const;
+    uint16_t GetLsChecksum() const;
+    uint16_t GetLength() const;
+
+    static TypeId GetTypeId(); //!< Get the TypeId of the object
+    TypeId GetInstanceTypeId() const override; //!< Get the instance TypeId
+    void Print(std::ostream& os) const override; //!< Print the header information
+    uint32_t GetSerializedSize() const override; //!< Get the size of the serialized header
+    void Serialize(Buffer::Iterator start) const override; //!< Serialize the header
+    uint32_t Deserialize(Buffer::Iterator start) override; //!< Deserialize the header
+
+private:
+    uint16_t m_lsAge;
+    uint8_t m_options;
+    uint8_t m_lsType;
+    uint32_t m_linkStateId;
+    uint32_t m_advertisingRouter;
+    uint32_t m_lsSequenceNumber;
+    uint16_t m_lsChecksum;
+    uint16_t m_length;
+};
 
 /**
  * \ingroup open_routing
@@ -494,19 +526,39 @@ private:
  * |                              ...                              |
  * +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
  */
-// class RouterLSA : public Header {
-// public:
-//     RouterLSA ();
-//     ~RouterLSA ();
+class RouterLSA : public Header {
+public:
+    RouterLSA ();
+    ~RouterLSA ();
 
-// private:
-//     // uinfinished bits
-//     uint32_t m_linkId;
-//     uint32_t m_linkData;
-//     uint8_t m_type;
-//     uint8_t m_tos;
-//     uint16_t m_metrix;
-// };
+    // Setters
+    void SetLinkId(uint32_t linkId);
+    void SetLinkData(uint32_t linkData);
+    void SetType(uint8_t type);
+    void SetTos(uint8_t tos);
+    void SetMetrix(uint16_t metrix);
+
+    // Getters
+    uint32_t GetLinkId() const;
+    uint32_t GetLinkData() const;
+    uint8_t GetType() const;
+    uint8_t GetTos() const;
+    uint16_t GetMetrix() const;
+
+    static TypeId GetTypeId(); //!< Get the TypeId of the object
+    TypeId GetInstanceTypeId() const override; //!< Get the instance TypeId
+    void Print(std::ostream& os) const override; //!< Print the header information
+    uint32_t GetSerializedSize() const override; //!< Get the size of the serialized header
+    void Serialize(Buffer::Iterator start) const override; //!< Serialize the header
+    uint32_t Deserialize(Buffer::Iterator start) override; //!< Deserialize the header
+private:
+    // uinfinished bits
+    uint32_t m_linkId;
+    uint32_t m_linkData;
+    uint8_t m_type;
+    uint8_t m_tos;
+    uint16_t m_metrix;
+};
 
 /**
  * \ingroup open_routing

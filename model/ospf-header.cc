@@ -387,5 +387,305 @@ HelloHeader::Deserialize(Buffer::Iterator start)
 }
 
 
+// -----------------------------------------
+// ------ DDHeader
+// -----------------------------------------
+DDHeader::DDHeader()
+    : m_interfaceMTU(0),
+      m_options(0),
+      m_flags(0),
+      m_ddSequenceNumber(0)
+{
+}
+
+DDHeader::~DDHeader()
+{
+}
+
+void
+DDHeader::SetInterfaceMTU(uint16_t mtu)
+{
+    m_interfaceMTU = mtu;
+}
+
+uint16_t
+DDHeader::GetInterfaceMTU() const
+{
+    return m_interfaceMTU;
+}
+
+void
+DDHeader::SetOptions(uint8_t opts)
+{
+    m_options = opts;
+}
+
+uint8_t
+DDHeader::GetOptions() const
+{
+    return m_options;
+}
+
+void
+DDHeader::SetFlags(uint8_t flgs)
+{
+    m_flags = flgs;
+}
+
+uint8_t
+DDHeader::GetFlags() const
+{
+    return m_flags;
+}
+
+void
+DDHeader::SetDDSequenceNumber(uint32_t seqNum)
+{
+    m_ddSequenceNumber = seqNum;
+}
+
+uint32_t
+DDHeader::GetDDSequenceNumber() const
+{
+    return m_ddSequenceNumber;
+}
+
+void
+DDHeader::AddLSAHeader(LSAHeader lsaHeader)
+{
+    m_LSAHeaders.push_back(lsaHeader);
+}
+
+void
+DDHeader::ClearLSAHeaders()
+{
+    m_LSAHeaders.clear();
+}
+
+uint16_t
+DDHeader::GetNLSAHeaders() const
+{
+    return m_LSAHeaders.size();
+}
+
+LSAHeader
+DDHeader::GetLSAHeader(uint16_t n) const
+{
+    // Implementation to get a specific LSA Header
+}
+
+TypeId
+DDHeader::GetTypeId()
+{
+    // Implementation of TypeId method
+}
+
+TypeId
+DDHeader::GetInstanceTypeId() const
+{
+    // Implementation of instance TypeId method
+}
+
+void
+DDHeader::Print(std::ostream &os) const
+{
+    // Print method implementation
+}
+
+uint32_t
+DDHeader::GetSerializedSize() const
+{
+    // Implementation of GetSerializedSize method
+}
+
+void
+DDHeader::Serialize(Buffer::Iterator start) const
+{
+    // Serialize method implementation
+}
+
+uint32_t
+DDHeader::Deserialize(Buffer::Iterator start)
+{
+    // Deserialize method implementation
+}
+
+
+// ------------------------------------------
+// ---------- LSR header
+// ------------------------------------------
+LSRHeader::LSRHeader()
+    : m_lsType(0),
+      m_linkStateId(0),
+      m_advertisingRouter() {
+    // Constructor implementation
+}
+
+LSRHeader::~LSRHeader() {
+    // Destructor implementation
+}
+
+void LSRHeader::SetLsType(uint32_t lsType) {
+    m_lsType = lsType;
+}
+
+uint32_t LSRHeader::GetLsType() const {
+    return m_lsType;
+}
+
+void LSRHeader::SetLinkStateId(uint32_t linkStateId) {
+    m_linkStateId = linkStateId;
+}
+
+uint32_t LSRHeader::GetLinkStateId() const {
+    return m_linkStateId;
+}
+
+void LSRHeader::SetAdvertisingRouter(Ipv4Address ipv4) {
+    m_advertisingRouter = ipv4;
+}
+
+Ipv4Address LSRHeader::GetAdvertisingRouter() const {
+    return m_advertisingRouter;
+}
+
+TypeId LSRHeader::GetTypeId() {
+    // Implementation of TypeId method
+}
+
+TypeId LSRHeader::GetInstanceTypeId() const {
+    // Implementation of instance TypeId method
+}
+
+void LSRHeader::Print(std::ostream &os) const {
+    // Print method implementation
+}
+
+uint32_t LSRHeader::GetSerializedSize() const {
+    // Implementation of GetSerializedSize method
+}
+
+void LSRHeader::Serialize(Buffer::Iterator start) const {
+    // Serialize method implementation
+}
+
+uint32_t LSRHeader::Deserialize(Buffer::Iterator start) {
+    // Deserialize method implementation
+}
+
+// ------------------------------------------
+// ---------- LSU header
+// ------------------------------------------
+LSU::LSU()
+    : m_nLSAs(0) {
+    // Constructor implementation
+}
+
+LSU::~LSU() {
+    // Destructor implementation
+}
+
+void LSU::SetNLSAs(uint32_t num) {
+    m_nLSAs = num;
+}
+
+uint32_t LSU::GetNLSAs() const {
+    return m_nLSAs;
+}
+
+void LSU::AddLSA(LSA lsa) {
+    m_LSAs.push_back(lsa);
+}
+
+void LSU::ClearLSAs() {
+    m_LSAs.clear();
+}
+
+LSAHeader
+LSU::GetLSA(uint16_t n) const {
+    // Implement logic to return the nth LSA from m_LSAs
+}
+
+TypeId LSU::GetTypeId() {
+    // Implement TypeId method
+}
+
+TypeId LSU::GetInstanceTypeId() const {
+    // Implement instance TypeId method
+}
+
+void LSU::Print(std::ostream &os) const {
+    // Implement print method
+}
+
+uint32_t LSU::GetSerializedSize() const {
+    // Implement GetSerializedSize method
+}
+
+void LSU::Serialize(Buffer::Iterator start) const {
+    // Implement Serialize method
+}
+
+uint32_t LSU::Deserialize(Buffer::Iterator start) {
+    // Implement Deserialize method
+}
+
+// ------------------------------------------
+// ---------- LSAck header
+// ------------------------------------------
+
+LSAck::LSAck() {
+    // Constructor implementation
+}
+
+LSAck::~LSAck() {
+    // Destructor implementation
+}
+
+uint32_t LSAck::GetNLSAHeaders() const {
+    return m_LSAHeaders.size();
+}
+
+void LSAck::AddLSAHeader(LSAHeader lsaHeader) {
+    m_LSAHeaders.push_back(lsaHeader);
+}
+
+void LSAck::ClearLSAHeaders() {
+    m_LSAHeaders.clear();
+}
+
+LSAHeader LSAck::GetLSAHeader(uint16_t n) const {
+    // Implement logic to return the nth LSAHeader from m_LSAHeaders
+}
+
+TypeId LSAck::GetTypeId() {
+    // Implement TypeId method
+}
+
+TypeId LSAck::GetInstanceTypeId() const {
+    // Implement instance TypeId method
+}
+
+void LSAck::Print(std::ostream &os) const {
+    // Implement print method
+}
+
+uint32_t LSAck::GetSerializedSize() const {
+    // Implement GetSerializedSize method
+}
+
+void LSAck::Serialize(Buffer::Iterator start) const {
+    // Implement Serialize method
+}
+
+uint32_t LSAck::Deserialize(Buffer::Iterator start) {
+    // Implement Deserialize method
+}
+
+// ------------------------------------------
+// ---------- LSA header
+// ------------------------------------------
+
+
 } // namespace open_routing
 } // namespace ns3
