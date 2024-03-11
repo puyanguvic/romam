@@ -1,4 +1,5 @@
 /* -*- Mode:C++; c-file-style:"gnu"; indent-tabs-mode:nil; -*- */
+
 #ifndef LSA_H
 #define LSA_H
 

@@ -1,9 +1,12 @@
 /* -*- Mode:C++; c-file-style:"gnu"; indent-tabs-mode:nil; -*- */
-#ifndef NEIGHBOR_STATUS_Database_H
-#define NEIGHBOR_STATUS_Database_H
+#ifndef TSDB_H
+#define TSDB_H
 
 #define STATESIZE 10
-#include "ns3/core-module.h"
+// #include "ns3/core-module.h"
+#include "lsa.h"
+#include "database.h"
+
 #include <map>
 #include <utility>
 namespace ns3 {
@@ -51,7 +54,7 @@ private:
  * 
  * Each node in DGR maintains a neighbor status data base.
 */
-class DgrNSDB : public Object
+class DgrNSDB : public Database
 {
   public:
     /**

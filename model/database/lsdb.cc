@@ -8,9 +8,9 @@
 // #include "ipv4-global-routing.h"
 // #include "ipv4.h"
 
-// #include "ns3/assert.h"
-// #include "ns3/fatal-error.h"
-// #include "ns3/log.h"
+#include "ns3/assert.h"
+#include "ns3/fatal-error.h"
+#include "ns3/log.h"
 // #include "ns3/node-list.h"
 // #include "ns3/simulator.h"
 
@@ -23,14 +23,30 @@
 #include "lsdb.h"
 namespace ns3
 {
+NS_LOG_COMPONENT_DEFINE("LinkStateDatabase");
+
 namespace open_routing
 {
+/**
+ * \brief Stream insertion operator.
+ *
+ * \param os the reference to the output stream
+ * \param exit the exit node
+ * \returns the reference to the output stream
+ */
+std::ostream&
+operator<<(std::ostream& os, const SPFVertex::NodeExit_t& exit)
+{
+    os << "(" << exit.first << " ," << exit.second << ")";
+    return os;
+}
 
 std::ostream&
-operator<<(std::ostream& os, const Vertex::ListOfVertex_t& vs)
+operator<<(std::ostream& os, const SPFVertex::ListOfSPFVertex_t& vs)
 {
+    typedef SPFVertex::ListOfSPFVertex_t::const_iterator CIter_t;
     os << "{";
-    for (auto iter = vs.begin(); iter != vs.end();)
+    for (CIter_t iter = vs.begin(); iter != vs.end();)
     {
         os << (*iter)->m_vertexId;
         if (++iter != vs.end())
@@ -52,54 +68,49 @@ operator<<(std::ostream& os, const Vertex::ListOfVertex_t& vs)
 //
 // ---------------------------------------------------------------------------
 
-Vertex::Vertex()
+SPFVertex::SPFVertex()
     : m_vertexType(VertexUnknown),
       m_vertexId("255.255.255.255"),
       m_lsa(nullptr),
-      m_distanceFromRoot(INFINITY_N),
-      m_rootOif(INFINITY_N),
+      m_distanceFromRoot(SPF_INFINITY),
+      m_rootOif(SPF_INFINITY),
       m_nextHop("0.0.0.0"),
       m_parents(),
       m_children(),
       m_vertexProcessed(false)
 {
-    // NS_LOG_FUNCTION(this);
 }
 
-Vertex::Vertex(LSA* lsa)
+SPFVertex::SPFVertex(LSA* lsa)
     : m_vertexId(lsa->GetLinkStateId()),
       m_lsa(lsa),
-      m_distanceFromRoot(INFINITY_N),
-      m_rootOif(INFINITY_N),
+      m_distanceFromRoot(SPF_INFINITY),
+      m_rootOif(SPF_INFINITY),
       m_nextHop("0.0.0.0"),
       m_parents(),
       m_children(),
       m_vertexProcessed(false)
 {
-    // NS_LOG_FUNCTION(this << lsa);
-
     if (lsa->GetLSType() == LSA::RouterLSA)
     {
         NS_LOG_LOGIC("Setting m_vertexType to VertexRouter");
-        m_vertexType = Vertex::VertexRouter;
+        m_vertexType = SPFVertex::VertexRouter;
     }
     else if (lsa->GetLSType() == LSA::NetworkLSA)
     {
         NS_LOG_LOGIC("Setting m_vertexType to VertexNetwork");
-        m_vertexType = Vertex::VertexNetwork;
+        m_vertexType = SPFVertex::VertexNetwork;
     }
 }
 
-Vertex::~Vertex()
+SPFVertex::~SPFVertex()
 {
-    // NS_LOG_FUNCTION(this);
-
     NS_LOG_LOGIC("Children vertices - " << m_children);
     NS_LOG_LOGIC("Parent verteices - " << m_parents);
 
     // find this node from all its parents and remove the entry of this node
     // from all its parents
-    for (auto piter = m_parents.begin(); piter != m_parents.end(); piter++)
+    for (ListOfSPFVertex_t::iterator piter = m_parents.begin(); piter != m_parents.end(); piter++)
     {
         // remove the current vertex from its parent's children list. Check
         // if the size of the list is reduced, or the child<->parent relation
@@ -109,9 +120,8 @@ Vertex::~Vertex()
         uint32_t newCount = (*piter)->m_children.size();
         if (orgCount > newCount)
         {
-            std::cout << "ASSERT: Unable to find the current vertext from its parents --- impossible!" << std::endl;
-            // NS_ASSERT_MSG(orgCount > newCount,
-            //               "Unable to find the current vertex from its parents --- impossible!");
+            NS_ASSERT_MSG(orgCount > newCount,
+                          "Unable to find the current vertex from its parents --- impossible!");
         }
     }
 
@@ -125,14 +135,14 @@ Vertex::~Vertex()
         //
         // Note that m_children.pop_front () is not necessary as this
         // p is removed from the children list when p is deleted
-        Vertex* p = m_children.front();
+        SPFVertex* p = m_children.front();
         // 'p' == 0, this child is already deleted by its other parent
         if (p == nullptr)
         {
             continue;
         }
-        // NS_LOG_LOGIC("Parent vertex-" << m_vertexId << " deleting its child vertex-"
-        //                               << p->GetVertexId());
+        NS_LOG_LOGIC("Parent vertex-" << m_vertexId << " deleting its child vertex-"
+                                      << p->GetVertexId());
         delete p;
         p = nullptr;
     }
@@ -142,71 +152,97 @@ Vertex::~Vertex()
     // delete root exit direction
     m_ecmpRootExits.clear();
 
-    // NS_LOG_LOGIC("Vertex-" << m_vertexId << " completed deleted");
+    NS_LOG_LOGIC("Vertex-" << m_vertexId << " completed deleted");
 }
 
-Vertex::VertexType
-Vertex::GetVertexType() const
+void
+SPFVertex::SetVertexType(SPFVertex::VertexType type)
 {
-    // NS_LOG_FUNCTION(this);
+    m_vertexType = type;
+}
+
+SPFVertex::VertexType
+SPFVertex::GetVertexType() const
+{
     return m_vertexType;
 }
 
 void
-Vertex::SetVertexType(Vertex::VertexType type)
+SPFVertex::SetVertexId(Ipv4Address id)
 {
-    // NS_LOG_FUNCTION(this << type);
-    m_vertexType = type;
-}
-
-
-void
-Vertex::SetVertexId(Ipv4Address id)
-{
-    // NS_LOG_FUNCTION(this << id);
     m_vertexId = id;
 }
 
 Ipv4Address
-Vertex::GetVertexId() const
+SPFVertex::GetVertexId() const
 {
-    // NS_LOG_FUNCTION(this);
     return m_vertexId;
 }
 
-LSA*
-Vertex::GetLSA() const
+void
+SPFVertex::SetLSA(LSA* lsa)
 {
-    // NS_LOG_FUNCTION(this);
+    m_lsa = lsa;
+}
+
+LSA*
+SPFVertex::GetLSA() const
+{
     return m_lsa;
 }
 
 void
-Vertex::SetLSA(LSA* lsa)
+SPFVertex::SetDistanceFromRoot(uint32_t distance)
 {
-    // NS_LOG_FUNCTION(this << lsa);
-    m_lsa = lsa;
+    m_distanceFromRoot = distance;
 }
 
 uint32_t
-Vertex::GetDistanceFromRoot() const
+SPFVertex::GetDistanceFromRoot() const
 {
-    // NS_LOG_FUNCTION(this);
     return m_distanceFromRoot;
 }
 
 void
-Vertex::SetDistanceFromRoot(uint32_t distance)
+SPFVertex::SetParent(SPFVertex* parent)
 {
-    // NS_LOG_FUNCTION(this << distance);
-    m_distanceFromRoot = distance;
+    // always maintain only one parent when using setter/getter methods
+    m_parents.clear();
+    m_parents.push_back(parent);
+}
+
+SPFVertex*
+SPFVertex::GetParent(uint32_t i) const
+{
+    // If the index i is out-of-range, return 0 and do nothing
+    if (m_parents.size() <= i)
+    {
+        NS_LOG_LOGIC("Index to SPFVertex's parent is out-of-range.");
+        return nullptr;
+    }
+    ListOfSPFVertex_t::const_iterator iter = m_parents.begin();
+    while (i-- > 0)
+    {
+        iter++;
+    }
+    return *iter;
 }
 
 void
-Vertex::SetRootExitDirection(Ipv4Address nextHop, int32_t id)
+SPFVertex::MergeParent(const SPFVertex* v)
 {
-    // NS_LOG_FUNCTION(this << nextHop << id);
+    NS_LOG_LOGIC("Before merge, list of parents = " << m_parents);
+    // combine the two lists first, and then remove any duplicated after
+    m_parents.insert(m_parents.end(), v->m_parents.begin(), v->m_parents.end());
+    // remove duplication
+    m_parents.sort();
+    m_parents.unique();
+    NS_LOG_LOGIC("After merge, list of parents = " << m_parents);
+}
 
+void
+SPFVertex::SetRootExitDirection(Ipv4Address nextHop, int32_t id)
+{
     // always maintain only one root's exit
     m_ecmpRootExits.clear();
     m_ecmpRootExits.emplace_back(nextHop, id);
@@ -217,20 +253,19 @@ Vertex::SetRootExitDirection(Ipv4Address nextHop, int32_t id)
 }
 
 void
-Vertex::SetRootExitDirection(Vertex::NodeExit_t exit)
+SPFVertex::SetRootExitDirection(SPFVertex::NodeExit_t exit)
 {
-    // NS_LOG_FUNCTION(this << exit);
     SetRootExitDirection(exit.first, exit.second);
 }
 
-Vertex::NodeExit_t
-Vertex::GetRootExitDirection(uint32_t i) const
+SPFVertex::NodeExit_t
+SPFVertex::GetRootExitDirection(uint32_t i) const
 {
-    // NS_LOG_FUNCTION(this << i);
+    typedef ListOfNodeExit_t::const_iterator CIter_t;
 
-    // NS_ASSERT_MSG(i < m_ecmpRootExits.size(),
-    //               "Index out-of-range when accessing SPFVertex::m_ecmpRootExits!");
-    auto iter = m_ecmpRootExits.begin();
+    NS_ASSERT_MSG(i < m_ecmpRootExits.size(),
+                  "Index out-of-range when accessing SPFVertex::m_ecmpRootExits!");
+    CIter_t iter = m_ecmpRootExits.begin();
     while (i-- > 0)
     {
         iter++;
@@ -239,21 +274,17 @@ Vertex::GetRootExitDirection(uint32_t i) const
     return *iter;
 }
 
-Vertex::NodeExit_t
-Vertex::GetRootExitDirection() const
+SPFVertex::NodeExit_t
+SPFVertex::GetRootExitDirection() const
 {
-    // NS_LOG_FUNCTION(this);
-
-    // NS_ASSERT_MSG(m_ecmpRootExits.size() <= 1,
-    //               "Assumed there is at most one exit from the root to this vertex");
+    NS_ASSERT_MSG(m_ecmpRootExits.size() <= 1,
+                  "Assumed there is at most one exit from the root to this vertex");
     return GetRootExitDirection(0);
 }
 
 void
-Vertex::MergeRootExitDirections(const Vertex* vertex)
+SPFVertex::MergeRootExitDirections(const SPFVertex* vertex)
 {
-    // NS_LOG_FUNCTION(this << vertex);
-
     // obtain the external list of exit directions
     //
     // Append the external list into 'this' and remove duplication afterward
@@ -263,12 +294,9 @@ Vertex::MergeRootExitDirections(const Vertex* vertex)
     m_ecmpRootExits.unique();
 }
 
-
 void
-Vertex::InheritAllRootExitDirections(const Vertex* vertex)
+SPFVertex::InheritAllRootExitDirections(const SPFVertex* vertex)
 {
-    // NS_LOG_FUNCTION(this << vertex);
-
     // discard all exit direction currently associated with this vertex,
     // and copy all the exit directions from the given vertex
     if (!m_ecmpRootExits.empty())
@@ -282,141 +310,55 @@ Vertex::InheritAllRootExitDirections(const Vertex* vertex)
 }
 
 uint32_t
-Vertex::GetNRootExitDirections() const
+SPFVertex::GetNRootExitDirections() const
 {
-    // NS_LOG_FUNCTION(this);
     return m_ecmpRootExits.size();
 }
 
-Vertex*
-Vertex::GetParent(uint32_t i) const
-{
-    // NS_LOG_FUNCTION(this << i);
-
-    // If the index i is out-of-range, return 0 and do nothing
-    if (m_parents.size() <= i)
-    {
-        NS_LOG_LOGIC("Index to SPFVertex's parent is out-of-range.");
-        return nullptr;
-    }
-    auto iter = m_parents.begin();
-    while (i-- > 0)
-    {
-        iter++;
-    }
-    return *iter;
-}
-
-
-void
-Vertex::SetParent(Vertex* parent)
-{
-    // NS_LOG_FUNCTION(this << parent);
-
-    // always maintain only one parent when using setter/getter methods
-    m_parents.clear();
-    m_parents.push_back(parent);
-}
-
-
-
-void
-Vertex::MergeParent(const Vertex* v)
-{
-    // NS_LOG_FUNCTION(this << v);
-
-    // NS_LOG_LOGIC("Before merge, list of parents = " << m_parents);
-    // combine the two lists first, and then remove any duplicated after
-    m_parents.insert(m_parents.end(), v->m_parents.begin(), v->m_parents.end());
-    // remove duplication
-    m_parents.sort();
-    m_parents.unique();
-    // NS_LOG_LOGIC("After merge, list of parents = " << m_parents);
-}
-
-
-
-
-
-void
-Vertex::SetParent(Vertex* parent)
-{
-    // NS_LOG_FUNCTION(this << parent);
-
-    // always maintain only one parent when using setter/getter methods
-    m_parents.clear();
-    m_parents.push_back(parent);
-}
-
-Vertex*
-Vertex::GetParent(uint32_t i) const
-{
-    // NS_LOG_FUNCTION(this << i);
-
-    // If the index i is out-of-range, return 0 and do nothing
-    if (m_parents.size() <= i)
-    {
-        NS_LOG_LOGIC("Index to SPFVertex's parent is out-of-range.");
-        return nullptr;
-    }
-    auto iter = m_parents.begin();
-    while (i-- > 0)
-    {
-        iter++;
-    }
-    return *iter;
-}
-
 uint32_t
-Vertex::GetNChildren() const
+SPFVertex::GetNChildren() const
 {
-    // NS_LOG_FUNCTION(this);
     return m_children.size();
 }
 
-Vertex*
-Vertex::GetChild(uint32_t n) const
+SPFVertex*
+SPFVertex::GetChild(uint32_t n) const
 {
-    // NS_LOG_FUNCTION(this << n);
     uint32_t j = 0;
 
-    for (auto i = m_children.begin(); i != m_children.end(); i++, j++)
+    for (ListOfSPFVertex_t::const_iterator i = m_children.begin(); i != m_children.end(); i++, j++)
     {
         if (j == n)
         {
             return *i;
         }
     }
-    // NS_ASSERT_MSG(false, "Index <n> out of range.");
+    NS_ASSERT_MSG(false, "Index <n> out of range.");
     return nullptr;
 }
 
 uint32_t
-Vertex::AddChild(Vertex* child)
+SPFVertex::AddChild(SPFVertex* child)
 {
-    // NS_LOG_FUNCTION(this << child);
     m_children.push_back(child);
     return m_children.size();
 }
 
 void
-Vertex::SetVertexProcessed(bool value)
+SPFVertex::SetVertexProcessed(bool value)
 {
-    // NS_LOG_FUNCTION(this << value);
     m_vertexProcessed = value;
 }
 
 bool
-Vertex::IsVertexProcessed() const
+SPFVertex::IsVertexProcessed() const
 {
-    // NS_LOG_FUNCTION(this);
     return m_vertexProcessed;
 }
 
 void
-Vertex::ClearVertexProcessed()
+SPFVertex::ClearVertexProcessed()
 {
-    // NS_LOG_FUNCTION(this);
     for (uint32_t i = 0; i < this->GetNChildren(); i++)
     {
         this->GetChild(i)->ClearVertexProcessed();
@@ -424,31 +366,127 @@ Vertex::ClearVertexProcessed()
     this->SetVertexProcessed(false);
 }
 
-void
-Vertex::SetVertexProcessed(bool value)
+// ---------------------------------------------------------------------------
+//
+// LSDB Implementation
+//
+// ---------------------------------------------------------------------------
+
+TypeId
+LSDB::GetTypeId()
 {
-    // NS_LOG_FUNCTION(this << value);
-    m_vertexProcessed = value;
+    static TypeId tid =
+        TypeId("ns3::open_routing::LSDB").SetParent<Object>().SetGroupName("open_routing");
+    return tid;
 }
 
-bool
-Vertex::IsVertexProcessed() const
+LSDB::LSDB()
+    : m_database(),
+      m_extdatabase()
 {
-    // NS_LOG_FUNCTION(this);
-    return m_vertexProcessed;
 }
 
-void
-Vertex::ClearVertexProcessed()
+LSDB::~LSDB()
 {
-    // NS_LOG_FUNCTION(this);
-    for (uint32_t i = 0; i < this->GetNChildren(); i++)
+    LSDBMap_t::iterator i;
+    for (i = m_database.begin(); i != m_database.end(); i++)
     {
-        this->GetChild(i)->ClearVertexProcessed();
+        NS_LOG_LOGIC("free LSA");
+        LSA* temp = i->second;
+        delete temp;
     }
-    this->SetVertexProcessed(false);
+    for (uint32_t j = 0; j < m_extdatabase.size(); j++)
+    {
+        NS_LOG_LOGIC("free ASexternalLSA");
+        LSA* temp = m_extdatabase.at(j);
+        delete temp;
+    }
+    NS_LOG_LOGIC("clear map");
+    m_database.clear();
 }
 
+void
+LSDB::Initialize()
+{
+    LSDBMap_t::iterator i;
+    for (i = m_database.begin(); i != m_database.end(); i++)
+    {
+        LSA* temp = i->second;
+        temp->SetStatus(LSA::LSA_SPF_NOT_EXPLORED);
+    }
+}
+
+void
+LSDB::Insert(Ipv4Address addr, LSA* lsa)
+{
+    if (lsa->GetLSType() == LSA::ASExternalLSAs)
+    {
+        m_extdatabase.push_back(lsa);
+    }
+    else
+    {
+        m_database.insert(LSDBPair_t(addr, lsa));
+    }
+}
+
+LSA*
+LSDB::GetExtLSA(uint32_t index) const
+{
+    return m_extdatabase.at(index);
+}
+
+uint32_t
+LSDB::GetNumExtLSAs() const
+{
+    return m_extdatabase.size();
+}
+
+LSA*
+LSDB::GetLSA(Ipv4Address addr) const
+{
+    //
+    // Look up an LSA by its address.
+    //
+    LSDBMap_t::const_iterator i;
+    for (i = m_database.begin(); i != m_database.end(); i++)
+    {
+        if (i->first == addr)
+        {
+            return i->second;
+        }
+    }
+    return nullptr;
+}
+
+LSA*
+LSDB::GetLSAByLinkData(Ipv4Address addr) const
+{
+    //
+    // Look up an LSA by its address.
+    //
+    LSDBMap_t::const_iterator i;
+    for (i = m_database.begin(); i != m_database.end(); i++)
+    {
+        LSA* temp = i->second;
+        // Iterate among temp's Link Records
+        for (uint32_t j = 0; j < temp->GetNLinkRecords(); j++)
+        {
+            LinkRecord* lr = temp->GetLinkRecord(j);
+            if (lr->GetLinkType() == LinkRecord::TransitNetwork &&
+                lr->GetLinkData() == addr)
+            {
+                return temp;
+            }
+        }
+    }
+    return nullptr;
+}
+
+void
+LSDB::Print (std::ostream &os)
+{
+    os << "Print LSDB" << std::endl;
+}
 
 }
 }
