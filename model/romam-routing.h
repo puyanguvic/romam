@@ -17,8 +17,8 @@
  * Authors: Pu Yang  <puyang@uvic.ca>
  */
 
-#ifndef OPEN_ROUTING_H
-#define OPEN_ROUTING_H
+#ifndef ROMAM_ROUTING_H
+#define ROMAM_ROUTING_H
 
 #include "ns3/ipv4-routing-protocol.h"
 #include "ns3/ipv4-header.h"
@@ -143,4 +143,4 @@ private:
 } // namespace open_routing
 } // namespace ns3
 
-#endif /* OPEN_ROUTING_H */
+#endif /* ROMAM_ROUTING_H */
