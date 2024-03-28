@@ -27,7 +27,7 @@
 #include "ns3/ipv4-address.h"
 #include "ns3/ptr.h"
 #include "ns3/socket.h"
-#include "ns3/open-routing-module.h"
+#include "ns3/ROMAM-module.h"
 
 #include <list>
 #include <stdint.h>
@@ -51,23 +51,25 @@ class Ipv4RoutingTableEntry;
 class Ipv4MulticastRoutingTableEntry;
 class Node;
 
-namespace open_routing
+namespace romam
 {
 
 // Each class should be documented using Doxygen,
 // and have an \ingroup open-routing directive
 
-class OpenRouting : public Ipv4RoutingProtocol
+class RomamRouting : public Ipv4RoutingProtocol
 {
 public:
+    RomamRouting ();
+    ~RomamRouting ();
+
     /**
      * \brief The interface Id associated with this class.
      * \return type identifier
      */
     static TypeId GetTypeId();
-    OpenRouting(/* args */);
-    ~OpenRouting() override;
-
+    
+    // From Ipv4RoutingProtocol
     Ptr<Ipv4Route> RouteOutput(Ptr<Packet> p,
                                const Ipv4Header& header,
                                Ptr<NetDevice> oif,
@@ -80,7 +82,6 @@ public:
                     const MulticastForwardCallback& mcb,
                     const LocalDeliverCallback& lcb,
                     const ErrorCallback& ecb) override;
-
     void NotifyInterfaceUp(uint32_t interface) override;
     void NotifyInterfaceDown(uint32_t interface) override;
     void NotifyAddAddress(uint32_t interface, Ipv4InterfaceAddress address) override;
@@ -96,6 +97,8 @@ public:
      */
     
 private:
+    /// Container to store the routes of the Route Information Base (RIB)
+    typedef std::list< *> RIB;
     /**
      * \brief Ipv4 reference.
      */
@@ -110,6 +113,7 @@ private:
      * \brief routing table
      * 
      */
+    RIB m_rib;
 
     /**
      * \brief state machine 
@@ -140,7 +144,7 @@ private:
 
 
     
-} // namespace open_routing
+} // namespace romam
 } // namespace ns3
 
 #endif /* ROMAM_ROUTING_H */

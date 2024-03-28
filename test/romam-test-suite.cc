@@ -1,6 +1,6 @@
 
 // Include a header file from your module to test.
-#include "ns3/open-routing.h"
+#include "ns3/romam.h"
 
 // An essential include is test.h
 #include "ns3/test.h"
@@ -12,35 +12,35 @@ using namespace ns3;
 // Add a doxygen group for tests.
 // If you have more than one test, this should be in only one of them.
 /**
- * \defgroup open-routing-tests Tests for open-routing
- * \ingroup open-routing
+ * \defgroup romam-tests Tests for romam
+ * \ingroup romam
  * \ingroup tests
  */
 
 // This is an example TestCase.
 /**
- * \ingroup open-routing-tests
+ * \ingroup romam-tests
  * Test case for feature 1
  */
-class OpenRoutingTestCase1 : public TestCase
+class RomamTestCase1 : public TestCase
 {
   public:
-    OpenRoutingTestCase1();
-    virtual ~OpenRoutingTestCase1();
+    RomamTestCase1();
+    virtual ~RomamTestCase1();
 
   private:
     void DoRun() override;
 };
 
 // Add some help text to this case to describe what it is intended to test
-OpenRoutingTestCase1::OpenRoutingTestCase1()
-    : TestCase("OpenRouting test case (does nothing)")
+RomamTestCase1::RomamTestCase1()
+    : TestCase("Romam test case (does nothing)")
 {
 }
 
 // This destructor does nothing but we include it as a reminder that
 // the test case should clean up after itself
-OpenRoutingTestCase1::~OpenRoutingTestCase1()
+RomamTestCase1::~RomamTestCase1()
 {
 }
 
@@ -49,7 +49,7 @@ OpenRoutingTestCase1::~OpenRoutingTestCase1()
 // TestCase must implement
 //
 void
-OpenRoutingTestCase1::DoRun()
+RomamTestCase1::DoRun()
 {
     // A wide variety of test macros are available in src/core/test.h
     NS_TEST_ASSERT_MSG_EQ(true, true, "true doesn't equal true for some reason");
@@ -62,25 +62,25 @@ OpenRoutingTestCase1::DoRun()
 // this class must be defined
 
 /**
- * \ingroup open-routing-tests
- * TestSuite for module open-routing
+ * \ingroup romam-tests
+ * TestSuite for module romam
  */
-class OpenRoutingTestSuite : public TestSuite
+class RomamTestSuite : public TestSuite
 {
   public:
-    OpenRoutingTestSuite();
+    RomamTestSuite();
 };
 
-OpenRoutingTestSuite::OpenRoutingTestSuite()
-    : TestSuite("open-routing", UNIT)
+RomamTestSuite::RomamTestSuite()
+    : TestSuite("romam", UNIT)
 {
     // TestDuration for TestCase can be QUICK, EXTENSIVE or TAKES_FOREVER
-    AddTestCase(new OpenRoutingTestCase1, TestCase::QUICK);
+    AddTestCase(new RomamTestCase1, TestCase::QUICK);
 }
 
 // Do not forget to allocate an instance of this TestSuite
 /**
- * \ingroup open-routing-tests
+ * \ingroup romam-tests
  * Static variable for test initialization
  */
-static OpenRoutingTestSuite sopenRoutingTestSuite;
+static RomamTestSuite sromamTestSuite;

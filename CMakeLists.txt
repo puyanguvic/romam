@@ -6,22 +6,20 @@ endif()
 set(examples_as_tests_sources)
 if(${ENABLE_EXAMPLES})
     set(examples_as_tests_sources
-        #test/open-routing-examples-test-suite.cc
+        #test/romam-examples-test-suite.cc
         )
 endif()
 
 build_lib(
-    LIBNAME open-routing
-    SOURCE_FILES model/state-machine.cc
-                #  model/ospf-header.cc
-#                 model/open-routing.cc
-#                 helper/open-routing-helper.cc
-    HEADER_FILES model/state-machine.h
-                #  model/ospf-header.h
-#                 model/open-routing.h    
-#                 helper/open-routing-helper.h
+    LIBNAME romam
+    SOURCE_FILES model/routing_algorithm/route-info-entry.cc
+                    # model/romam.cc
+                #  helper/romam-helper.cc
+    HEADER_FILES model/routing_algorithm/route-info-entry.h
+                #  model/romam.h
+                #  helper/romam-helper.h
     LIBRARIES_TO_LINK ${libcore}
-    TEST_SOURCES test/open-routing-test-suite.cc
+    TEST_SOURCES test/romam-test-suite.cc
                  ${examples_as_tests_sources}
 )
 
