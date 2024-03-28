@@ -21,6 +21,12 @@ class Ipv4RouteInfoEntry : public RouteInfoEntry
 {
   public:
     /**
+     * \brief The interface Id associated with this class.
+     * \return type identifier
+     */
+    static TypeId GetTypeId();
+
+    /**
      * \brief This constructor does nothing
      */
     Ipv4RouteInfoEntry();
@@ -34,6 +40,7 @@ class Ipv4RouteInfoEntry : public RouteInfoEntry
      * \param route The route to copy
      */
     Ipv4RouteInfoEntry(const Ipv4RouteInfoEntry* route);
+
     /**
      * \return True if this route is a host route (mask of all ones); false otherwise
      */
@@ -68,6 +75,8 @@ class Ipv4RouteInfoEntry : public RouteInfoEntry
      * \return The IPv4 network mask of the destination of this route
      */
     Ipv4Mask GetDestNetworkMask() const;
+    
+    uint32_t GetCost () const;
     /**
      * \return The Ipv4 interface number used for sending outgoing packets
      */
@@ -79,8 +88,8 @@ class Ipv4RouteInfoEntry : public RouteInfoEntry
      * \param interface Outgoing interface
      */
     static Ipv4RouteInfoEntry CreateHostRouteTo(Ipv4Address dest,
-                                                   Ipv4Address nextHop,
-                                                   uint32_t interface);
+                                                Ipv4Address nextHop,
+                                                uint32_t interface);
     /**
      * \return An Ipv4RoutingTableEntry object corresponding to the input parameters.
      * \param dest Ipv4Address of the destination
@@ -116,42 +125,45 @@ class Ipv4RouteInfoEntry : public RouteInfoEntry
      */
     static Ipv4RouteInfoEntry CreateDefaultRoute(Ipv4Address nextHop, uint32_t interface);
 
+    void Print (std::ostream &os) const override;  
+
   private:
-//     /**
-//      * \brief Constructor.
-//      * \param network network address
-//      * \param mask network mask
-//      * \param gateway the gateway
-//      * \param interface the interface index
-//      */
-//     Ipv4RoutingTableEntry(Ipv4Address network,
-//                           Ipv4Mask mask,
-//                           Ipv4Address gateway,
-//                           uint32_t interface);
-//     /**
-//      * \brief Constructor.
-//      * \param dest destination address
-//      * \param mask network mask
-//      * \param interface the interface index
-//      */
-//     Ipv4RoutingTableEntry(Ipv4Address dest, Ipv4Mask mask, uint32_t interface);
-//     /**
-//      * \brief Constructor.
-//      * \param dest destination address
-//      * \param gateway the gateway
-//      * \param interface the interface index
-//      */
-//     Ipv4RoutingTableEntry(Ipv4Address dest, Ipv4Address gateway, uint32_t interface);
-//     /**
-//      * \brief Constructor.
-//      * \param dest destination address
-//      * \param interface the interface index
-//      */
-//     Ipv4RoutingTableEntry(Ipv4Address dest, uint32_t interface);
+    /**
+     * \brief Constructor.
+     * \param network network address
+     * \param mask network mask
+     * \param gateway the gateway
+     * \param interface the interface index
+     */
+    Ipv4RouteInfoEntry(Ipv4Address network,
+                          Ipv4Mask mask,
+                          Ipv4Address gateway,
+                          uint32_t interface);
+    /**
+     * \brief Constructor.
+     * \param dest destination address
+     * \param mask network mask
+     * \param interface the interface index
+     */
+    Ipv4RouteInfoEntry(Ipv4Address dest, Ipv4Mask mask, uint32_t interface);
+    /**
+     * \brief Constructor.
+     * \param dest destination address
+     * \param gateway the gateway
+     * \param interface the interface index
+     */
+    Ipv4RouteInfoEntry(Ipv4Address dest, Ipv4Address gateway, uint32_t interface);
+    /**
+     * \brief Constructor.
+     * \param dest destination address
+     * \param interface the interface index
+     */
+    Ipv4RouteInfoEntry(Ipv4Address dest, uint32_t interface);
 
     Ipv4Address m_dest;         //!< destination address
     Ipv4Mask m_destNetworkMask; //!< destination network mask
     Ipv4Address m_gateway;      //!< gateway
+    uint32_t m_cost;            //!< cost to the destination 
     uint32_t m_interface;       //!< output interface
 };
 
