@@ -21,7 +21,6 @@
 #include "ns3/node-list.h"
 
 namespace ns3 {
-namespace open_routing {
 // ---------------------------------------------------------------------------
 //
 // LinkRecord Implementation
@@ -470,5 +469,4 @@ operator<<(std::ostream& os, LSA& lsa)
     return os;
 }
 
-}
-}
+} // namespace ns3

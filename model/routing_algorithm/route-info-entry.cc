@@ -5,17 +5,5 @@
 
 namespace ns3
 {
-
-NS_LOG_COMPONENT_DEFINE ("RouteInfoEntry");
-
-NS_OBJECT_ENSURE_REGISTERED (RouteInfoEntry);
-
-TypeId
-RouteInfoEntry::GetTypeId()
-{
-    static TypeId tid = 
-        TypeId("ns3::RouteInfoEntry").SetParent<Object>().SetGroupName("Romam");
-    return tid;
-}
-
+    // none
 } // namespace ns3

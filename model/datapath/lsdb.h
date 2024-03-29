@@ -14,8 +14,6 @@
 
 namespace ns3
 {
-namespace open_routing
-{
 
 const uint32_t SPF_INFINITY = 0xffffffff; //!< "infinite" distance between nodes
 
@@ -656,7 +654,7 @@ class LSDB : public Database
      */
     uint32_t GetNumExtLSAs() const;
 
-    void Print (std::ostream &os);
+    void Print (std::ostream &os) const;
 
   private:
     typedef std::map<Ipv4Address, LSA*>
@@ -668,8 +666,7 @@ class LSDB : public Database
     std::vector<LSA*>
         m_extdatabase; //!< database of External Link State Advertisements
 };
-}
 
-} // namespace
+} // namespace ns3
 
 #endif /* LSDB_H*/

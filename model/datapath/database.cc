@@ -12,8 +12,6 @@
 
 namespace ns3
 {
-namespace open_routing
-{
 
 NS_LOG_COMPONENT_DEFINE("Database");
 
@@ -23,9 +21,8 @@ TypeId
 Database::GetTypeId()
 {
     static TypeId tid =
-        TypeId("ns3::open_routing::Database").SetParent<Object>().SetGroupName("open_routing");
+        TypeId("ns3::Database").SetParent<Object>().SetGroupName("open_routing");
     return tid;
 }
 
-} // namespace open_routing
 } // namespace ns3

@@ -10,11 +10,8 @@
 
 namespace ns3
 {
-namespace open_routing
-{
-
 /**
- * \ingroup openRouting
+ * \ingroup romam
  * \brief Abstract base class for databases.
  *
  * ...
@@ -38,7 +35,6 @@ class Database : public Object
         virtual void Print (std::ostream &os) const = 0;
 };
 
-} // namespace open-routing
 } // namespace ns3
 
 #endif /* DATABASE_H*/

@@ -16,17 +16,10 @@ namespace ns3
  *
  * A record of an route information entry for Romam routing protocols
  */
-class RouteInfoEntry : public Object
+class RouteInfoEntry
 {
   public:
-    /**
-     * \brief Get the type ID.
-     * \return the object TypeId
-    */
-    static TypeId GetTypeId ();
-
-      
-    virtual void Print (std::ostream &os) const = 0;    
+    virtual void Print (std::ostream &os) const = 0; 
     
     /**
      * \return An RouteInfoEntry object corresponding to the input parameters.

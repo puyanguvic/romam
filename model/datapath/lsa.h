@@ -13,8 +13,6 @@
 
 namespace ns3
 {
-namespace open_routing
-{
 
 /**
  *
@@ -558,7 +556,5 @@ class LSA
  */
 std::ostream& operator<<(std::ostream& os, LSA& lsa);
 
-}
-
-} // namespace
+} // namespace ns3
 #endif /* LSA_H */

@@ -8,15 +8,6 @@ namespace ns3
 
 NS_LOG_COMPONENT_DEFINE ("Ipv4RouteInfoEntry");
 
-NS_OBJECT_ENSURE_REGISTERED (Ipv4RouteInfoEntry);
-
-TypeId
-Ipv4RouteInfoEntry::GetTypeId()
-{
-    static TypeId tid = 
-        TypeId("ns3::Ipv4RouteInfoEntry").SetParent<RouteInfoEntry>().SetGroupName("Romam");
-    return tid;
-}
 
 Ipv4RouteInfoEntry::Ipv4RouteInfoEntry ()
 {
@@ -238,5 +229,53 @@ Ipv4RouteInfoEntry::Ipv4RouteInfoEntry(Ipv4Address dest, uint32_t interface)
 {
     NS_LOG_FUNCTION (this << dest << interface);
 }
+
+std::ostream&
+operator<<(std::ostream& os, const Ipv4RouteInfoEntry& route)
+{
+    if (route.IsDefault())
+    {
+        NS_ASSERT(route.IsGateway());
+        os << "default out=" << route.GetInterface() << ", next hop=" << route.GetGateway();
+    }
+    else if (route.IsHost())
+    {
+        if (route.IsGateway())
+        {
+            os << "host=" << route.GetDest() << ", out=" << route.GetInterface()
+               << ", next hop=" << route.GetGateway();
+        }
+        else
+        {
+            os << "host=" << route.GetDest() << ", out=" << route.GetInterface();
+        }
+    }
+    else if (route.IsNetwork())
+    {
+        if (route.IsGateway())
+        {
+            os << "network=" << route.GetDestNetwork() << ", mask=" << route.GetDestNetworkMask()
+               << ",out=" << route.GetInterface() << ", next hop=" << route.GetGateway();
+        }
+        else
+        {
+            os << "network=" << route.GetDestNetwork() << ", mask=" << route.GetDestNetworkMask()
+               << ",out=" << route.GetInterface();
+        }
+    }
+    else
+    {
+        NS_ASSERT(false);
+    }
+    return os;
+}
+
+bool
+operator==(const Ipv4RouteInfoEntry a, const Ipv4RouteInfoEntry b)
+{
+    return (a.GetDest() == b.GetDest() && a.GetDestNetworkMask() == b.GetDestNetworkMask() &&
+            a.GetGateway() == b.GetGateway() && a.GetInterface() == b.GetInterface());
+}
+
 
 } // namespace ns3

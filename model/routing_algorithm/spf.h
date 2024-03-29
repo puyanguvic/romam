@@ -7,7 +7,6 @@
 #include "ns3/ipv4-address.h"
 #include "ns3/object.h"
 #include "ns3/ptr.h"
-#include "ns3/open-routing-module.h"
 
 #include <list>
 #include <map>
@@ -24,7 +23,7 @@ namespace ns3
   * Equivalent to quagga ospf_spf_calculate
   * \param root the root node
   */
-  void SPFCalculate(Ipv4Address root, GlobalRouteManagerLSDB* lsdb);
+void SPFCalculate(Ipv4Address root, GlobalRouteManagerLSDB* lsdb);
 
 
 }

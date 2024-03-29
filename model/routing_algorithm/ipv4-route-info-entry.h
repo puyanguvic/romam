@@ -21,12 +21,6 @@ class Ipv4RouteInfoEntry : public RouteInfoEntry
 {
   public:
     /**
-     * \brief The interface Id associated with this class.
-     * \return type identifier
-     */
-    static TypeId GetTypeId();
-
-    /**
      * \brief This constructor does nothing
      */
     Ipv4RouteInfoEntry();

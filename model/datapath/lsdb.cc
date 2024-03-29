@@ -483,7 +483,7 @@ LSDB::GetLSAByLinkData(Ipv4Address addr) const
 }
 
 void
-LSDB::Print (std::ostream &os)
+LSDB::Print (std::ostream &os) const
 {
     os << "Print LSDB" << std::endl;
 }
