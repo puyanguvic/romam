@@ -39,10 +39,10 @@ class DGRv2QueueDisc : public QueueDisc {
   private:
     uint32_t m_fastWeight;
     uint32_t m_normalWeight;
-    uint32_t m_slowWeight;
+    // uint32_t m_slowWeight;
     uint32_t m_currentFastWeight;
     uint32_t m_currentNormalWeight;
-    uint32_t m_currentSlowWeight;
+    // uint32_t m_currentSlowWeight;
     
     bool DoEnqueue (Ptr<QueueDiscItem> item) override;
     Ptr<QueueDiscItem> DoDequeue (void) override;

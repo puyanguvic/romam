@@ -18,7 +18,7 @@
 #include "ns3/nstime.h"
 
 #include "datapath/headers-dgr.h"
-#include "routing_algorithm/dgr-route-manager-impl.h"
+#include "routing_algorithm/route-manager-impl.h"
 #include "routing_algorithm/ipv4-dgr-routing-table-entry.h"
 #include "datapath/tsdb.h"
 

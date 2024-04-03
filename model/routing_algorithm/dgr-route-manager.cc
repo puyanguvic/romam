@@ -4,7 +4,7 @@
 #include "ns3/log.h"
 #include "ns3/simulation-singleton.h"
 #include "dgr-route-manager.h"
-#include "dgr-route-manager-impl.h"
+#include "route-manager-impl.h"
 
 namespace ns3 {
 

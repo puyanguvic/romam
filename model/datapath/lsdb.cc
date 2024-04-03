@@ -1,29 +1,25 @@
 /* -*- Mode:C++; c-file-style:"gnu"; indent-tabs-mode:nil; -*- */
 
-
-// #include "global-route-manager-impl.h"
-
-// #include "candidate-queue.h"
-// #include "global-router-interface.h"
-// #include "ipv4-global-routing.h"
-// #include "ipv4.h"
-
+#include <utility>
+#include <vector>
+#include <queue>
+#include <algorithm>
+#include <iostream>
 #include "ns3/assert.h"
 #include "ns3/fatal-error.h"
 #include "ns3/log.h"
-// #include "ns3/node-list.h"
-// #include "ns3/simulator.h"
-
-// #include <algorithm>
-// #include <iostream>
-// #include <queue>
-// #include <utility>
-// #include <vector>
+#include "ns3/node-list.h"
+#include "ns3/ipv4.h"
+#include "ns3/ipv4-routing-protocol.h"
+#include "ns3/ipv4-list-routing.h"
 
 #include "lsdb.h"
-namespace ns3
-{
-NS_LOG_COMPONENT_DEFINE("LinkStateDatabase");
+#include <ctime>
+#include <chrono>
+
+namespace ns3 {
+
+NS_LOG_COMPONENT_DEFINE ("DGRRouteManagerImpl");
 
 /**
  * \brief Stream insertion operator.
@@ -32,458 +28,484 @@ NS_LOG_COMPONENT_DEFINE("LinkStateDatabase");
  * \param exit the exit node
  * \returns the reference to the output stream
  */
-std::ostream&
-operator<<(std::ostream& os, const Vertex::NodeExit_t& exit)
+std::ostream& 
+operator<< (std::ostream& os, const DGRVertex::NodeExit_t& exit)
 {
-    os << "(" << exit.first << " ," << exit.second << ")";
-    return os;
+  os << "(" << exit.first << " ," << exit.second << ")";
+  return os;
 }
 
-std::ostream&
-operator<<(std::ostream& os, const Vertex::ListOfVertex_t& vs)
+std::ostream& 
+operator<< (std::ostream& os, const DGRVertex::ListOfDGRVertex_t& vs)
 {
-    typedef Vertex::ListOfVertex_t::const_iterator CIter_t;
-    os << "{";
-    for (CIter_t iter = vs.begin(); iter != vs.end();)
+  typedef DGRVertex::ListOfDGRVertex_t::const_iterator CIter_t;
+  os << "{";
+  for (CIter_t iter = vs.begin (); iter != vs.end ();)
     {
-        os << (*iter)->m_vertexId;
-        if (++iter != vs.end())
+      os << (*iter)->m_vertexId;
+      if (++iter != vs.end ()) 
         {
-            os << ", ";
+          os << ", ";
         }
-        else
-        {
-            break;
+      else 
+        { 
+          break;
         }
     }
-    os << "}";
-    return os;
+  os << "}";
+  return os;
 }
 
 // ---------------------------------------------------------------------------
 //
-// Vertex Implementation
+// DGRVertex Implementation
 //
 // ---------------------------------------------------------------------------
 
-Vertex::Vertex()
-    : m_vertexType(VertexUnknown),
-      m_vertexId("255.255.255.255"),
-      m_lsa(nullptr),
-      m_distanceFromRoot(SPF_INFINITY),
-      m_rootOif(SPF_INFINITY),
-      m_nextHop("0.0.0.0"),
-      m_parents(),
-      m_children(),
-      m_vertexProcessed(false)
+DGRVertex::DGRVertex () : 
+  m_vertexType (VertexUnknown), 
+  m_vertexId ("255.255.255.255"), 
+  m_lsa (0),
+  m_distanceFromRoot (DISTINFINITY), 
+  m_rootOif (DISTINFINITY),
+  m_nextHop ("0.0.0.0"),
+  m_parents (),
+  m_children (),
+  m_vertexProcessed (false)
 {
+  NS_LOG_FUNCTION (this);
 }
 
-Vertex::Vertex(LSA* lsa)
-    : m_vertexId(lsa->GetLinkStateId()),
-      m_lsa(lsa),
-      m_distanceFromRoot(SPF_INFINITY),
-      m_rootOif(SPF_INFINITY),
-      m_nextHop("0.0.0.0"),
-      m_parents(),
-      m_children(),
-      m_vertexProcessed(false)
+DGRVertex::DGRVertex (DGRRoutingLSA* lsa) : 
+  m_vertexId (lsa->GetLinkStateId ()),
+  m_lsa (lsa),
+  m_distanceFromRoot (DISTINFINITY), 
+  m_rootOif (DISTINFINITY),
+  m_nextHop ("0.0.0.0"),
+  m_parents (),
+  m_children (),
+  m_vertexProcessed (false)
 {
-    if (lsa->GetLSType() == LSA::RouterLSA)
+  NS_LOG_FUNCTION (this << lsa);
+
+  if (lsa->GetLSType () == DGRRoutingLSA::RouterLSA) 
     {
-        NS_LOG_LOGIC("Setting m_vertexType to VertexRouter");
-        m_vertexType = Vertex::VertexRouter;
+      NS_LOG_LOGIC ("Setting m_vertexType to VertexRouter");
+      m_vertexType = DGRVertex::VertexRouter;
     }
-    else if (lsa->GetLSType() == LSA::NetworkLSA)
-    {
-        NS_LOG_LOGIC("Setting m_vertexType to VertexNetwork");
-        m_vertexType = Vertex::VertexNetwork;
+  else if (lsa->GetLSType () == DGRRoutingLSA::NetworkLSA) 
+    { 
+      NS_LOG_LOGIC ("Setting m_vertexType to VertexNetwork");
+      m_vertexType = DGRVertex::VertexNetwork;
     }
 }
 
-Vertex::~Vertex()
+DGRVertex::~DGRVertex ()
 {
-    NS_LOG_LOGIC("Children vertices - " << m_children);
-    NS_LOG_LOGIC("Parent verteices - " << m_parents);
+  NS_LOG_FUNCTION (this);
 
-    // find this node from all its parents and remove the entry of this node
-    // from all its parents
-    for (ListOfVertex_t::iterator piter = m_parents.begin(); piter != m_parents.end(); piter++)
+  NS_LOG_LOGIC ("Children vertices - " << m_children);
+  NS_LOG_LOGIC ("Parent verteices - " << m_parents);
+
+  // find this node from all its parents and remove the entry of this node
+  // from all its parents
+  for (ListOfDGRVertex_t::iterator piter = m_parents.begin (); 
+       piter != m_parents.end ();
+       piter++)
     {
-        // remove the current vertex from its parent's children list. Check
-        // if the size of the list is reduced, or the child<->parent relation
-        // is not bidirectional
-        uint32_t orgCount = (*piter)->m_children.size();
-        (*piter)->m_children.remove(this);
-        uint32_t newCount = (*piter)->m_children.size();
-        if (orgCount > newCount)
+      // remove the current vertex from its parent's children list. Check
+      // if the size of the list is reduced, or the child<->parent relation
+      // is not bidirectional
+      uint32_t orgCount = (*piter)->m_children.size ();
+      (*piter)->m_children.remove (this);
+      uint32_t newCount = (*piter)->m_children.size ();
+      if (orgCount > newCount)
         {
-            NS_ASSERT_MSG(orgCount > newCount,
-                          "Unable to find the current vertex from its parents --- impossible!");
+          NS_ASSERT_MSG (orgCount > newCount, "Unable to find the current vertex from its parents --- impossible!");
         }
     }
 
-    // delete children
-    while (!m_children.empty())
+  // delete children
+  while (m_children.size () > 0)
     {
-        // pop out children one by one. Some children may disappear
-        // when deleting some other children in the list. As a result,
-        // it is necessary to use pop to walk through all children, instead
-        // of using iterator.
-        //
-        // Note that m_children.pop_front () is not necessary as this
-        // p is removed from the children list when p is deleted
-        Vertex* p = m_children.front();
-        // 'p' == 0, this child is already deleted by its other parent
-        if (p == nullptr)
-        {
-            continue;
-        }
-        NS_LOG_LOGIC("Parent vertex-" << m_vertexId << " deleting its child vertex-"
-                                      << p->GetVertexId());
-        delete p;
-        p = nullptr;
+      // pop out children one by one. Some children may disappear 
+      // when deleting some other children in the list. As a result,
+      // it is necessary to use pop to walk through all children, instead
+      // of using iterator.
+      //
+      // Note that m_children.pop_front () is not necessary as this
+      // p is removed from the children list when p is deleted
+      DGRVertex* p = m_children.front ();
+      // 'p' == 0, this child is already deleted by its other parent
+      if (p == 0) continue;
+      NS_LOG_LOGIC ("Parent vertex-" << m_vertexId << " deleting its child vertex-" << p->GetVertexId ());
+      delete p;
+      p = 0;
     }
-    m_children.clear();
-    // delete parents
-    m_parents.clear();
-    // delete root exit direction
-    m_ecmpRootExits.clear();
+  m_children.clear ();
+  // delete parents
+  m_parents.clear ();
+  // delete root exit direction
+  m_ecmpRootExits.clear ();
 
-    NS_LOG_LOGIC("Vertex-" << m_vertexId << " completed deleted");
+  NS_LOG_LOGIC ("Vertex-" << m_vertexId << " completed deleted");
 }
 
 void
-Vertex::SetVertexType(Vertex::VertexType type)
+DGRVertex::SetVertexType (DGRVertex::VertexType type)
 {
-    m_vertexType = type;
+  NS_LOG_FUNCTION (this << type);
+  m_vertexType = type;
 }
 
-Vertex::VertexType
-Vertex::GetVertexType() const
+DGRVertex::VertexType
+DGRVertex::GetVertexType (void) const
 {
-    return m_vertexType;
+  NS_LOG_FUNCTION (this);
+  return m_vertexType;
 }
 
 void
-Vertex::SetVertexId(Ipv4Address id)
+DGRVertex::SetVertexId (Ipv4Address id)
 {
-    m_vertexId = id;
+  NS_LOG_FUNCTION (this << id);
+  m_vertexId = id;
 }
 
 Ipv4Address
-Vertex::GetVertexId() const
+DGRVertex::GetVertexId (void) const
 {
-    return m_vertexId;
+  NS_LOG_FUNCTION (this);
+  return m_vertexId;
 }
 
 void
-Vertex::SetLSA(LSA* lsa)
+DGRVertex::SetLSA (DGRRoutingLSA* lsa)
 {
-    m_lsa = lsa;
+  NS_LOG_FUNCTION (this << lsa);
+  m_lsa = lsa;
 }
 
-LSA*
-Vertex::GetLSA() const
+DGRRoutingLSA*
+DGRVertex::GetLSA (void) const
 {
-    return m_lsa;
+  NS_LOG_FUNCTION (this);
+  return m_lsa;
 }
 
 void
-Vertex::SetDistanceFromRoot(uint32_t distance)
+DGRVertex::SetDistanceFromRoot (uint32_t distance)
 {
-    m_distanceFromRoot = distance;
+  NS_LOG_FUNCTION (this << distance);
+  m_distanceFromRoot = distance;
 }
 
 uint32_t
-Vertex::GetDistanceFromRoot() const
+DGRVertex::GetDistanceFromRoot (void) const
 {
-    return m_distanceFromRoot;
+  NS_LOG_FUNCTION (this);
+  return m_distanceFromRoot;
 }
 
 void
-Vertex::SetParent(Vertex* parent)
+DGRVertex::SetParent (DGRVertex* parent)
 {
-    // always maintain only one parent when using setter/getter methods
-    m_parents.clear();
-    m_parents.push_back(parent);
+  NS_LOG_FUNCTION (this << parent);
+
+  // always maintain only one parent when using setter/getter methods
+  m_parents.clear ();
+  m_parents.push_back (parent);
 }
 
-Vertex*
-Vertex::GetParent(uint32_t i) const
+DGRVertex*
+DGRVertex::GetParent (uint32_t i) const
 {
-    // If the index i is out-of-range, return 0 and do nothing
-    if (m_parents.size() <= i)
+  NS_LOG_FUNCTION (this << i);
+
+  // If the index i is out-of-range, return 0 and do nothing
+  if (m_parents.size () <= i)
     {
-        NS_LOG_LOGIC("Index to Vertex's parent is out-of-range.");
-        return nullptr;
+      NS_LOG_LOGIC ("Index to DGRVertex's parent is out-of-range.");
+      return 0;
     }
-    ListOfVertex_t::const_iterator iter = m_parents.begin();
-    while (i-- > 0)
+  ListOfDGRVertex_t::const_iterator iter = m_parents.begin ();
+  while (i-- > 0) 
     {
-        iter++;
+      iter++;
     }
-    return *iter;
+  return *iter;
 }
 
-void
-Vertex::MergeParent(const Vertex* v)
+void 
+DGRVertex::MergeParent (const DGRVertex* v)
 {
-    NS_LOG_LOGIC("Before merge, list of parents = " << m_parents);
-    // combine the two lists first, and then remove any duplicated after
-    m_parents.insert(m_parents.end(), v->m_parents.begin(), v->m_parents.end());
-    // remove duplication
-    m_parents.sort();
-    m_parents.unique();
-    NS_LOG_LOGIC("After merge, list of parents = " << m_parents);
+  NS_LOG_FUNCTION (this << v);
+
+  NS_LOG_LOGIC ("Before merge, list of parents = " << m_parents);
+  // combine the two lists first, and then remove any duplicated after
+  m_parents.insert (m_parents.end (), 
+                    v->m_parents.begin (), v->m_parents.end ());
+  // remove duplication
+  m_parents.sort ();
+  m_parents.unique ();
+  NS_LOG_LOGIC ("After merge, list of parents = " << m_parents);
 }
 
-void
-Vertex::SetRootExitDirection(Ipv4Address nextHop, int32_t id)
+void 
+DGRVertex::SetRootExitDirection (Ipv4Address nextHop, int32_t id)
 {
-    // always maintain only one root's exit
-    m_ecmpRootExits.clear();
-    m_ecmpRootExits.emplace_back(nextHop, id);
-    // update the following in order to be backward compatitable with
-    // GetNextHop and GetOutgoingInterface methods
-    m_nextHop = nextHop;
-    m_rootOif = id;
+  NS_LOG_FUNCTION (this << nextHop << id);
+
+  // always maintain only one root's exit
+  m_ecmpRootExits.clear ();
+  m_ecmpRootExits.push_back (NodeExit_t (nextHop, id));
+  // update the following in order to be backward compatitable with
+  // GetNextHop and GetOutgoingInterface methods
+  m_nextHop = nextHop;
+  m_rootOif = id;
 }
 
-void
-Vertex::SetRootExitDirection(Vertex::NodeExit_t exit)
+void 
+DGRVertex::SetRootExitDirection (DGRVertex::NodeExit_t exit)
 {
-    SetRootExitDirection(exit.first, exit.second);
+  NS_LOG_FUNCTION (this << exit);
+  SetRootExitDirection (exit.first, exit.second);
 }
 
-Vertex::NodeExit_t
-Vertex::GetRootExitDirection(uint32_t i) const
+DGRVertex::NodeExit_t
+DGRVertex::GetRootExitDirection (uint32_t i) const
 {
-    typedef ListOfNodeExit_t::const_iterator CIter_t;
+  NS_LOG_FUNCTION (this << i);
+  typedef ListOfNodeExit_t::const_iterator CIter_t;
 
-    NS_ASSERT_MSG(i < m_ecmpRootExits.size(),
-                  "Index out-of-range when accessing Vertex::m_ecmpRootExits!");
-    CIter_t iter = m_ecmpRootExits.begin();
-    while (i-- > 0)
+  NS_ASSERT_MSG (i < m_ecmpRootExits.size (), "Index out-of-range when accessing DGRVertex::m_ecmpRootExits!");
+  CIter_t iter = m_ecmpRootExits.begin ();
+  while (i-- > 0) { iter++; }
+
+  return *iter;
+}
+
+DGRVertex::NodeExit_t 
+DGRVertex::GetRootExitDirection () const
+{
+  NS_LOG_FUNCTION (this);
+
+  NS_ASSERT_MSG (m_ecmpRootExits.size () <= 1, "Assumed there is at most one exit from the root to this vertex");
+  return GetRootExitDirection (0);
+}
+
+void 
+DGRVertex::MergeRootExitDirections (const DGRVertex* vertex)
+{
+  NS_LOG_FUNCTION (this << vertex);
+
+  // obtain the external list of exit directions
+  //
+  // Append the external list into 'this' and remove duplication afterward
+  const ListOfNodeExit_t& extList = vertex->m_ecmpRootExits;
+  m_ecmpRootExits.insert (m_ecmpRootExits.end (), 
+                          extList.begin (), extList.end ());
+  m_ecmpRootExits.sort ();
+  m_ecmpRootExits.unique ();
+}
+
+void 
+DGRVertex::InheritAllRootExitDirections (const DGRVertex* vertex)
+{
+  NS_LOG_FUNCTION (this << vertex);
+
+  // discard all exit direction currently associated with this vertex,
+  // and copy all the exit directions from the given vertex
+  if (m_ecmpRootExits.size () > 0)
     {
-        iter++;
+      NS_LOG_WARN ("x root exit directions in this vertex are going to be discarded");
     }
-
-    return *iter;
+  m_ecmpRootExits.clear ();
+  m_ecmpRootExits.insert (m_ecmpRootExits.end (), 
+                          vertex->m_ecmpRootExits.begin (), vertex->m_ecmpRootExits.end ());
 }
 
-Vertex::NodeExit_t
-Vertex::GetRootExitDirection() const
+uint32_t 
+DGRVertex::GetNRootExitDirections () const
 {
-    NS_ASSERT_MSG(m_ecmpRootExits.size() <= 1,
-                  "Assumed there is at most one exit from the root to this vertex");
-    return GetRootExitDirection(0);
+  NS_LOG_FUNCTION (this);
+  return m_ecmpRootExits.size ();
 }
 
-void
-Vertex::MergeRootExitDirections(const Vertex* vertex)
+uint32_t 
+DGRVertex::GetNChildren (void) const
 {
-    // obtain the external list of exit directions
-    //
-    // Append the external list into 'this' and remove duplication afterward
-    const ListOfNodeExit_t& extList = vertex->m_ecmpRootExits;
-    m_ecmpRootExits.insert(m_ecmpRootExits.end(), extList.begin(), extList.end());
-    m_ecmpRootExits.sort();
-    m_ecmpRootExits.unique();
+  NS_LOG_FUNCTION (this);
+  return m_children.size ();
 }
 
-void
-Vertex::InheritAllRootExitDirections(const Vertex* vertex)
+DGRVertex*
+DGRVertex::GetChild (uint32_t n) const
 {
-    // discard all exit direction currently associated with this vertex,
-    // and copy all the exit directions from the given vertex
-    if (!m_ecmpRootExits.empty())
+  NS_LOG_FUNCTION (this << n);
+  uint32_t j = 0;
+
+  for ( ListOfDGRVertex_t::const_iterator i = m_children.begin ();
+        i != m_children.end ();
+        i++, j++)
     {
-        NS_LOG_WARN("x root exit directions in this vertex are going to be discarded");
-    }
-    m_ecmpRootExits.clear();
-    m_ecmpRootExits.insert(m_ecmpRootExits.end(),
-                           vertex->m_ecmpRootExits.begin(),
-                           vertex->m_ecmpRootExits.end());
-}
-
-uint32_t
-Vertex::GetNRootExitDirections() const
-{
-    return m_ecmpRootExits.size();
-}
-
-uint32_t
-Vertex::GetNChildren() const
-{
-    return m_children.size();
-}
-
-Vertex*
-Vertex::GetChild(uint32_t n) const
-{
-    uint32_t j = 0;
-
-    for (ListOfVertex_t::const_iterator i = m_children.begin(); i != m_children.end(); i++, j++)
-    {
-        if (j == n)
+      if (j == n)
         {
-            return *i;
+          return *i;
         }
     }
-    NS_ASSERT_MSG(false, "Index <n> out of range.");
-    return nullptr;
+  NS_ASSERT_MSG (false, "Index <n> out of range.");
+  return 0;
 }
 
 uint32_t
-Vertex::AddChild(Vertex* child)
+DGRVertex::AddChild (DGRVertex* child)
 {
-    m_children.push_back(child);
-    return m_children.size();
+  NS_LOG_FUNCTION (this << child);
+  m_children.push_back (child);
+  return m_children.size ();
+}
+
+void 
+DGRVertex::SetVertexProcessed (bool value)
+{
+  NS_LOG_FUNCTION (this << value);
+  m_vertexProcessed = value;
+}
+
+bool 
+DGRVertex::IsVertexProcessed (void) const
+{
+  NS_LOG_FUNCTION (this);
+  return m_vertexProcessed;
 }
 
 void
-Vertex::SetVertexProcessed(bool value)
+DGRVertex::ClearVertexProcessed (void)
 {
-    m_vertexProcessed = value;
-}
-
-bool
-Vertex::IsVertexProcessed() const
-{
-    return m_vertexProcessed;
-}
-
-void
-Vertex::ClearVertexProcessed()
-{
-    for (uint32_t i = 0; i < this->GetNChildren(); i++)
+  NS_LOG_FUNCTION (this);
+  for (uint32_t i = 0; i < this->GetNChildren (); i++)
     {
-        this->GetChild(i)->ClearVertexProcessed();
+      this->GetChild (i)->ClearVertexProcessed ();
     }
-    this->SetVertexProcessed(false);
+  this->SetVertexProcessed (false);
 }
 
 // ---------------------------------------------------------------------------
 //
-// LSDB Implementation
+// DGRRouteManagerLSDB Implementation
 //
 // ---------------------------------------------------------------------------
 
-TypeId
-LSDB::GetTypeId()
+DGRRouteManagerLSDB::DGRRouteManagerLSDB ()
+  :
+    m_database (),
+    m_extdatabase ()
 {
-    static TypeId tid =
-        TypeId("ns3::open_routing::LSDB").SetParent<Object>().SetGroupName("open_routing");
-    return tid;
+  NS_LOG_FUNCTION (this);
 }
 
-LSDB::LSDB()
-    : m_database(),
-      m_extdatabase()
+DGRRouteManagerLSDB::~DGRRouteManagerLSDB ()
 {
-}
-
-LSDB::~LSDB()
-{
-    LSDBMap_t::iterator i;
-    for (i = m_database.begin(); i != m_database.end(); i++)
+  NS_LOG_FUNCTION (this);
+  LSDBMap_t::iterator i;
+  for (i= m_database.begin (); i!= m_database.end (); i++)
     {
-        NS_LOG_LOGIC("free LSA");
-        LSA* temp = i->second;
-        delete temp;
+      NS_LOG_LOGIC ("free LSA");
+      DGRRoutingLSA* temp = i->second;
+      delete temp;
     }
-    for (uint32_t j = 0; j < m_extdatabase.size(); j++)
+  for (uint32_t j = 0; j < m_extdatabase.size (); j++)
     {
-        NS_LOG_LOGIC("free ASexternalLSA");
-        LSA* temp = m_extdatabase.at(j);
-        delete temp;
+      NS_LOG_LOGIC ("free ASexternalLSA");
+      DGRRoutingLSA* temp = m_extdatabase.at (j);
+      delete temp;
     }
-    NS_LOG_LOGIC("clear map");
-    m_database.clear();
+  NS_LOG_LOGIC ("clear map");
+  m_database.clear ();
 }
 
 void
-LSDB::Initialize()
+DGRRouteManagerLSDB::Initialize ()
 {
-    LSDBMap_t::iterator i;
-    for (i = m_database.begin(); i != m_database.end(); i++)
+  NS_LOG_FUNCTION (this);
+  LSDBMap_t::iterator i;
+  for (i= m_database.begin (); i!= m_database.end (); i++)
     {
-        LSA* temp = i->second;
-        temp->SetStatus(LSA::LSA_SPF_NOT_EXPLORED);
+      DGRRoutingLSA* temp = i->second;
+      temp->SetStatus (DGRRoutingLSA::LSA_SPF_NOT_EXPLORED);
     }
 }
 
 void
-LSDB::Insert(Ipv4Address addr, LSA* lsa)
+DGRRouteManagerLSDB::Insert (Ipv4Address addr, DGRRoutingLSA* lsa)
 {
-    if (lsa->GetLSType() == LSA::ASExternalLSAs)
+  NS_LOG_FUNCTION (this << addr << lsa);
+  if (lsa->GetLSType () == DGRRoutingLSA::ASExternalLSAs) 
     {
-        m_extdatabase.push_back(lsa);
-    }
-    else
+      m_extdatabase.push_back (lsa);
+    } 
+  else
     {
-        m_database.insert(LSDBPair_t(addr, lsa));
+      m_database.insert (LSDBPair_t (addr, lsa));
     }
 }
 
-LSA*
-LSDB::GetExtLSA(uint32_t index) const
+DGRRoutingLSA*
+DGRRouteManagerLSDB::GetExtLSA (uint32_t index) const
 {
-    return m_extdatabase.at(index);
+  NS_LOG_FUNCTION (this << index);
+  return m_extdatabase.at (index);
 }
 
 uint32_t
-LSDB::GetNumExtLSAs() const
+DGRRouteManagerLSDB::GetNumExtLSAs () const
 {
-    return m_extdatabase.size();
+  NS_LOG_FUNCTION (this);
+  return m_extdatabase.size ();
 }
 
-LSA*
-LSDB::GetLSA(Ipv4Address addr) const
+DGRRoutingLSA*
+DGRRouteManagerLSDB::GetLSA (Ipv4Address addr) const
 {
-    //
-    // Look up an LSA by its address.
-    //
-    LSDBMap_t::const_iterator i;
-    for (i = m_database.begin(); i != m_database.end(); i++)
+  NS_LOG_FUNCTION (this << addr);
+//
+// Look up an LSA by its address.
+//
+  LSDBMap_t::const_iterator i;
+  for (i= m_database.begin (); i!= m_database.end (); i++)
     {
-        if (i->first == addr)
+      if (i->first == addr)
         {
-            return i->second;
+          return i->second;
         }
     }
-    return nullptr;
+  return 0;
 }
 
-LSA*
-LSDB::GetLSAByLinkData(Ipv4Address addr) const
+DGRRoutingLSA*
+DGRRouteManagerLSDB::GetLSAByLinkData (Ipv4Address addr) const
 {
-    //
-    // Look up an LSA by its address.
-    //
-    LSDBMap_t::const_iterator i;
-    for (i = m_database.begin(); i != m_database.end(); i++)
+  NS_LOG_FUNCTION (this << addr);
+//
+// Look up an LSA by its address.
+//
+  LSDBMap_t::const_iterator i;
+  for (i= m_database.begin (); i!= m_database.end (); i++)
     {
-        LSA* temp = i->second;
-        // Iterate among temp's Link Records
-        for (uint32_t j = 0; j < temp->GetNLinkRecords(); j++)
+      DGRRoutingLSA* temp = i->second;
+// Iterate among temp's Link Records
+      for (uint32_t j = 0; j < temp->GetNLinkRecords (); j++)
         {
-            LinkRecord* lr = temp->GetLinkRecord(j);
-            if (lr->GetLinkType() == LinkRecord::TransitNetwork &&
-                lr->GetLinkData() == addr)
+          DGRRoutingLinkRecord *lr = temp->GetLinkRecord (j);
+          if ( lr->GetLinkType () == DGRRoutingLinkRecord::TransitNetwork &&
+               lr->GetLinkData () == addr)
             {
-                return temp;
+              return temp;
             }
         }
     }
-    return nullptr;
-}
-
-void
-LSDB::Print (std::ostream &os) const
-{
-    os << "Print LSDB" << std::endl;
+  return 0;
 }
 
 } // namespace ns3

@@ -98,7 +98,8 @@ DGRv2QueueDisc::DoDequeue (void)
 
   for (uint32_t i = 0; i < GetNInternalQueues (); i ++)
     {
-      if (item = GetInternalQueue (i)->Dequeue ())
+      item = GetInternalQueue (i)->Dequeue ();
+      if (item)
         {
           // if (i == 0) std::cout << "Popped from band" << i << std::endl;
           NS_LOG_LOGIC ("Popped from band " << i << ": " << item);
@@ -120,7 +121,8 @@ DGRv2QueueDisc::DoPeek (void)
 
   for (uint32_t i = 0; i < GetNInternalQueues (); i++)
     {
-      if (item = GetInternalQueue (i)->Peek ())
+      item = GetInternalQueue (i)->Peek ();
+      if (item)
         {
           NS_LOG_LOGIC ("Peeked from band " << i << ": " << item);
           NS_LOG_LOGIC ("Number packets band " << i << ": " << GetInternalQueue (i)->GetNPackets ());

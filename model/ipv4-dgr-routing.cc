@@ -42,7 +42,7 @@ Ipv4DGRRouting::GetTypeId (void)
 { 
   static TypeId tid = TypeId ("ns3::Ipv4DGRRouting")
     .SetParent<Ipv4RoutingProtocol> ()
-    .SetGroupName ("DGR-routing")
+    .SetGroupName ("romam")
     .AddConstructor<Ipv4DGRRouting> ()
     .AddAttribute ("RandomEcmpRouting",
                    "Set to true if packets are randomly routed among ECMP; set to false for using only one route consistently",

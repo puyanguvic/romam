@@ -21,7 +21,7 @@
 #include "ns3/log.h"
 #include "ns3/assert.h"
 #include "dgr-candidate-queue.h"
-#include "dgr-route-manager-impl.h"
+#include "route-manager-impl.h"
 
 namespace ns3 {
 

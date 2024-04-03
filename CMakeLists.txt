@@ -9,7 +9,7 @@ set (source_files
     model/routing_algorithm/ipv4-dgr-routing-table-entry.cc
     model/ipv4-dgr-routing.cc
     model/routing_algorithm/dgr-route-manager.cc
-    model/routing_algorithm/dgr-route-manager-impl.cc
+    model/routing_algorithm/route-manager-impl.cc
     model/routing_algorithm/dgr-candidate-queue.cc
     model/priority_manage/dgrv2-queue-disc.cc
     
@@ -42,11 +42,11 @@ set (header_files
     # model/datapath/dgr-router-interface.h
     model/datapath/romam-tags.h
     model/datapath/lsa.h
-    model/utility/romam-router.cc
+    model/utility/romam-router.h
     model/routing_algorithm/ipv4-dgr-routing-table-entry.h
     model/ipv4-dgr-routing.h
     model/routing_algorithm/dgr-route-manager.h
-    model/routing_algorithm/dgr-route-manager-impl.h
+    model/routing_algorithm/route-manager-impl.h
     model/routing_algorithm/dgr-candidate-queue.h
     model/priority_manage/dgrv2-queue-disc.h
 

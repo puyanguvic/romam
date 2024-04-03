@@ -20,7 +20,6 @@ namespace ns3 {
 
 NS_LOG_COMPONENT_DEFINE ("DGRRoutingLinkRecord");
 
-NS_OBJECT_ENSURE_REGISTERED (DGRRoutingLinkRecord);
 // ---------------------------------------------------------------------------
 //
 // DGRRoutingLinkRecord Implementation
