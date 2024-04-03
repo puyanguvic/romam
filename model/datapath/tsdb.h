@@ -3,14 +3,11 @@
 #define TSDB_H
 
 #define STATESIZE 10
-// #include "ns3/core-module.h"
-#include "lsa.h"
-#include "database.h"
-
+#include "ns3/core-module.h"
 #include <map>
 #include <utility>
+#include "database.h"
 namespace ns3 {
-
 
 class StatusUnit
 {
@@ -54,7 +51,7 @@ private:
  * 
  * Each node in DGR maintains a neighbor status data base.
 */
-class DgrNSDB : public Database
+class TSDB : public Database
 {
   public:
     /**
@@ -63,18 +60,18 @@ class DgrNSDB : public Database
      * The database map composing the Neighbor Status Database in initilaized in
      * this constructor.
     */
-    DgrNSDB ();
+    TSDB ();
 
     /**
      * \brief Destroy an empty Neighbor Status Database.
      * 
      * Before distroy the database, resources should be release by clear ()
     */
-    ~DgrNSDB ();
+    ~TSDB ();
 
     // Delete copy constructor and assignment operator to avodi misuse.
-    DgrNSDB (const DgrNSDB&) = delete; // Disallow copying
-    DgrNSDB& operator=(const DgrNSDB&) = delete;
+    TSDB (const TSDB&) = delete; // Disallow copying
+    TSDB& operator=(const TSDB&) = delete;
 
     /**
      * \brief Set NSDB to empty.
@@ -111,20 +108,20 @@ class DgrNSDB : public Database
      * \brief Print the database
      * 
     */
-    void Print (std::ostream &os) const;
+    void Print (std::ostream &os) const override;
 
   private:
     typedef std::map<uint32_t, NeighborStatusEntry*> 
-        NSDBMap_t;  //!< container of <interface, NeighborStatusEntry>
+        TSDBMap_t;  //!< container of <interface, NeighborStatusEntry>
     typedef std::pair<uint32_t, NeighborStatusEntry*> 
         NSDBPair_t; //!< pair of <interface, NeighborStatusEntry>
     typedef std::map<uint32_t, NeighborStatusEntry*>::iterator
         NeighborStatusMapI; //!< NSE type iterator
     typedef std::map<uint32_t, NeighborStatusEntry*>::const_iterator
         NeighborStatusMapCI; //!< NSE type const iterator
-    NSDBMap_t m_database; //!< database of <interface, NeighborStatusEntry>
+    TSDBMap_t m_database; //!< database of <interface, NeighborStatusEntry>
 };
 
 }
 
-#endif /* NEIGHBOR_STATUS_Database_H */
+#endif /* TSDB_H */

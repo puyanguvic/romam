@@ -1,472 +1,487 @@
-/*
- * Copyright (c) 2024 Pu Yang
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation;
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
- *
- * Authors: Pu Yang  <puyang@uvic.ca>
- */
+/* -*- Mode:C++; c-file-style:"gnu"; indent-tabs-mode:nil; -*- */
+
+#include "ns3/log.h"
+#include "ns3/assert.h"
+#include "ns3/abort.h"
+#include "ns3/channel.h"
+#include "ns3/net-device.h"
+#include "ns3/node.h"
+#include "ns3/node-list.h"
+#include "ns3/ipv4.h"
+#include "ns3/bridge-net-device.h"
+#include "ns3/loopback-net-device.h"
+
+#include "../ipv4-dgr-routing.h"
 
 #include "lsa.h"
-#include "ns3/node-list.h"
+#include <vector>
 
 namespace ns3 {
+
+NS_LOG_COMPONENT_DEFINE ("DGRRoutingLinkRecord");
+
+NS_OBJECT_ENSURE_REGISTERED (DGRRoutingLinkRecord);
 // ---------------------------------------------------------------------------
 //
-// LinkRecord Implementation
+// DGRRoutingLinkRecord Implementation
 //
 // ---------------------------------------------------------------------------
 
-LinkRecord::LinkRecord()
-    : m_linkId("0.0.0.0"),
-      m_linkData("0.0.0.0"),
-      m_linkType(Unknown),
-      m_metric(0)
+DGRRoutingLinkRecord::DGRRoutingLinkRecord ()
+  :
+    m_linkId ("0.0.0.0"),
+    m_linkData ("0.0.0.0"),
+    m_linkType (Unknown),
+    m_metric (0)
 {
+  NS_LOG_FUNCTION (this);
 }
 
-LinkRecord::LinkRecord (LinkType linkType,
-                        Ipv4Address linkId,
-                        Ipv4Address linkData,
-                        uint16_t metric)
-    : m_linkId(linkId),
-      m_linkData(linkData),
-      m_linkType(linkType),
-      m_metric(metric)
+DGRRoutingLinkRecord::DGRRoutingLinkRecord (
+  LinkType    linkType, 
+  Ipv4Address linkId, 
+  Ipv4Address linkData, 
+  uint16_t    metric)
+  :
+    m_linkId (linkId),
+    m_linkData (linkData),
+    m_linkType (linkType),
+    m_metric (metric)
 {
-    // NS_LOG_FUNCTION(this << linkType << linkId << linkData << metric);
+  NS_LOG_FUNCTION (this << linkType << linkId << linkData << metric);
 }
 
-LinkRecord::~LinkRecord()
+DGRRoutingLinkRecord::~DGRRoutingLinkRecord ()
 {
-    // NS_LOG_FUNCTION(this);
+  NS_LOG_FUNCTION (this);
 }
 
 Ipv4Address
-LinkRecord::GetLinkId() const
+DGRRoutingLinkRecord::GetLinkId (void) const
 {
-    // NS_LOG_FUNCTION(this);
-    return m_linkId;
+  NS_LOG_FUNCTION (this);
+  return m_linkId;
 }
 
 void
-LinkRecord::SetLinkId(Ipv4Address addr)
+DGRRoutingLinkRecord::SetLinkId (Ipv4Address addr)
 {
-    // NS_LOG_FUNCTION(this << addr);
-    m_linkId = addr;
+  NS_LOG_FUNCTION (this << addr);
+  m_linkId = addr;
 }
 
 Ipv4Address
-LinkRecord::GetLinkData() const
+DGRRoutingLinkRecord::GetLinkData (void) const
 {
-    // NS_LOG_FUNCTION(this);
-    return m_linkData;
+  NS_LOG_FUNCTION (this);
+  return m_linkData;
 }
 
 void
-LinkRecord::SetLinkData(Ipv4Address addr)
+DGRRoutingLinkRecord::SetLinkData (Ipv4Address addr)
 {
-    // NS_LOG_FUNCTION(this << addr);
-    m_linkData = addr;
+  NS_LOG_FUNCTION (this << addr);
+  m_linkData = addr;
 }
 
-LinkRecord::LinkType
-LinkRecord::GetLinkType() const
+DGRRoutingLinkRecord::LinkType
+DGRRoutingLinkRecord::GetLinkType (void) const
 {
-    // NS_LOG_FUNCTION(this);
-    return m_linkType;
+  NS_LOG_FUNCTION (this);
+  return m_linkType;
 }
 
 void
-LinkRecord::SetLinkType(LinkRecord::LinkType linkType)
+DGRRoutingLinkRecord::SetLinkType (
+  DGRRoutingLinkRecord::LinkType linkType)
 {
-    // NS_LOG_FUNCTION(this << linkType);
-    m_linkType = linkType;
+  NS_LOG_FUNCTION (this << linkType);
+  m_linkType = linkType;
 }
 
 uint16_t
-LinkRecord::GetMetric() const
+DGRRoutingLinkRecord::GetMetric (void) const
 {
-    // NS_LOG_FUNCTION(this);
-    return m_metric;
+  NS_LOG_FUNCTION (this);
+  return m_metric;
 }
 
 void
-LinkRecord::SetMetric(uint16_t metric)
+DGRRoutingLinkRecord::SetMetric (uint16_t metric)
 {
-    // NS_LOG_FUNCTION(this << metric);
-    m_metric = metric;
+  NS_LOG_FUNCTION (this << metric);
+  m_metric = metric;
 }
 
 // ---------------------------------------------------------------------------
 //
-// LSA Implementation
+// DGRRoutingLSA Implementation
 //
 // ---------------------------------------------------------------------------
 
-LSA::LSA()
-    : m_lsType(LSA::Unknown),
-      m_linkStateId("0.0.0.0"),
-      m_advertisingRtr("0.0.0.0"),
-      m_linkRecords(),
-      m_networkLSANetworkMask("0.0.0.0"),
-      m_attachedRouters(),
-      m_status(LSA::LSA_SPF_NOT_EXPLORED),
-      m_node_id(0)
+DGRRoutingLSA::DGRRoutingLSA()
+  : 
+    m_lsType (DGRRoutingLSA::Unknown),
+    m_linkStateId ("0.0.0.0"),
+    m_advertisingRtr ("0.0.0.0"),
+    m_linkRecords (),
+    m_networkLSANetworkMask ("0.0.0.0"),
+    m_attachedRouters (),
+    m_status (DGRRoutingLSA::LSA_SPF_NOT_EXPLORED),
+    m_node_id (0)
 {
-    // NS_LOG_FUNCTION(this);
+  NS_LOG_FUNCTION (this);
 }
 
-LSA::LSA (LSA::SPFStatus status,
-          Ipv4Address linkStateId,
-          Ipv4Address advertisingRtr)
-    : m_lsType(LSA::Unknown),
-      m_linkStateId(linkStateId),
-      m_advertisingRtr(advertisingRtr),
-      m_linkRecords(),
-      m_networkLSANetworkMask("0.0.0.0"),
-      m_attachedRouters(),
-      m_status(status),
-      m_node_id(0)
+DGRRoutingLSA::DGRRoutingLSA (
+  DGRRoutingLSA::SPFStatus status,
+  Ipv4Address linkStateId, 
+  Ipv4Address advertisingRtr)
+  :
+    m_lsType (DGRRoutingLSA::Unknown),
+    m_linkStateId (linkStateId),
+    m_advertisingRtr (advertisingRtr),
+    m_linkRecords (),
+    m_networkLSANetworkMask ("0.0.0.0"),
+    m_attachedRouters (),
+    m_status (status),
+    m_node_id (0)
 {
-    // NS_LOG_FUNCTION(this << status << linkStateId << advertisingRtr);
+  NS_LOG_FUNCTION (this << status << linkStateId << advertisingRtr);
 }
 
-LSA::LSA(LSA& lsa)
-    : m_lsType(lsa.m_lsType),
-      m_linkStateId(lsa.m_linkStateId),
-      m_advertisingRtr(lsa.m_advertisingRtr),
-      m_networkLSANetworkMask(lsa.m_networkLSANetworkMask),
-      m_status(lsa.m_status),
-      m_node_id(lsa.m_node_id)
+DGRRoutingLSA::DGRRoutingLSA (DGRRoutingLSA& lsa)
+  : m_lsType (lsa.m_lsType), m_linkStateId (lsa.m_linkStateId),
+    m_advertisingRtr (lsa.m_advertisingRtr),
+    m_networkLSANetworkMask (lsa.m_networkLSANetworkMask),
+    m_status (lsa.m_status),
+    m_node_id (lsa.m_node_id)
 {
-    // NS_LOG_FUNCTION(this << &lsa);
-    // NS_ASSERT_MSG(IsEmpty(), "GlobalRoutingLSA::GlobalRoutingLSA (): Non-empty LSA in constructor");
-    CopyLinkRecords(lsa);
+  NS_LOG_FUNCTION (this << &lsa);
+  NS_ASSERT_MSG (IsEmpty (),
+                 "DGRRoutingLSA::DGRRoutingLSA (): Non-empty LSA in constructor");
+  CopyLinkRecords (lsa);
 }
 
-LSA&
-LSA::operator=(const LSA& lsa)
+DGRRoutingLSA&
+DGRRoutingLSA::operator= (const DGRRoutingLSA& lsa)
 {
-    // NS_LOG_FUNCTION(this << &lsa);
-    m_lsType = lsa.m_lsType;
-    m_linkStateId = lsa.m_linkStateId;
-    m_advertisingRtr = lsa.m_advertisingRtr;
-    m_networkLSANetworkMask = lsa.m_networkLSANetworkMask, m_status = lsa.m_status;
-    m_node_id = lsa.m_node_id;
+  NS_LOG_FUNCTION (this << &lsa);
+  m_lsType = lsa.m_lsType;
+  m_linkStateId = lsa.m_linkStateId;
+  m_advertisingRtr = lsa.m_advertisingRtr;
+  m_networkLSANetworkMask = lsa.m_networkLSANetworkMask, 
+  m_status = lsa.m_status;
+  m_node_id = lsa.m_node_id;
 
-    ClearLinkRecords();
-    CopyLinkRecords(lsa);
-    return *this;
-}
-
-void
-LSA::CopyLinkRecords(const LSA& lsa)
-{
-    // NS_LOG_FUNCTION(this << &lsa);
-    for (auto i = lsa.m_linkRecords.begin(); i != lsa.m_linkRecords.end(); i++)
-    {
-        LinkRecord* pSrc = *i;
-        auto pDst = new LinkRecord;
-
-        pDst->SetLinkType(pSrc->GetLinkType());
-        pDst->SetLinkId(pSrc->GetLinkId());
-        pDst->SetLinkData(pSrc->GetLinkData());
-        pDst->SetMetric(pSrc->GetMetric());
-
-        m_linkRecords.push_back(pDst);
-        pDst = nullptr;
-    }
-
-    m_attachedRouters = lsa.m_attachedRouters;
-}
-
-LSA::~LSA()
-{
-    // NS_LOG_FUNCTION(this);
-    ClearLinkRecords();
+  ClearLinkRecords ();
+  CopyLinkRecords (lsa);
+  return *this;
 }
 
 void
-LSA::ClearLinkRecords()
+DGRRoutingLSA::CopyLinkRecords (const DGRRoutingLSA& lsa)
 {
-    // NS_LOG_FUNCTION(this);
-    for (auto i = m_linkRecords.begin(); i != m_linkRecords.end(); i++)
+  NS_LOG_FUNCTION (this << &lsa);
+  for (ListOfLinkRecords_t::const_iterator i = lsa.m_linkRecords.begin ();
+       i != lsa.m_linkRecords.end (); 
+       i++)
     {
-        NS_LOG_LOGIC("Free link record");
+      DGRRoutingLinkRecord *pSrc = *i;
+      DGRRoutingLinkRecord *pDst = new DGRRoutingLinkRecord;
 
-        LinkRecord* p = *i;
-        delete p;
-        p = nullptr;
-        *i = nullptr;
+      pDst->SetLinkType (pSrc->GetLinkType ());
+      pDst->SetLinkId (pSrc->GetLinkId ());
+      pDst->SetLinkData (pSrc->GetLinkData ());
+      pDst->SetMetric (pSrc->GetMetric ());
+
+      m_linkRecords.push_back (pDst);
+      pDst = 0;
     }
-    // NS_LOG_LOGIC("Clear list");
-    m_linkRecords.clear();
+
+  m_attachedRouters = lsa.m_attachedRouters;
 }
 
-uint32_t
-LSA::AddLinkRecord(LinkRecord* lr)
+DGRRoutingLSA::~DGRRoutingLSA()
 {
-    // NS_LOG_FUNCTION(this << lr);
-    m_linkRecords.push_back(lr);
-    return m_linkRecords.size();
+  NS_LOG_FUNCTION (this);
+  ClearLinkRecords ();
 }
 
-uint32_t
-LSA::GetNLinkRecords() const
+void
+DGRRoutingLSA::ClearLinkRecords (void)
 {
-    // NS_LOG_FUNCTION(this);
-    return m_linkRecords.size();
-}
-
-LinkRecord*
-LSA::GetLinkRecord(uint32_t n) const
-{
-    // NS_LOG_FUNCTION(this << n);
-    uint32_t j = 0;
-    for (auto i = m_linkRecords.begin(); i != m_linkRecords.end(); i++, j++)
+  NS_LOG_FUNCTION (this);
+  for ( ListOfLinkRecords_t::iterator i = m_linkRecords.begin ();
+        i != m_linkRecords.end (); 
+        i++)
     {
-        if (j == n)
+      NS_LOG_LOGIC ("Free link record");
+
+      DGRRoutingLinkRecord *p = *i;
+      delete p;
+      p = 0;
+
+      *i = 0;
+    }
+  NS_LOG_LOGIC ("Clear list");
+  m_linkRecords.clear ();
+}
+
+uint32_t
+DGRRoutingLSA::AddLinkRecord (DGRRoutingLinkRecord* lr)
+{
+  NS_LOG_FUNCTION (this << lr);
+  m_linkRecords.push_back (lr);
+  return m_linkRecords.size ();
+}
+
+uint32_t
+DGRRoutingLSA::GetNLinkRecords (void) const
+{
+  NS_LOG_FUNCTION (this);
+  return m_linkRecords.size ();
+}
+
+DGRRoutingLinkRecord *
+DGRRoutingLSA::GetLinkRecord (uint32_t n) const
+{
+  NS_LOG_FUNCTION (this << n);
+  uint32_t j = 0;
+  for ( ListOfLinkRecords_t::const_iterator i = m_linkRecords.begin ();
+        i != m_linkRecords.end (); 
+        i++, j++)
+    {
+      if (j == n) 
         {
-            return *i;
+          return *i;
         }
     }
-    NS_ASSERT_MSG(false, "LSA::GetLinkRecord (): invalid index");
-    return nullptr;
+  NS_ASSERT_MSG (false, "DGRRoutingLSA::GetLinkRecord (): invalid index");
+  return 0;
 }
 
 bool
-LSA::IsEmpty() const
+DGRRoutingLSA::IsEmpty (void) const
 {
-    // NS_LOG_FUNCTION(this);
-    return m_linkRecords.empty();
+  NS_LOG_FUNCTION (this);
+  return m_linkRecords.size () == 0;
 }
 
-LSA::LSType
-LSA::GetLSType() const
+DGRRoutingLSA::LSType
+DGRRoutingLSA::GetLSType (void) const
 {
-    // NS_LOG_FUNCTION(this);
-    return m_lsType;
+  NS_LOG_FUNCTION (this);
+  return m_lsType;
 }
 
 void
-LSA::SetLSType(LSA::LSType typ)
+DGRRoutingLSA::SetLSType (DGRRoutingLSA::LSType typ) 
 {
-    // NS_LOG_FUNCTION(this << typ);
-    m_lsType = typ;
+  NS_LOG_FUNCTION (this << typ);
+  m_lsType = typ;
 }
 
 Ipv4Address
-LSA::GetLinkStateId() const
+DGRRoutingLSA::GetLinkStateId (void) const
 {
-    // NS_LOG_FUNCTION(this);
-    return m_linkStateId;
+  NS_LOG_FUNCTION (this);
+  return m_linkStateId;
 }
 
 void
-LSA::SetLinkStateId(Ipv4Address addr)
+DGRRoutingLSA::SetLinkStateId (Ipv4Address addr)
 {
-    // NS_LOG_FUNCTION(this << addr);
-    m_linkStateId = addr;
+  NS_LOG_FUNCTION (this << addr);
+  m_linkStateId = addr;
 }
 
 Ipv4Address
-LSA::GetAdvertisingRouter() const
+DGRRoutingLSA::GetAdvertisingRouter (void) const
 {
-    // NS_LOG_FUNCTION(this);
-    return m_advertisingRtr;
+  NS_LOG_FUNCTION (this);
+  return m_advertisingRtr;
 }
 
 void
-LSA::SetAdvertisingRouter(Ipv4Address addr)
+DGRRoutingLSA::SetAdvertisingRouter (Ipv4Address addr)
 {
-    // NS_LOG_FUNCTION(this << addr);
-    m_advertisingRtr = addr;
+  NS_LOG_FUNCTION (this << addr);
+  m_advertisingRtr = addr;
 }
 
 void
-LSA::SetNetworkLSANetworkMask(Ipv4Mask mask)
+DGRRoutingLSA::SetNetworkLSANetworkMask (Ipv4Mask mask)
 {
-    // NS_LOG_FUNCTION(this << mask);
-    m_networkLSANetworkMask = mask;
+  NS_LOG_FUNCTION (this << mask);
+  m_networkLSANetworkMask = mask;
 }
 
 Ipv4Mask
-LSA::GetNetworkLSANetworkMask() const
+DGRRoutingLSA::GetNetworkLSANetworkMask (void) const
 {
-    // NS_LOG_FUNCTION(this);
-    return m_networkLSANetworkMask;
+  NS_LOG_FUNCTION (this);
+  return m_networkLSANetworkMask;
 }
 
-LSA::SPFStatus
-LSA::GetStatus() const
+DGRRoutingLSA::SPFStatus
+DGRRoutingLSA::GetStatus (void) const
 {
-    // NS_LOG_FUNCTION(this);
-    return m_status;
-}
-
-uint32_t
-LSA::AddAttachedRouter(Ipv4Address addr)
-{
-    // NS_LOG_FUNCTION(this << addr);
-    m_attachedRouters.push_back(addr);
-    return m_attachedRouters.size();
+  NS_LOG_FUNCTION (this);
+  return m_status;
 }
 
 uint32_t
-LSA::GetNAttachedRouters() const
+DGRRoutingLSA::AddAttachedRouter (Ipv4Address addr)
 {
-    // NS_LOG_FUNCTION(this);
-    return m_attachedRouters.size();
+  NS_LOG_FUNCTION (this << addr);
+  m_attachedRouters.push_back (addr);
+  return m_attachedRouters.size ();
+}
+
+uint32_t
+DGRRoutingLSA::GetNAttachedRouters (void) const
+{
+  NS_LOG_FUNCTION (this);
+  return m_attachedRouters.size (); 
 }
 
 Ipv4Address
-LSA::GetAttachedRouter(uint32_t n) const
+DGRRoutingLSA::GetAttachedRouter (uint32_t n) const
 {
-    // NS_LOG_FUNCTION(this << n);
-    uint32_t j = 0;
-    for (auto i = m_attachedRouters.begin(); i != m_attachedRouters.end(); i++, j++)
+  NS_LOG_FUNCTION (this << n);
+  uint32_t j = 0;
+  for ( ListOfAttachedRouters_t::const_iterator i = m_attachedRouters.begin ();
+        i != m_attachedRouters.end (); 
+        i++, j++)
     {
-        if (j == n)
+      if (j == n) 
         {
-            return *i;
+          return *i;
         }
     }
-    // NS_ASSERT_MSG(false, "LSA::GetAttachedRouter (): invalid index");
-    return Ipv4Address("0.0.0.0");
+  NS_ASSERT_MSG (false, "DGRRoutingLSA::GetAttachedRouter (): invalid index");
+  return Ipv4Address ("0.0.0.0");
 }
 
 void
-LSA::SetStatus(LSA::SPFStatus status)
+DGRRoutingLSA::SetStatus (DGRRoutingLSA::SPFStatus status)
 {
-    // NS_LOG_FUNCTION(this << status);
-    m_status = status;
+  NS_LOG_FUNCTION (this << status);
+  m_status = status;
 }
 
 Ptr<Node>
-LSA::GetNode() const
+DGRRoutingLSA::GetNode (void) const
 {
-    // NS_LOG_FUNCTION(this);
-    return NodeList::GetNode(m_node_id);
+  NS_LOG_FUNCTION (this);
+  return NodeList::GetNode (m_node_id);
 }
 
 void
-LSA::SetNode(Ptr<Node> node)
+DGRRoutingLSA::SetNode (Ptr<Node> node)
 {
-    // NS_LOG_FUNCTION(this << node);
-    m_node_id = node->GetId();
+  NS_LOG_FUNCTION (this << node);
+  m_node_id = node->GetId ();
 }
 
 void
-LSA::Print(std::ostream& os) const
+DGRRoutingLSA::Print (std::ostream &os) const
 {
-    // NS_LOG_FUNCTION(this << &os);
-    os << std::endl;
-    os << "========== Link State Advertising ==========" << std::endl;
-    os << "m_lsType = " << m_lsType;
-    if (m_lsType == LSA::RouterLSA)
+  NS_LOG_FUNCTION (this << &os);
+  os << std::endl;
+  os << "========== DGR Routing LSA ==========" << std::endl;
+  os << "m_lsType = " << m_lsType;
+  if (m_lsType == DGRRoutingLSA::RouterLSA) 
     {
-        os << " (LSA::RouterLSA)";
+      os << " (DGRRoutingLSA::RouterLSA)";
     }
-    else if (m_lsType == LSA::NetworkLSA)
+  else if (m_lsType == DGRRoutingLSA::NetworkLSA) 
     {
-        os << " (LSA::NetworkLSA)";
+      os << " (DGRRoutingLSA::NetworkLSA)";
     }
-    else if (m_lsType == LSA::ASExternalLSAs)
+  else if (m_lsType == DGRRoutingLSA::ASExternalLSAs)
     {
-        os << " (LSA::ASExternalLSA)";
+      os << " (DGRRoutingLSA::ASExternalLSA)";
     }
-    else
+  else
     {
-        os << "(Unknown LSType)";
+      os << "(Unknown LSType)";
     }
-    os << std::endl;
+  os << std::endl;
 
-    os << "m_linkStateId = " << m_linkStateId << " (Router ID)" << std::endl;
-    os << "m_advertisingRtr = " << m_advertisingRtr << " (Router ID)" << std::endl;
+  os << "m_linkStateId = " << m_linkStateId << " (Router ID)" << std::endl;
+  os << "m_advertisingRtr = " << m_advertisingRtr << " (Router ID)" << std::endl;
 
-    if (m_lsType == LSA::RouterLSA)
+  if (m_lsType == DGRRoutingLSA::RouterLSA) 
     {
-        for (auto i = m_linkRecords.begin(); i != m_linkRecords.end(); i++)
+      for ( ListOfLinkRecords_t::const_iterator i = m_linkRecords.begin ();
+            i != m_linkRecords.end (); 
+            i++)
         {
-            LinkRecord* p = *i;
+          DGRRoutingLinkRecord *p = *i;
 
-            os << "---------- RouterLSA Link Record ----------" << std::endl;
-            os << "m_linkType = " << p->m_linkType;
-            if (p->m_linkType == LinkRecord::PointToPoint)
+          os << "---------- RouterLSA Link Record ----------" << std::endl;
+          os << "m_linkType = " << p->m_linkType;
+          if (p->m_linkType == DGRRoutingLinkRecord::PointToPoint)
             {
-                os << " (LinkRecord::PointToPoint)" << std::endl;
-                os << "m_linkId = " << p->m_linkId << std::endl;
-                os << "m_linkData = " << p->m_linkData << std::endl;
-                os << "m_metric = " << p->m_metric << std::endl;
+              os << " (DGRRoutingLinkRecord::PointToPoint)" << std::endl;
+              os << "m_linkId = " << p->m_linkId << std::endl;
+              os << "m_linkData = " << p->m_linkData << std::endl;
+              os << "m_metric = " << p->m_metric << std::endl;
             }
-            else if (p->m_linkType == LinkRecord::TransitNetwork)
+          else if (p->m_linkType == DGRRoutingLinkRecord::TransitNetwork)
             {
-                os << " (LinkRecord::TransitNetwork)" << std::endl;
-                os << "m_linkId = " << p->m_linkId << " (Designated router for network)"
-                   << std::endl;
-                os << "m_linkData = " << p->m_linkData << " (This router's IP address)"
-                   << std::endl;
-                os << "m_metric = " << p->m_metric << std::endl;
+              os << " (DGRRoutingLinkRecord::TransitNetwork)" << std::endl;
+              os << "m_linkId = " << p->m_linkId << " (Designated router for network)" << std::endl;
+              os << "m_linkData = " << p->m_linkData << " (This router's IP address)" << std::endl;
+              os << "m_metric = " << p->m_metric << std::endl;
             }
-            else if (p->m_linkType == LinkRecord::StubNetwork)
+          else if (p->m_linkType == DGRRoutingLinkRecord::StubNetwork)
             {
-                os << " (LinkRecord::StubNetwork)" << std::endl;
-                os << "m_linkId = " << p->m_linkId << " (Network number of attached network)"
-                   << std::endl;
-                os << "m_linkData = " << p->m_linkData << " (Network mask of attached network)"
-                   << std::endl;
-                os << "m_metric = " << p->m_metric << std::endl;
+              os << " (DGRRoutingLinkRecord::StubNetwork)" << std::endl;
+              os << "m_linkId = " << p->m_linkId << " (Network number of attached network)" << std::endl;
+              os << "m_linkData = " << p->m_linkData << " (Network mask of attached network)" << std::endl;
+              os << "m_metric = " << p->m_metric << std::endl;
             }
-            else
+          else
             {
-                os << " (Unknown LinkType)" << std::endl;
-                os << "m_linkId = " << p->m_linkId << std::endl;
-                os << "m_linkData = " << p->m_linkData << std::endl;
-                os << "m_metric = " << p->m_metric << std::endl;
+              os << " (Unknown LinkType)" << std::endl;
+              os << "m_linkId = " << p->m_linkId << std::endl;
+              os << "m_linkData = " << p->m_linkData << std::endl;
+              os << "m_metric = " << p->m_metric << std::endl;
             }
-            os << "---------- End RouterLSA Link Record ----------" << std::endl;
+          os << "---------- End RouterLSA Link Record ----------" << std::endl;
         }
     }
-    else if (m_lsType == LSA::NetworkLSA)
+  else if (m_lsType == DGRRoutingLSA::NetworkLSA) 
     {
-        os << "---------- NetworkLSA Link Record ----------" << std::endl;
-        os << "m_networkLSANetworkMask = " << m_networkLSANetworkMask << std::endl;
-        for (auto i = m_attachedRouters.begin(); i != m_attachedRouters.end(); i++)
+      os << "---------- NetworkLSA Link Record ----------" << std::endl;
+      os << "m_networkLSANetworkMask = " << m_networkLSANetworkMask << std::endl;
+      for ( ListOfAttachedRouters_t::const_iterator i = m_attachedRouters.begin (); i != m_attachedRouters.end (); i++)
         {
-            Ipv4Address p = *i;
-            os << "attachedRouter = " << p << std::endl;
+          Ipv4Address p = *i;
+          os << "attachedRouter = " << p << std::endl;
         }
-        os << "---------- End NetworkLSA Link Record ----------" << std::endl;
+      os << "---------- End NetworkLSA Link Record ----------" << std::endl;
     }
-    else if (m_lsType == LSA::ASExternalLSAs)
+  else if (m_lsType == DGRRoutingLSA::ASExternalLSAs)
     {
-        os << "---------- ASExternalLSA Link Record --------" << std::endl;
-        os << "m_linkStateId = " << m_linkStateId << std::endl;
-        os << "m_networkLSANetworkMask = " << m_networkLSANetworkMask << std::endl;
+      os << "---------- ASExternalLSA Link Record --------" << std::endl;
+      os << "m_linkStateId = " << m_linkStateId << std::endl;
+      os << "m_networkLSANetworkMask = " << m_networkLSANetworkMask << std::endl;
     }
-    else
+  else 
     {
-        NS_ASSERT_MSG(0, "Illegal LSA LSType: " << m_lsType);
+      NS_ASSERT_MSG (0, "Illegal LSA LSType: " << m_lsType);
     }
-    os << "========== End Global Routing LSA ==========" << std::endl;
+  os << "========== End Global Routing LSA ==========" << std::endl;
 }
 
-std::ostream&
-operator<<(std::ostream& os, LSA& lsa)
+std::ostream& operator<< (std::ostream& os, DGRRoutingLSA& lsa)
 {
-    lsa.Print(os);
-    return os;
+  lsa.Print (os);
+  return os;
 }
 
 } // namespace ns3

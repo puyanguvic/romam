@@ -4,9 +4,6 @@
  */
 
 #include "database.h"
-
-#include "ipv4-route.h"
-
 #include "ns3/assert.h"
 #include "ns3/log.h"
 
@@ -21,7 +18,7 @@ TypeId
 Database::GetTypeId()
 {
     static TypeId tid =
-        TypeId("ns3::Database").SetParent<Object>().SetGroupName("open_routing");
+        TypeId("ns3::Database").SetParent<Object>().SetGroupName("romam");
     return tid;
 }
 

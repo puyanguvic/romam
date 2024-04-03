@@ -23,31 +23,31 @@ const uint32_t SPF_INFINITY = 0xffffffff; //!< "infinite" distance between nodes
  * @brief Vertex used in shortest path first (SPF) computations. See \RFC{2328},
  * Section 16.
  *
- * Each router in the simulation is associated with an SPFVertex object.  When
+ * Each router in the simulation is associated with an Vertex object.  When
  * calculating routes, each of these routers is, in turn, chosen as the "root"
  * of the calculation and routes to all of the other routers are eventually
  * saved in the routing tables of each of the chosen nodes.  Each of these
- * routers in the calculation has an associated SPFVertex.
+ * routers in the calculation has an associated Vertex.
  *
- * The "Root" vertex is the SPFVertex representing the router that is having
- * its routing tables set.  The SPFVertex objects representing other routers
+ * The "Root" vertex is the Vertex representing the router that is having
+ * its routing tables set.  The Vertex objects representing other routers
  * or networks in the simulation are arranged in the SPF tree.  It is this
  * tree that represents the Shortest Paths to the other networks.
  *
- * Each SPFVertex has a pointer to the Global Router Link State Advertisement
+ * Each Vertex has a pointer to the Global Router Link State Advertisement
  * (LSA) that its underlying router has exported.  Within these LSAs are
  * Global Router Link Records that describe the point to point links from the
- * underlying router to other nodes (represented by other SPFVertex objects)
+ * underlying router to other nodes (represented by other Vertex objects)
  * in the simulation topology.  The combination of the arrangement of the
- * SPFVertex objects in the SPF tree, along with the details of the link
+ * Vertex objects in the SPF tree, along with the details of the link
  * records that connect them provide the information required to construct the
  * required routes.
  */
-class SPFVertex
+class Vertex
 {
   public:
     /**
-     * @brief Enumeration of the possible types of SPFVertex objects.
+     * @brief Enumeration of the possible types of Vertex objects.
      *
      * Currently we use VertexRouter to identify objects that represent a router
      * in the simulation topology, and VertexNetwork to identify objects that
@@ -61,92 +61,92 @@ class SPFVertex
     };
 
     /**
-     * @brief Construct an empty ("uninitialized") SPFVertex (Shortest Path First
+     * @brief Construct an empty ("uninitialized") Vertex (Shortest Path First
      * Vertex).
      *
      * The Vertex Type is set to VertexUnknown, the Vertex ID is set to
      * 255.255.255.255, and the distance from root is set to infinity
      * (UINT32_MAX).  The referenced Link State Advertisement (LSA) is set to
-     * null as is the parent SPFVertex.  The outgoing interface index is set to
+     * null as is the parent Vertex.  The outgoing interface index is set to
      * infinity, the next hop address is set to 0.0.0.0 and the list of children
-     * of the SPFVertex is initialized to empty.
+     * of the Vertex is initialized to empty.
      *
      * @see VertexType
      */
-    SPFVertex();
+    Vertex();
 
     /**
-     * @brief Construct an initialized SPFVertex (Shortest Path First Vertex).
+     * @brief Construct an initialized Vertex (Shortest Path First Vertex).
      *
      * The Vertex Type is initialized to VertexRouter and the Vertex ID is found
      * from the Link State ID of the Link State Advertisement (LSA) passed as a
      * parameter.  The Link State ID is set to the Router ID of the advertising
      * router.  The referenced LSA (m_lsa) is set to the given LSA.  Other than
      * these members, initialization is as in the default constructor.
-     * of the SPFVertex is initialized to empty.
+     * of the Vertex is initialized to empty.
      *
-     * @see SPFVertex::SPFVertex ()
+     * @see Vertex::Vertex ()
      * @see VertexType
      * @see LSA
      * @param lsa The Link State Advertisement used for finding initial values.
      */
-    SPFVertex(LSA* lsa);
+    Vertex(LSA* lsa);
 
     /**
-     * @brief Destroy an SPFVertex (Shortest Path First Vertex).
+     * @brief Destroy an Vertex (Shortest Path First Vertex).
      *
-     * The children vertices of the SPFVertex are recursively deleted.
+     * The children vertices of the Vertex are recursively deleted.
      *
-     * @see SPFVertex::SPFVertex ()
+     * @see Vertex::Vertex ()
      */
-    ~SPFVertex();
+    ~Vertex();
 
     // Delete copy constructor and assignment operator to avoid misuse
-    SPFVertex(const SPFVertex&) = delete;
-    SPFVertex& operator=(const SPFVertex&) = delete;
+    Vertex(const Vertex&) = delete;
+    Vertex& operator=(const Vertex&) = delete;
 
     /**
-     * @brief Get the Vertex Type field of a SPFVertex object.
+     * @brief Get the Vertex Type field of a Vertex object.
      *
-     * The Vertex Type describes the kind of simulation object a given SPFVertex
+     * The Vertex Type describes the kind of simulation object a given Vertex
      * represents.
      *
      * @see VertexType
-     * @returns The VertexType of the current SPFVertex object.
+     * @returns The VertexType of the current Vertex object.
      */
     VertexType GetVertexType() const;
 
     /**
-     * @brief Set the Vertex Type field of a SPFVertex object.
+     * @brief Set the Vertex Type field of a Vertex object.
      *
-     * The Vertex Type describes the kind of simulation object a given SPFVertex
+     * The Vertex Type describes the kind of simulation object a given Vertex
      * represents.
      *
      * @see VertexType
-     * @param type The new VertexType for the current SPFVertex object.
+     * @param type The new VertexType for the current Vertex object.
      */
     void SetVertexType(VertexType type);
 
     /**
-     * @brief Get the Vertex ID field of a SPFVertex object.
+     * @brief Get the Vertex ID field of a Vertex object.
      *
-     * The Vertex ID uniquely identifies the simulation object a given SPFVertex
-     * represents.  Typically, this is the Router ID for SPFVertex objects
+     * The Vertex ID uniquely identifies the simulation object a given Vertex
+     * represents.  Typically, this is the Router ID for Vertex objects
      * representing routers, and comes from the Link State Advertisement of a
      * router aggregated to a node in the simulation.  These IDs are allocated
      * automatically by the routing environment and look like IP addresses
      * beginning at 0.0.0.0 and monotonically increasing as new routers are
      * instantiated.
      *
-     * @returns The Ipv4Address Vertex ID of the current SPFVertex object.
+     * @returns The Ipv4Address Vertex ID of the current Vertex object.
      */
     Ipv4Address GetVertexId() const;
 
     /**
-     * @brief Set the Vertex ID field of a SPFVertex object.
+     * @brief Set the Vertex ID field of a Vertex object.
      *
-     * The Vertex ID uniquely identifies the simulation object a given SPFVertex
-     * represents.  Typically, this is the Router ID for SPFVertex objects
+     * The Vertex ID uniquely identifies the simulation object a given Vertex
+     * represents.  Typically, this is the Router ID for Vertex objects
      * representing routers, and comes from the Link State Advertisement of a
      * router aggregated to a node in the simulation.  These IDs are allocated
      * automatically by the routing environment and look like IP addresses
@@ -154,49 +154,49 @@ class SPFVertex
      * instantiated.  This method is an explicit override of the automatically
      * generated value.
      *
-     * @param id The new Ipv4Address Vertex ID for the current SPFVertex object.
+     * @param id The new Ipv4Address Vertex ID for the current Vertex object.
      */
     void SetVertexId(Ipv4Address id);
 
     /**
      * @brief Get the Global Router Link State Advertisement returned by the
-     * Global Router represented by this SPFVertex during the route discovery
+     * Global Router represented by this Vertex during the route discovery
      * process.
      *
      * @see GlobalRouter
      * @see LSA
      * @see GlobalRouter::DiscoverLSAs ()
      * @returns A pointer to the LSA found by the router represented
-     * by this SPFVertex object.
+     * by this Vertex object.
      */
     LSA* GetLSA() const;
 
     /**
      * @brief Set the Global Router Link State Advertisement returned by the
-     * Global Router represented by this SPFVertex during the route discovery
+     * Global Router represented by this Vertex during the route discovery
      * process.
      *
-     * @see SPFVertex::GetLSA ()
+     * @see Vertex::GetLSA ()
      * @see GlobalRouter
      * @see LSA
      * @see GlobalRouter::DiscoverLSAs ()
-     * @warning Ownership of the LSA is transferred to the "this" SPFVertex.  You
+     * @warning Ownership of the LSA is transferred to the "this" Vertex.  You
      * must not delete the LSA after calling this method.
      * @param lsa A pointer to the LSA.
      */
     void SetLSA(LSA* lsa);
 
     /**
-     * @brief Get the distance from the root vertex to "this" SPFVertex object.
+     * @brief Get the distance from the root vertex to "this" Vertex object.
      *
-     * Each router in the simulation is associated with an SPFVertex object.  When
+     * Each router in the simulation is associated with an Vertex object.  When
      * calculating routes, each of these routers is, in turn, chosen as the "root"
      * of the calculation and routes to all of the other routers are eventually
      * saved in the routing tables of each of the chosen nodes.  Each of these
-     * routers in the calculation has an associated SPFVertex.
+     * routers in the calculation has an associated Vertex.
      *
-     * The "Root" vertex is then the SPFVertex representing the router that is
-     * having its routing tables set.  The "this" SPFVertex is the vertex to which
+     * The "Root" vertex is then the Vertex representing the router that is
+     * having its routing tables set.  The "this" Vertex is the vertex to which
      * a route is being calculated from the root.  The distance from the root that
      * we're asking for is the number of hops from the root vertex to the vertex
      * in question.
@@ -204,47 +204,47 @@ class SPFVertex
      * The distance is calculated during route discovery and is stored in a
      * member variable.  This method simply fetches that value.
      *
-     * @returns The distance, in hops, from the root SPFVertex to "this" SPFVertex.
+     * @returns The distance, in hops, from the root Vertex to "this" Vertex.
      */
     uint32_t GetDistanceFromRoot() const;
 
     /**
-     * @brief Set the distance from the root vertex to "this" SPFVertex object.
+     * @brief Set the distance from the root vertex to "this" Vertex object.
      *
-     * Each router in the simulation is associated with an SPFVertex object.  When
+     * Each router in the simulation is associated with an Vertex object.  When
      * calculating routes, each of these routers is, in turn, chosen as the "root"
      * of the calculation and routes to all of the other routers are eventually
      * saved in the routing tables of each of the chosen nodes.  Each of these
-     * routers in the calculation has an associated SPFVertex.
+     * routers in the calculation has an associated Vertex.
      *
-     * The "Root" vertex is then the SPFVertex representing the router that is
-     * having its routing tables set.  The "this" SPFVertex is the vertex to which
+     * The "Root" vertex is then the Vertex representing the router that is
+     * having its routing tables set.  The "this" Vertex is the vertex to which
      * a route is being calculated from the root.  The distance from the root that
      * we're asking for is the number of hops from the root vertex to the vertex
      * in question.
      *
-     * @param distance The distance, in hops, from the root SPFVertex to "this"
-     * SPFVertex.
+     * @param distance The distance, in hops, from the root Vertex to "this"
+     * Vertex.
      */
     void SetDistanceFromRoot(uint32_t distance);
 
     /**
      * @brief Set the IP address and outgoing interface index that should be used
-     * to begin forwarding packets from the root SPFVertex to "this" SPFVertex.
+     * to begin forwarding packets from the root Vertex to "this" Vertex.
      *
-     * Each router node in the simulation is associated with an SPFVertex object.
+     * Each router node in the simulation is associated with an Vertex object.
      * When calculating routes, each of these routers is, in turn, chosen as the
      * "root" of the calculation and routes to all of the other routers are
      * eventually saved in the routing tables of each of the chosen nodes.
      *
-     * The "Root" vertex is then the SPFVertex representing the router that is
-     * having its routing tables set.  The "this" SPFVertex is the vertex that
+     * The "Root" vertex is then the Vertex representing the router that is
+     * having its routing tables set.  The "this" Vertex is the vertex that
      * represents the host or network to which a route is being calculated from
      * the root.  The IP address that we're asking for is the address on the
      * remote side of a link off of the root node that should be used as the
      * destination for packets along the path to "this" vertex.
      *
-     * When initializing the root SPFVertex, the IP address used when forwarding
+     * When initializing the root Vertex, the IP address used when forwarding
      * packets is determined by examining the Global Router Link Records of the
      * Link State Advertisement generated by the root node's GlobalRouter.  This
      * address is used to forward packets off of the root's network down those
@@ -259,15 +259,15 @@ class SPFVertex
      * the interface and next hop.
      *
      * In this method we are telling the root node which exit direction it should send
-     * should I send a packet to the network or host represented by 'this' SPFVertex.
+     * should I send a packet to the network or host represented by 'this' Vertex.
      *
      * @see GlobalRouter
      * @see LSA
      * @see GlobalRoutingLinkRecord
      * @param nextHop The IP address to use when forwarding packets to the host
-     * or network represented by "this" SPFVertex.
+     * or network represented by "this" Vertex.
      * @param id The interface index to use when forwarding packets to the host or
-     * network represented by "this" SPFVertex.
+     * network represented by "this" Vertex.
      */
     void SetRootExitDirection(Ipv4Address nextHop, int32_t id = SPF_INFINITY);
 
@@ -276,21 +276,21 @@ class SPFVertex
 
     /**
      * @brief Set the IP address and outgoing interface index that should be used
-     * to begin forwarding packets from the root SPFVertex to "this" SPFVertex.
+     * to begin forwarding packets from the root Vertex to "this" Vertex.
      *
-     * Each router node in the simulation is associated with an SPFVertex object.
+     * Each router node in the simulation is associated with an Vertex object.
      * When calculating routes, each of these routers is, in turn, chosen as the
      * "root" of the calculation and routes to all of the other routers are
      * eventually saved in the routing tables of each of the chosen nodes.
      *
-     * The "Root" vertex is then the SPFVertex representing the router that is
-     * having its routing tables set.  The "this" SPFVertex is the vertex that
+     * The "Root" vertex is then the Vertex representing the router that is
+     * having its routing tables set.  The "this" Vertex is the vertex that
      * represents the host or network to which a route is being calculated from
      * the root.  The IP address that we're asking for is the address on the
      * remote side of a link off of the root node that should be used as the
      * destination for packets along the path to "this" vertex.
      *
-     * When initializing the root SPFVertex, the IP address used when forwarding
+     * When initializing the root Vertex, the IP address used when forwarding
      * packets is determined by examining the Global Router Link Records of the
      * Link State Advertisement generated by the root node's GlobalRouter.  This
      * address is used to forward packets off of the root's network down those
@@ -305,15 +305,15 @@ class SPFVertex
      * the interface and next hop.
      *
      * In this method we are telling the root node which exit direction it should send
-     * should I send a packet to the network or host represented by 'this' SPFVertex.
+     * should I send a packet to the network or host represented by 'this' Vertex.
      *
      * @see GlobalRouter
      * @see LSA
      * @see GlobalRoutingLinkRecord
      * @param exit The pair of next-hop-IP and outgoing-interface-index to use when
-     * forwarding packets to the host or network represented by "this" SPFVertex.
+     * forwarding packets to the host or network represented by "this" Vertex.
      */
-    void SetRootExitDirection(SPFVertex::NodeExit_t exit);
+    void SetRootExitDirection(Vertex::NodeExit_t exit);
     /**
      * \brief Obtain a pair indicating the exit direction from the root
      *
@@ -342,7 +342,7 @@ class SPFVertex
      * \param vertex From which the list of exit directions are obtain
      * and are merged into 'this' vertex
      */
-    void MergeRootExitDirections(const SPFVertex* vertex);
+    void MergeRootExitDirections(const Vertex* vertex);
     /**
      * \brief Inherit all root exit directions from a given vertex to 'this' vertex
      * \param vertex The vertex from which all root exit directions are to be inherited
@@ -350,7 +350,7 @@ class SPFVertex
      * After the call of this method, the original root exit directions
      * in 'this' vertex are all lost.
      */
-    void InheritAllRootExitDirections(const SPFVertex* vertex);
+    void InheritAllRootExitDirections(const Vertex* vertex);
     /**
      * \brief Get the number of exit directions from root for reaching 'this' vertex
      * \return The number of exit directions from root
@@ -359,44 +359,44 @@ class SPFVertex
 
     /**
      * @brief Get a pointer to the SPFVector that is the parent of "this"
-     * SPFVertex.
+     * Vertex.
      *
-     * Each router node in the simulation is associated with an SPFVertex object.
+     * Each router node in the simulation is associated with an Vertex object.
      * When calculating routes, each of these routers is, in turn, chosen as the
      * "root" of the calculation and routes to all of the other routers are
      * eventually saved in the routing tables of each of the chosen nodes.
      *
-     * The "Root" vertex is then the SPFVertex representing the router that is
+     * The "Root" vertex is then the Vertex representing the router that is
      * having its routing tables set and is the root of the SPF tree.
      *
-     * This method returns a pointer to the parent node of "this" SPFVertex
+     * This method returns a pointer to the parent node of "this" Vertex
      * (both of which reside in that SPF tree).
      *
      * @param i The index to one of the parents
-     * @returns A pointer to the SPFVertex that is the parent of "this" SPFVertex
+     * @returns A pointer to the Vertex that is the parent of "this" Vertex
      * in the SPF tree.
      */
-    SPFVertex* GetParent(uint32_t i = 0) const;
+    Vertex* GetParent(uint32_t i = 0) const;
 
     /**
      * @brief Set the pointer to the SPFVector that is the parent of "this"
-     * SPFVertex.
+     * Vertex.
      *
-     * Each router node in the simulation is associated with an SPFVertex object.
+     * Each router node in the simulation is associated with an Vertex object.
      * When calculating routes, each of these routers is, in turn, chosen as the
      * "root" of the calculation and routes to all of the other routers are
      * eventually saved in the routing tables of each of the chosen nodes.
      *
-     * The "Root" vertex is then the SPFVertex representing the router that is
+     * The "Root" vertex is then the Vertex representing the router that is
      * having its routing tables set and is the root of the SPF tree.
      *
-     * This method sets the parent pointer of "this" SPFVertex (both of which
+     * This method sets the parent pointer of "this" Vertex (both of which
      * reside in that SPF tree).
      *
-     * @param parent A pointer to the SPFVertex that is the parent of "this"
-     * SPFVertex* in the SPF tree.
+     * @param parent A pointer to the Vertex that is the parent of "this"
+     * Vertex* in the SPF tree.
      */
-    void SetParent(SPFVertex* parent);
+    void SetParent(Vertex* parent);
     /**
      * \brief Merge the Parent list from the v into this vertex
      *
@@ -404,84 +404,84 @@ class SPFVertex
      * and then merged into the list of Parent of *this* vertex.
      * Note that the list in v remains intact
      */
-    void MergeParent(const SPFVertex* v);
+    void MergeParent(const Vertex* v);
 
     /**
-     * @brief Get the number of children of "this" SPFVertex.
+     * @brief Get the number of children of "this" Vertex.
      *
-     * Each router node in the simulation is associated with an SPFVertex object.
+     * Each router node in the simulation is associated with an Vertex object.
      * When calculating routes, each of these routers is, in turn, chosen as the
      * "root" of the calculation and routes to all of the other routers are
      * eventually saved in the routing tables of each of the chosen nodes.
      *
-     * The "Root" vertex is then the SPFVertex representing the router that is
+     * The "Root" vertex is then the Vertex representing the router that is
      * having its routing tables set and is the root of the SPF tree.  Each vertex
      * in the SPF tree can have a number of children that represent host or
      * network routes available via that vertex.
      *
-     * This method returns the number of children of "this" SPFVertex (which
+     * This method returns the number of children of "this" Vertex (which
      * reside in the SPF tree).
      *
-     * @returns The number of children of "this" SPFVertex (which reside in the
+     * @returns The number of children of "this" Vertex (which reside in the
      * SPF tree).
      */
     uint32_t GetNChildren() const;
 
     /**
-     * @brief Get a borrowed SPFVertex pointer to the specified child of "this"
-     * SPFVertex.
+     * @brief Get a borrowed Vertex pointer to the specified child of "this"
+     * Vertex.
      *
-     * Each router node in the simulation is associated with an SPFVertex object.
+     * Each router node in the simulation is associated with an Vertex object.
      * When calculating routes, each of these routers is, in turn, chosen as the
      * "root" of the calculation and routes to all of the other routers are
      * eventually saved in the routing tables of each of the chosen nodes.
      *
-     * The "Root" vertex is then the SPFVertex representing the router that is
+     * The "Root" vertex is then the Vertex representing the router that is
      * having its routing tables set and is the root of the SPF tree.  Each vertex
      * in the SPF tree can have a number of children that represent host or
      * network routes available via that vertex.
      *
-     * This method the number of children of "this" SPFVertex (which reside in
+     * This method the number of children of "this" Vertex (which reside in
      * the SPF tree.
      *
-     * @see SPFVertex::GetNChildren
+     * @see Vertex::GetNChildren
      * @param n The index (from 0 to the number of children minus 1) of the
-     * child SPFVertex to return.
+     * child Vertex to return.
      * @warning The pointer returned by GetChild () is a borrowed pointer.  You
      * do not have any ownership of the underlying object and must not delete
      * that object.
-     * @returns A pointer to the specified child SPFVertex (which resides in the
+     * @returns A pointer to the specified child Vertex (which resides in the
      * SPF tree).
      */
-    SPFVertex* GetChild(uint32_t n) const;
+    Vertex* GetChild(uint32_t n) const;
 
     /**
-     * @brief Get a borrowed SPFVertex pointer to the specified child of "this"
-     * SPFVertex.
+     * @brief Get a borrowed Vertex pointer to the specified child of "this"
+     * Vertex.
      *
-     * Each router node in the simulation is associated with an SPFVertex object.
+     * Each router node in the simulation is associated with an Vertex object.
      * When calculating routes, each of these routers is, in turn, chosen as the
      * "root" of the calculation and routes to all of the other routers are
      * eventually saved in the routing tables of each of the chosen nodes.
      *
-     * The "Root" vertex is then the SPFVertex representing the router that is
+     * The "Root" vertex is then the Vertex representing the router that is
      * having its routing tables set and is the root of the SPF tree.  Each vertex
      * in the SPF tree can have a number of children that represent host or
      * network routes available via that vertex.
      *
-     * This method the number of children of "this" SPFVertex (which reside in
+     * This method the number of children of "this" Vertex (which reside in
      * the SPF tree.
      *
-     * @see SPFVertex::GetNChildren
+     * @see Vertex::GetNChildren
      * @warning Ownership of the pointer added to the children of "this"
-     * SPFVertex is transferred to the "this" SPFVertex.  You must not delete the
-     * (now) child SPFVertex after calling this method.
-     * @param child A pointer to the SPFVertex (which resides in the SPF tree) to
-     * be added to the list of children of "this" SPFVertex.
-     * @returns The number of children of "this" SPFVertex after the addition of
+     * Vertex is transferred to the "this" Vertex.  You must not delete the
+     * (now) child Vertex after calling this method.
+     * @param child A pointer to the Vertex (which resides in the SPF tree) to
+     * be added to the list of children of "this" Vertex.
+     * @returns The number of children of "this" Vertex after the addition of
      * the new child.
      */
-    uint32_t AddChild(SPFVertex* child);
+    uint32_t AddChild(Vertex* child);
 
     /**
      * @brief Set the value of the VertexProcessed flag
@@ -518,9 +518,9 @@ class SPFVertex
     Ipv4Address m_nextHop;                          //!< next hop
     typedef std::list<NodeExit_t> ListOfNodeExit_t; //!< container of Exit nodes
     ListOfNodeExit_t m_ecmpRootExits; //!< store the multiple root's exits for supporting ECMP
-    typedef std::list<SPFVertex*> ListOfSPFVertex_t; //!< container of SPFVertexes
-    ListOfSPFVertex_t m_parents;                     //!< parent list
-    ListOfSPFVertex_t m_children;                    //!< Children list
+    typedef std::list<Vertex*> ListOfVertex_t; //!< container of Vertexes
+    ListOfVertex_t m_parents;                     //!< parent list
+    ListOfVertex_t m_children;                    //!< Children list
     bool m_vertexProcessed; //!< Flag to note whether vertex has been processed in stage two of SPF
                             //!< computation
 
@@ -528,10 +528,10 @@ class SPFVertex
      * \brief Stream insertion operator.
      *
      * \param os the reference to the output stream
-     * \param vs a list of SPFVertexes
+     * \param vs a list of Vertexes
      * \returns the reference to the output stream
      */
-    friend std::ostream& operator<<(std::ostream& os, const SPFVertex::ListOfSPFVertex_t& vs);
+    friend std::ostream& operator<<(std::ostream& os, const Vertex::ListOfVertex_t& vs);
 };
 
 /**
@@ -626,11 +626,11 @@ class LSDB : public Database
      *
      * This function walks the database and resets the status flags of all of the
      * contained Link State Advertisements to LSA_SPF_NOT_EXPLORED.  This is done
-     * prior to each SPF calculation to reset the state of the SPFVertex structures
+     * prior to each SPF calculation to reset the state of the Vertex structures
      * that will reference the LSAs during the calculation.
      *
      * @see LSA
-     * @see SPFVertex
+     * @see Vertex
      */
     void Initialize();
 

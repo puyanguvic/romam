@@ -5,10 +5,10 @@
 
 namespace ns3 {
 
-NS_LOG_COMPONENT_DEFINE ("tsdb");
+// NS_LOG_COMPONENT_DEFINE ("tsdb");
 
 StatusUnit::StatusUnit ()
-  : m_matrix {0},
+  : m_matrix {{0}},
     m_state (0)
 {
 }
@@ -131,7 +131,7 @@ NeighborStatusEntry::Insert (uint32_t n_iface, StatusUnit* su)
 StatusUnit*
 NeighborStatusEntry::GetStatusUnit (uint32_t n_iface) const
 {
-  NS_LOG_FUNCTION (this << n_iface);
+  // NS_LOG_FUNCTION (this << n_iface);
   //
   // Look up a SU by it's interface.
   //
@@ -163,45 +163,45 @@ NeighborStatusEntry::Print (std::ostream &os) const
 }
 
 //----------------------------------------------------------------------
-//-- DgrNSDB
+//-- TSDB
 //------------------------------------------------------
-NS_OBJECT_ENSURE_REGISTERED (DgrNSDB);
+NS_OBJECT_ENSURE_REGISTERED (TSDB);
 
-DgrNSDB::DgrNSDB ()
+TSDB::TSDB ()
     : m_database ()
 {
-  NS_LOG_FUNCTION (this);
+  // NS_LOG_FUNCTION (this);
 }
 
-DgrNSDB::~DgrNSDB ()
+TSDB::~TSDB ()
 {
-  NS_LOG_FUNCTION (this);
-  // NSDBMap_t::iterator i;
+  // NS_LOG_FUNCTION (this);
+  // TSDBMap_t::iterator i;
   // for (i = m_database.begin (); i != m_database.end (); i ++)
   //   {
   //     NS_LOG_LOGIC ("Free NSE");
   //     NeighborStatusEntry* temp = i->second;
   //     delete temp;
   //   }
-  NS_LOG_LOGIC ("Clear map");
+  // NS_LOG_LOGIC ("Clear map");
   Initialize ();
 }
 
 void
-DgrNSDB::Initialize ()
+TSDB::Initialize ()
 {
-  NS_LOG_FUNCTION (this);
+  // NS_LOG_FUNCTION (this);
   m_database.clear ();
 }
 
 NeighborStatusEntry*
-DgrNSDB::GetNeighborStatusEntry (uint32_t iface) const
+TSDB::GetNeighborStatusEntry (uint32_t iface) const
 {
-  NS_LOG_FUNCTION (this << iface);
+  // NS_LOG_FUNCTION (this << iface);
   //
   // Look up a NSE by it's interface.
   //
-  NSDBMap_t::const_iterator ci = m_database.find (iface);
+  TSDBMap_t::const_iterator ci = m_database.find (iface);
   if (ci != m_database.end ())
     {
       return ci->second;
@@ -210,13 +210,13 @@ DgrNSDB::GetNeighborStatusEntry (uint32_t iface) const
 }
 
 NeighborStatusEntry*
-DgrNSDB::HandleNeighborStatusEntry (uint32_t iface)
+TSDB::HandleNeighborStatusEntry (uint32_t iface)
 {
-  NS_LOG_FUNCTION (this << iface);
+  // NS_LOG_FUNCTION (this << iface);
   //
   // Look up a NSE by it's interface.
   //
-  NSDBMap_t::iterator iter = m_database.find (iface);
+  TSDBMap_t::iterator iter = m_database.find (iface);
   if (iter != m_database.end ())
     {
       return iter->second;
@@ -226,10 +226,10 @@ DgrNSDB::HandleNeighborStatusEntry (uint32_t iface)
 
 
 void
-DgrNSDB::Insert (uint32_t iface, NeighborStatusEntry* nse)
+TSDB::Insert (uint32_t iface, NeighborStatusEntry* nse)
 {
-  NS_LOG_FUNCTION (this << iface << nse);
-  NSDBMap_t::iterator it = m_database.find (iface);
+  // NS_LOG_FUNCTION (this << iface << nse);
+  TSDBMap_t::iterator it = m_database.find (iface);
   if (it != m_database.end ())
     {
       std::cout << "Find a current nse" << std::endl;
@@ -243,10 +243,10 @@ DgrNSDB::Insert (uint32_t iface, NeighborStatusEntry* nse)
 }
 
 void
-DgrNSDB::Print (std::ostream &os) const
+TSDB::Print (std::ostream &os) const
 {
   os << "At node: ???" << std::endl;
-  NSDBMap_t::const_iterator ci;
+  TSDBMap_t::const_iterator ci;
   std::cout << "const iterator";
   for (ci = m_database.begin (); ci != m_database.end (); ci ++)
     {
