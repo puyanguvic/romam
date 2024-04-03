@@ -13,9 +13,6 @@ namespace ns3
 /**
  * \ingroup romam
  * \brief Abstract base class for databases.
- *
- * ...
- *
  */
 class Database : public Object
 {

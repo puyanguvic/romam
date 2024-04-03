@@ -12,11 +12,7 @@
 #include "ns3/ipv4-address.h"
 #include "ns3/net-device-container.h"
 #include "ns3/bridge-net-device.h"
-#include "ns3/ipv4-dgr-routing-table-entry.h"
-
-#include "../routing_algorithm/dgr-route-manager.h"
-// #include "dgr-route-manager.h"
-
+// #include "ns3/ipv4-dgr-routing-table-entry.h"
 
 namespace ns3 {
 

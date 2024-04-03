@@ -19,6 +19,7 @@
 
 #include "datapath/headers-dgr.h"
 #include "routing_algorithm/route-manager-impl.h"
+#include "datapath/lsdb.h"
 #include "routing_algorithm/ipv4-dgr-routing-table-entry.h"
 #include "datapath/tsdb.h"
 

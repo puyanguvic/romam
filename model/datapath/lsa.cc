@@ -11,7 +11,7 @@
 #include "ns3/bridge-net-device.h"
 #include "ns3/loopback-net-device.h"
 
-#include "../ipv4-dgr-routing.h"
+// #include "../ipv4-dgr-routing.h"
 
 #include "lsa.h"
 #include <vector>
