@@ -20,7 +20,7 @@
 
 namespace ns3 {
 
-// class DgrCandidateQueue;
+// class RouteCandidateQueue;
 // class Ipv4DGRRouting;
 
 class DijkstraAlgorithm
@@ -28,20 +28,6 @@ class DijkstraAlgorithm
 public:
   DijkstraAlgorithm ();
   virtual ~DijkstraAlgorithm ();
-/**
- * @brief Delete all static routes on all nodes that have a
- * DGRRouterInterface
- *
- * \todo  separate manually assigned static routes from static routes that
- * the global routing code injects, and only delete the latter
- */
-  virtual void DeleteDGRRoutes ();
-
-/**
- * @brief Build the routing database by gathering Link State Advertisements
- * from each node exporting a DGRRouter interface.
- */
-  virtual void BuildDGRRoutingDatabase ();
 
 /**
  * @brief Compute routes using a Dijkstra SPF computation and populate
@@ -49,16 +35,16 @@ public:
  */
   virtual void InitializeRoutes ();
 
-/**
- * @brief Debugging routine; allow client code to supply a pre-built LSDB
- */
-  void DebugUseLsdb (DGRRouteManagerLSDB*);
+// /**
+//  * @brief Debugging routine; allow client code to supply a pre-built LSDB
+//  */
+//   void DebugUseLsdb (LSDB*);
 
-/**
- * @brief Debugging routine; call the core SPF from the unit tests
- * @param root the root node to start calculations
- */
-  void DebugSPFCalculate (Ipv4Address root);
+// /**
+//  * @brief Debugging routine; call the core SPF from the unit tests
+//  * @param root the root node to start calculations
+//  */
+//   void DebugSPFCalculate (Ipv4Address root);
 
 private:
 /**
@@ -81,7 +67,7 @@ private:
   DijkstraAlgorithm& operator= (DijkstraAlgorithm& srmi);
 
   Vertex* m_spfroot; //!< the root node
-  DGRRouteManagerLSDB* m_lsdb; //!< the Link State DataBase (LSDB) of the Global Route Manager
+  LSDB* m_lsdb; //!< the Link State DataBase (LSDB) of the Global Route Manager
 
   /**
    * \brief Test if a node is a stub, from an OSPF sense.
@@ -101,7 +87,7 @@ private:
    * Equivalent to quagga ospf_spf_calculate
    * \param root the root node
    */
-  void SPFCalculate (Ipv4Address root, Ipv4Address initroot, DGRRoutingLinkRecord *l, uint32_t Iface);
+  void SPFCalculate (Ipv4Address root, Ipv4Address initroot, LinkRecord *l, uint32_t Iface);
 
   /**
    * \brief Process Stub nodes
@@ -120,7 +106,7 @@ private:
    * \param v vertex to be processed
    * \param extlsa external LSA
    */
-  void ProcessASExternals (Vertex* v, DGRRoutingLSA* extlsa);
+  void ProcessASExternals (Vertex* v, LSA* extlsa);
 
   /**
    * \brief Examine the links in v's LSA and update the list of candidates with any
@@ -143,7 +129,7 @@ private:
    * \param v the vertex
    * \param candidate the SPF candidate queue
    */
-  void SPFNext (Vertex* v, DGRCandidateQueue& candidate);
+  void SPFNext (Vertex* v, RouteCandidateQueue& candidate);
 
   /**
    * \brief Calculate nexthop from root through V (parent) to vertex W (destination)
@@ -159,7 +145,7 @@ private:
    * \returns 1 on success
    */
   int SPFNexthopCalculation (Vertex* v, Vertex* w, 
-                             DGRRoutingLinkRecord* l, uint32_t distance);
+                             LinkRecord* l, uint32_t distance);
 
   /**
    * \brief Adds a vertex to the list of children *in* each of its parents
@@ -196,8 +182,8 @@ private:
    * \param prev_link the previous link in the list
    * \returns the link's record
    */
-  DGRRoutingLinkRecord* SPFGetNextLink (Vertex* v, Vertex* w, 
-                                           DGRRoutingLinkRecord* prev_link);
+  LinkRecord* SPFGetNextLink (Vertex* v, Vertex* w, 
+                                           LinkRecord* prev_link);
 
   /**
    * \brief Add a host route to the routing tables
@@ -236,7 +222,7 @@ private:
    * \param l the global routing link record
    * \param v the vertex
    */
-  void SPFIntraAddStub (DGRRoutingLinkRecord *l, Vertex* v);
+  void SPFIntraAddStub (LinkRecord *l, Vertex* v);
 
   /**
    * \brief Add an external route to the routing tables
@@ -244,7 +230,7 @@ private:
    * \param extlsa the external LSA
    * \param v the vertex
    */
-  void SPFAddASExternal (DGRRoutingLSA *extlsa, Vertex *v);
+  void SPFAddASExternal (LSA *extlsa, Vertex *v);
 
   /**
    * \brief Return the interface number corresponding to a given IP address and mask

@@ -35,9 +35,9 @@
 #include "ns3/ipv4-routing-protocol.h"
 #include "ns3/ipv4-list-routing.h"
 
-#include "djstra.h"
-#include "../ipv4-dgr-routing.h"
-#include "dgr-candidate-queue.h"
+#include "dijkstra's-algorithm.h"
+#include "../romam-routing.h"
+#include "route-candidate-queue.h"
 // #include "ns3/romam-module.h"
 // #include "dgr-router-interface.h"
 // #include "dgr-route-manager-impl.h"
@@ -48,7 +48,7 @@
 
 namespace ns3 {
 
-NS_LOG_COMPONENT_DEFINE ("DGRRouteManagerImpl");
+NS_LOG_COMPONENT_DEFINE ("DijkstraAlgorithm");
 
 /**
  * \brief Stream insertion operator.
@@ -87,134 +87,30 @@ operator<< (std::ostream& os, const Vertex::ListOfVertex_t& vs)
 
 // ---------------------------------------------------------------------------
 //
-// DGRRouteManagerImpl Implementation
+// DijkstraAlgorithm Implementation
 //
 // ---------------------------------------------------------------------------
 
-DGRRouteManagerImpl::DGRRouteManagerImpl () 
+DijkstraAlgorithm::DijkstraAlgorithm () 
   :
     m_spfroot (0)
 {
   NS_LOG_FUNCTION (this);
-  m_lsdb = new DGRRouteManagerLSDB ();
+  m_lsdb = new LSDB ();
 }
 
-DGRRouteManagerImpl::~DGRRouteManagerImpl ()
+DijkstraAlgorithm::~DijkstraAlgorithm ()
 {
   NS_LOG_FUNCTION (this);
   if (m_lsdb)
     {
       delete m_lsdb;
-    }
-}
-
-void
-DGRRouteManagerImpl::DebugUseLsdb (DGRRouteManagerLSDB* lsdb)
-{
-  NS_LOG_FUNCTION (this << lsdb);
-  if (m_lsdb)
-    {
-      delete m_lsdb;
-    }
-  m_lsdb = lsdb;
-}
-
-void
-DGRRouteManagerImpl::DeleteDGRRoutes ()
-{
-  NS_LOG_FUNCTION (this);
-  NodeList::Iterator listEnd = NodeList::End ();
-  for (NodeList::Iterator i = NodeList::Begin (); i != listEnd; i++)
-    {
-      Ptr<Node> node = *i;
-      Ptr<DGRRouter> router = node->GetObject<DGRRouter> ();
-      if (!router)
-        {
-          continue;
-        }
-      Ptr<Ipv4DGRRouting> gr = router->GetRoutingProtocol ();
-      uint32_t j = 0;
-      uint32_t nRoutes = gr->GetNRoutes ();
-      NS_LOG_LOGIC ("Deleting " << gr->GetNRoutes ()<< " routes from node " << node->GetId ());
-      // Each time we delete route 0, the route index shifts downward
-      // We can delete all routes if we delete the route numbered 0
-      // nRoutes times
-      for (j = 0; j < nRoutes; j++)
-        {
-          NS_LOG_LOGIC ("Deleting global route " << j << " from node " << node->GetId ());
-          gr->RemoveRoute (0);
-        }
-      NS_LOG_LOGIC ("Deleted " << j << " global routes from node "<< node->GetId ());
-    }
-  if (m_lsdb)
-    {
-      NS_LOG_LOGIC ("Deleting LSDB, creating new one");
-      delete m_lsdb;
-      m_lsdb = new DGRRouteManagerLSDB ();
-    }
-}
-
-//
-// In order to build the routing database, we need to walk the list of nodes
-// in the system and look for those that support the DGRRouter interface.
-// These routers will export a number of Link State Advertisements (LSAs)
-// that describe the links and networks that are "adjacent" (i.e., that are
-// on the other side of a point-to-point link).  We take these LSAs and put
-// add them to the Link State DataBase (LSDB) from which the routes will 
-// ultimately be computed.
-//
-void
-DGRRouteManagerImpl::BuildDGRRoutingDatabase () 
-{
-  NS_LOG_FUNCTION (this);
-//
-// Walk the list of nodes looking for the DGRRouter Interface.  Nodes with
-// global router interfaces are, not too surprisingly, our routers.
-//
-  NodeList::Iterator listEnd = NodeList::End ();
-  for (NodeList::Iterator i = NodeList::Begin (); i != listEnd; i++)
-    {
-      Ptr<Node> node = *i;
-      Ptr<DGRRouter> rtr = node->GetObject<DGRRouter> ();
-//
-// Ignore nodes that aren't participating in routing.
-//
-      if (!rtr)
-        {
-          continue;
-        }
-//
-// You must call DiscoverLSAs () before trying to use any routing info or to
-// update LSAs.  DiscoverLSAs () drives the process of discovering routes in
-// the DGRRouter.  Afterward, you may use GetNumLSAs (), which is a very
-// computationally inexpensive call.  If you call GetNumLSAs () before calling 
-// DiscoverLSAs () will get zero as the number since no routes have been 
-// found.
-//
-      Ptr<Ipv4DGRRouting> grouting = rtr->GetRoutingProtocol ();
-      uint32_t numLSAs = rtr->DiscoverLSAs ();
-      NS_LOG_LOGIC ("Found " << numLSAs << " LSAs");
-
-      for (uint32_t j = 0; j < numLSAs; ++j)
-        {
-          DGRRoutingLSA* lsa = new DGRRoutingLSA ();
-//
-// This is the call to actually fetch a Link State Advertisement from the 
-// router.
-//
-          rtr->GetLSA (j, *lsa);
-          NS_LOG_LOGIC (*lsa);
-//
-// Write the newly discovered link state advertisement to the database.
-//
-          m_lsdb->Insert (lsa->GetLinkStateId (), lsa); 
-        }
     }
 }
 
 //
 // For each node that is a global router (which is determined by the presence
-// of an aggregated DGRRouter interface), run the Dijkstra SPF calculation
+// of an aggregated RomamRouter interface), run the Dijkstra SPF calculation
 // on the database rooted at that router, and populate the node forwarding
 // tables.
 //
@@ -246,7 +142,7 @@ DGRRouteManagerImpl::BuildDGRRoutingDatabase ()
 // list becomes empty. 
 //
 void
-DGRRouteManagerImpl::InitializeRoutes ()
+DijkstraAlgorithm::InitializeRoutes ()
 {
   NS_LOG_FUNCTION (this);
 //
@@ -261,11 +157,11 @@ DGRRouteManagerImpl::InitializeRoutes ()
       Ptr<Node> node = *i;
 
       //
-      // Look for the DGRRouter interface that indicates that the node is
+      // Look for the RomamRouter interface that indicates that the node is
       // participating in routing.
       //
-      Ptr<DGRRouter> rtr = 
-        node->GetObject<DGRRouter> ();
+      Ptr<RomamRouter> rtr = 
+        node->GetObject<RomamRouter> ();
 
       uint32_t systemId = Simulator::GetSystemId ();
       // Ignore nodes that are not assigned to our systemId (distributed sim)
@@ -275,8 +171,8 @@ DGRRouteManagerImpl::InitializeRoutes ()
         }
 
       // ---------- Initialize Neighbor Information exchange ----
-      Ptr<Ipv4DGRRouting> dgr = rtr->GetRoutingProtocol ();
-      dgr->DoInitialize ();
+      Ptr<RomamRouting> routing = rtr->GetRoutingProtocol ();
+      routing->DoInitialize ();
 
       // -------- Initialize routing table --------------
       //
@@ -284,8 +180,8 @@ DGRRouteManagerImpl::InitializeRoutes ()
       // algorithms.
       //
         Vertex *v;
-        DGRRoutingLSA* w_lsa = 0;
-        DGRRoutingLinkRecord *l = 0;
+        LSA* w_lsa = 0;
+        LinkRecord *l = 0;
         uint32_t numRecordsInVertex = 0;
         v = new Vertex (m_lsdb->GetLSA(rtr->GetRouterId ()));
         //
@@ -315,7 +211,7 @@ DGRRouteManagerImpl::InitializeRoutes ()
               //
                 l = v->GetLSA ()->GetLinkRecord (i);
                 NS_ASSERT (l != 0);
-              if (l->GetLinkType () == DGRRoutingLinkRecord::StubNetwork)
+              if (l->GetLinkType () == LinkRecord::StubNetwork)
                 {
                   NS_LOG_LOGIC ("Found a Stub record to " << l->GetLinkId ());
                   continue;
@@ -325,7 +221,7 @@ DGRRouteManagerImpl::InitializeRoutes ()
               // the vertex W's LSA (router-LSA or network-LSA) in Area A's link state
               // database. 
               //
-              if (l->GetLinkType () == DGRRoutingLinkRecord::PointToPoint)
+              if (l->GetLinkType () == LinkRecord::PointToPoint)
                 {
                   //
                   // Lookup the link state advertisement of the new link -- we call it <w> in
@@ -335,14 +231,14 @@ DGRRouteManagerImpl::InitializeRoutes ()
                   NS_ASSERT (w_lsa);
                   NS_LOG_LOGIC ("Found a P2P record from " << 
                                 v->GetVertexId () << " to " << w_lsa->GetLinkStateId ());
-                  Ptr<DGRRouter> router = node->GetObject<DGRRouter> ();
+                  Ptr<RomamRouter> router = node->GetObject<RomamRouter> ();
                   if (!router)
                     {
                       continue;
                     }
-                  Ptr<Ipv4DGRRouting> gr = router->GetRoutingProtocol ();
+                  Ptr<RomamRouting> gr = router->GetRoutingProtocol ();
                   NS_ASSERT (gr);
-                  DGRRoutingLinkRecord *linkRemote =0;
+                  LinkRecord *linkRemote =0;
                   Vertex* w = new Vertex (w_lsa);
                   linkRemote = SPFGetNextLink (w, v, linkRemote);
                   Ptr<Ipv4> ipv4 = node->GetObject<Ipv4> ();
@@ -373,7 +269,7 @@ DGRRouteManagerImpl::InitializeRoutes ()
                   SPFCalculate (w_lsa->GetLinkStateId (), rtr->GetRouterId (), linkRemote, Iface);
                 }
                 else if (l->GetLinkType () == 
-                          DGRRoutingLinkRecord::TransitNetwork)
+                          LinkRecord::TransitNetwork)
                   {
                     w_lsa = m_lsdb->GetLSA (l->GetLinkId ());
                     NS_ASSERT (w_lsa);
@@ -411,13 +307,13 @@ DGRRouteManagerImpl::InitializeRoutes ()
 // vertex already on the candidate list, store the new (lower) cost.
 //
 void
-DGRRouteManagerImpl::SPFNext (Vertex* v, DGRCandidateQueue& candidate)
+DijkstraAlgorithm::SPFNext (Vertex* v, RouteCandidateQueue& candidate)
 {
   NS_LOG_FUNCTION (this << v << &candidate);
 
   Vertex* w = 0;
-  DGRRoutingLSA* w_lsa = 0;
-  DGRRoutingLinkRecord *l = 0;
+  LSA* w_lsa = 0;
+  LinkRecord *l = 0;
   uint32_t distance = 0;
   uint32_t numRecordsInVertex = 0;
 //
@@ -448,7 +344,7 @@ DGRRouteManagerImpl::SPFNext (Vertex* v, DGRCandidateQueue& candidate)
 //
           l = v->GetLSA ()->GetLinkRecord (i);
           NS_ASSERT (l != 0);
-          if (l->GetLinkType () == DGRRoutingLinkRecord::StubNetwork)
+          if (l->GetLinkType () == LinkRecord::StubNetwork)
             {
               NS_LOG_LOGIC ("Found a Stub record to " << l->GetLinkId ());
               continue;
@@ -458,7 +354,7 @@ DGRRouteManagerImpl::SPFNext (Vertex* v, DGRCandidateQueue& candidate)
 // the vertex W's LSA (router-LSA or network-LSA) in Area A's link state
 // database. 
 //
-          if (l->GetLinkType () == DGRRoutingLinkRecord::PointToPoint)
+          if (l->GetLinkType () == LinkRecord::PointToPoint)
             {
 //
 // Lookup the link state advertisement of the new link -- we call it <w> in
@@ -470,7 +366,7 @@ DGRRouteManagerImpl::SPFNext (Vertex* v, DGRCandidateQueue& candidate)
                             v->GetVertexId () << " to " << w_lsa->GetLinkStateId ());
             }
           else if (l->GetLinkType () == 
-                   DGRRoutingLinkRecord::TransitNetwork)
+                   LinkRecord::TransitNetwork)
             {
               w_lsa = m_lsdb->GetLSA (l->GetLinkId ());
               NS_ASSERT (w_lsa);
@@ -503,7 +399,7 @@ DGRRouteManagerImpl::SPFNext (Vertex* v, DGRCandidateQueue& candidate)
 // If the link is to a router that is already in the shortest path first tree
 // then we have it covered -- ignore it.
 //
-      if (w_lsa->GetStatus () == DGRRoutingLSA::LSA_SPF_IN_SPFTREE) 
+      if (w_lsa->GetStatus () == LSA::LSA_SPF_IN_SPFTREE) 
         {
           NS_LOG_LOGIC ("Skipping ->  LSA "<< 
                         w_lsa->GetLinkStateId () << " already in SPF tree");
@@ -515,7 +411,7 @@ DGRRouteManagerImpl::SPFNext (Vertex* v, DGRCandidateQueue& candidate)
 // calculated) shortest path to vertex V and the advertised cost of the link
 // between vertices V and W.
 //
-      if (v->GetLSA ()->GetLSType () == DGRRoutingLSA::RouterLSA)
+      if (v->GetLSA ()->GetLSType () == LSA::RouterLSA)
         {
           NS_ASSERT (l != 0);
           distance = v->GetDistanceFromRoot () + l->GetMetric ();
@@ -528,7 +424,7 @@ DGRRouteManagerImpl::SPFNext (Vertex* v, DGRCandidateQueue& candidate)
       NS_LOG_LOGIC ("Considering w_lsa " << w_lsa->GetLinkStateId ());
 
 // Is there already vertex w in candidate list?
-      if (w_lsa->GetStatus () == DGRRoutingLSA::LSA_SPF_NOT_EXPLORED)
+      if (w_lsa->GetStatus () == LSA::LSA_SPF_NOT_EXPLORED)
         {
 // Calculate nexthop to w
 // We need to figure out how to actually get to the new router represented
@@ -540,7 +436,7 @@ DGRRouteManagerImpl::SPFNext (Vertex* v, DGRCandidateQueue& candidate)
           w = new Vertex (w_lsa);
           if (SPFNexthopCalculation (v, w, l, distance))
             {
-              w_lsa->SetStatus (DGRRoutingLSA::LSA_SPF_CANDIDATE);
+              w_lsa->SetStatus (LSA::LSA_SPF_CANDIDATE);
 //
 // Push this new vertex onto the priority queue (ordered by distance from the
 // root node).
@@ -555,7 +451,7 @@ DGRRouteManagerImpl::SPFNext (Vertex* v, DGRCandidateQueue& candidate)
             NS_ASSERT_MSG (0, "SPFNexthopCalculation never " 
                            << "return false, but it does now!");
         }
-      else if (w_lsa->GetStatus () == DGRRoutingLSA::LSA_SPF_CANDIDATE)
+      else if (w_lsa->GetStatus () == LSA::LSA_SPF_CANDIDATE)
         {
 //
 // We have already considered the link represented by <w>.  What wse have to
@@ -598,7 +494,7 @@ DGRRouteManagerImpl::SPFNext (Vertex* v, DGRCandidateQueue& candidate)
 // Note that this is functionally equivalent to calling
 // ospf_nexthop_merge (cw->nexthop, w->nexthop) in quagga-0.98.6
 // (ospf_spf.c::859), although the detail implementation
-// is very different from quagga (blame ns3::DGRRouteManagerImpl)
+// is very different from quagga (blame ns3::DijkstraAlgorithm)
 
 // prepare vertex w
               w = new Vertex (w_lsa);
@@ -645,10 +541,10 @@ DGRRouteManagerImpl::SPFNext (Vertex* v, DGRCandidateQueue& candidate)
 // For now, this is greatly simplified from the quagga code
 //
 int
-DGRRouteManagerImpl::SPFNexthopCalculation (
+DijkstraAlgorithm::SPFNexthopCalculation (
   Vertex* v, 
   Vertex* w,
-  DGRRoutingLinkRecord* l,
+  LinkRecord* l,
   uint32_t distance)
 {
   NS_LOG_FUNCTION (this << v << w << l << distance);
@@ -710,7 +606,7 @@ DGRRouteManagerImpl::SPFNexthopCalculation (
 // SPFGetLink.
 //
           NS_ASSERT (l);
-          DGRRoutingLinkRecord *linkRemote = 0;
+          LinkRecord *linkRemote = 0;
           linkRemote = SPFGetNextLink (w, v, linkRemote);
 // 
 // At this point, <l> is the Global Router Link Record describing the point-
@@ -744,8 +640,8 @@ DGRRouteManagerImpl::SPFNexthopCalculation (
         {
           NS_ASSERT (w->GetVertexType () == Vertex::VertexNetwork);
 // W is a directly connected network; no next hop is required
-          DGRRoutingLSA* w_lsa = w->GetLSA ();
-          NS_ASSERT (w_lsa->GetLSType () == DGRRoutingLSA::NetworkLSA);
+          LSA* w_lsa = w->GetLSA ();
+          NS_ASSERT (w_lsa->GetLSType () == LSA::NetworkLSA);
 // Find outgoing interface ID for this network
           uint32_t outIf = FindOutgoingInterfaceId (w_lsa->GetLinkStateId (), 
                                                     w_lsa->GetNetworkLSANetworkMask () );
@@ -771,7 +667,7 @@ DGRRouteManagerImpl::SPFNexthopCalculation (
 // router.  The list of next hops is then determined by
 // examining the destination's router-LSA...
           NS_ASSERT (w->GetVertexType () == Vertex::VertexRouter);
-          DGRRoutingLinkRecord *linkRemote = 0;
+          LinkRecord *linkRemote = 0;
           while ((linkRemote = SPFGetNextLink (w, v, linkRemote)))
             {
 /* ...For each link in the router-LSA that points back to the
@@ -832,17 +728,17 @@ DGRRouteManagerImpl::SPFNexthopCalculation (
 // to <w>.  If prev_link is not NULL, we return a Global Router Link Record
 // representing a possible *second* link from <v> to <w>.
 //
-DGRRoutingLinkRecord*
-DGRRouteManagerImpl::SPFGetNextLink (
+LinkRecord*
+DijkstraAlgorithm::SPFGetNextLink (
   Vertex* v,
   Vertex* w,
-  DGRRoutingLinkRecord* prev_link) 
+  LinkRecord* prev_link) 
 {
   NS_LOG_FUNCTION (this << v << w << prev_link);
 
   bool skip = true;
   bool found_prev_link = false;
-  DGRRoutingLinkRecord* l;
+  LinkRecord* l;
 //
 // If prev_link is 0, we are really looking for the first link, not the next 
 // link.
@@ -908,38 +804,28 @@ DGRRouteManagerImpl::SPFGetNextLink (
 }
 
 //
-// Used for unit tests.
-//
-void
-DGRRouteManagerImpl::DebugSPFCalculate (Ipv4Address root)
-{
-  NS_LOG_FUNCTION (this << root);
-  // SPFCalculate (root, 1, 1);
-}
-
-//
 // Used to test if a node is a stub, from an OSPF sense.
 // If there is only one link of type 1 or 2, then a default route
 // can safely be added to the next-hop router and SPF does not need
 // to be run
 //
 bool
-DGRRouteManagerImpl::CheckForStubNode (Ipv4Address root)
+DijkstraAlgorithm::CheckForStubNode (Ipv4Address root)
 {
   NS_LOG_FUNCTION (this << root);
-  DGRRoutingLSA *rlsa = m_lsdb->GetLSA (root);
+  LSA *rlsa = m_lsdb->GetLSA (root);
   Ipv4Address myRouterId = rlsa->GetLinkStateId ();
   int transits = 0;
-  DGRRoutingLinkRecord *transitLink = 0;
+  LinkRecord *transitLink = 0;
   for (uint32_t i = 0; i < rlsa->GetNLinkRecords (); i++)
     {
-      DGRRoutingLinkRecord *l = rlsa->GetLinkRecord (i);
-      if (l->GetLinkType () == DGRRoutingLinkRecord::TransitNetwork)
+      LinkRecord *l = rlsa->GetLinkRecord (i);
+      if (l->GetLinkType () == LinkRecord::TransitNetwork)
         {
           transits++;
           transitLink = l;
         }
-      else if (l->GetLinkType () == DGRRoutingLinkRecord::PointToPoint)
+      else if (l->GetLinkType () == LinkRecord::PointToPoint)
         {
           transits++;
           transitLink = l;
@@ -955,7 +841,7 @@ DGRRouteManagerImpl::CheckForStubNode (Ipv4Address root)
     }
   if (transits == 1)
     {
-      if (transitLink->GetLinkType () == DGRRoutingLinkRecord::TransitNetwork)
+      if (transitLink->GetLinkType () == LinkRecord::TransitNetwork)
         {
           // Install default route to next hop router
           // What is the next hop?  We need to check all neighbors on the link.
@@ -966,20 +852,20 @@ DGRRouteManagerImpl::CheckForStubNode (Ipv4Address root)
           NS_LOG_LOGIC ("TBD: Would have inserted default for transit");
           return false;
         }
-      else if (transitLink->GetLinkType () == DGRRoutingLinkRecord::PointToPoint)
+      else if (transitLink->GetLinkType () == LinkRecord::PointToPoint)
         {
           // Install default route to next hop
           // The link record LinkID is the router ID of the peer.
           // The Link Data is the local IP interface address
-          DGRRoutingLSA *w_lsa = m_lsdb->GetLSA (transitLink->GetLinkId ());
+          LSA *w_lsa = m_lsdb->GetLSA (transitLink->GetLinkId ());
           uint32_t nLinkRecords = w_lsa->GetNLinkRecords ();
           for (uint32_t j = 0; j < nLinkRecords; ++j)
             {
               //
               // We are only concerned about point-to-point links
               //
-              DGRRoutingLinkRecord *lr = w_lsa->GetLinkRecord (j);
-              if (lr->GetLinkType () != DGRRoutingLinkRecord::PointToPoint)
+              LinkRecord *lr = w_lsa->GetLinkRecord (j);
+              if (lr->GetLinkType () != LinkRecord::PointToPoint)
                 {
                   continue;
                 }
@@ -987,9 +873,9 @@ DGRRouteManagerImpl::CheckForStubNode (Ipv4Address root)
               if (lr->GetLinkId () == myRouterId)
                 {
                   // Next hop is stored in the LinkID field of lr
-                  Ptr<DGRRouter> router = rlsa->GetNode ()->GetObject<DGRRouter> ();
+                  Ptr<RomamRouter> router = rlsa->GetNode ()->GetObject<RomamRouter> ();
                   NS_ASSERT (router);
-                  Ptr<Ipv4DGRRouting> gr = router->GetRoutingProtocol ();
+                  Ptr<RomamRouting> gr = router->GetRoutingProtocol ();
                   NS_ASSERT (gr);
                   gr->AddNetworkRouteTo (Ipv4Address ("0.0.0.0"), Ipv4Mask ("0.0.0.0"), lr->GetLinkData (), 
                                          FindOutgoingInterfaceId (transitLink->GetLinkData ()));
@@ -1006,7 +892,7 @@ DGRRouteManagerImpl::CheckForStubNode (Ipv4Address root)
 
 // quagga ospf_spf_calculate
 void
-DGRRouteManagerImpl::SPFCalculate (Ipv4Address root, Ipv4Address initroot, DGRRoutingLinkRecord* l, uint32_t Iface)
+DijkstraAlgorithm::SPFCalculate (Ipv4Address root, Ipv4Address initroot, LinkRecord* l, uint32_t Iface)
 {
   NS_LOG_FUNCTION (this << root);
   // std::cout << "The interface = " << Iface << std::endl;
@@ -1020,7 +906,7 @@ DGRRouteManagerImpl::SPFCalculate (Ipv4Address root, Ipv4Address initroot, DGRRo
 // of the queue being the closest vertex in terms of distance from the root
 // of the tree.  Initially, this queue is empty.
 //
-  DGRCandidateQueue candidate;
+  RouteCandidateQueue candidate;
   NS_ASSERT (candidate.Size () == 0);
 //
 // Initialize the shortest-path tree to only contain the router doing the 
@@ -1035,14 +921,14 @@ DGRRouteManagerImpl::SPFCalculate (Ipv4Address root, Ipv4Address initroot, DGRRo
  */
   Vertex *v_init;
   v_init = new Vertex (m_lsdb->GetLSA (initroot));
-  v_init->GetLSA ()->SetStatus (DGRRoutingLSA::LSA_SPF_IN_SPFTREE);
+  v_init->GetLSA ()->SetStatus (LSA::LSA_SPF_IN_SPFTREE);
 // 
 // This vertex is the root of the SPF tree and it is distance 0 from the root.
 // We also mark this vertex as being in the SPF tree.
 //
   m_spfroot= v;
   v->SetDistanceFromRoot (l->GetMetric ());
-  v->GetLSA ()->SetStatus (DGRRoutingLSA::LSA_SPF_IN_SPFTREE);
+  v->GetLSA ()->SetStatus (LSA::LSA_SPF_IN_SPFTREE);
   NS_LOG_LOGIC ("Starting SPFCalculate for node " << root);
 
 //
@@ -1103,7 +989,7 @@ DGRRouteManagerImpl::SPFCalculate (Ipv4Address root, Ipv4Address initroot, DGRRo
 // Update the status field of the vertex to indicate that it is in the SPF
 // tree.
 //
-      v->GetLSA ()->SetStatus (DGRRoutingLSA::LSA_SPF_IN_SPFTREE);
+      v->GetLSA ()->SetStatus (LSA::LSA_SPF_IN_SPFTREE);
 //
 // The current vertex has a parent pointer.  By calling this rather oddly 
 // named method (blame quagga) we add the current vertex to the list of 
@@ -1165,7 +1051,7 @@ DGRRouteManagerImpl::SPFCalculate (Ipv4Address root, Ipv4Address initroot, DGRRo
   for (uint32_t i = 0; i < m_lsdb->GetNumExtLSAs (); i++)
     {
       m_spfroot->ClearVertexProcessed ();
-      DGRRoutingLSA *extlsa = m_lsdb->GetExtLSA (i);
+      LSA *extlsa = m_lsdb->GetExtLSA (i);
       NS_LOG_LOGIC ("Processing External LSA with id " << extlsa->GetLinkStateId ());
       ProcessASExternals (m_spfroot, extlsa);
     }
@@ -1180,7 +1066,7 @@ DGRRouteManagerImpl::SPFCalculate (Ipv4Address root, Ipv4Address initroot, DGRRo
 }
 
 void
-DGRRouteManagerImpl::ProcessASExternals (Vertex* v, DGRRoutingLSA* extlsa)
+DijkstraAlgorithm::ProcessASExternals (Vertex* v, LSA* extlsa)
 {
   NS_LOG_FUNCTION (this << v << extlsa);
   NS_LOG_LOGIC ("Processing external for destination " << 
@@ -1189,7 +1075,7 @@ DGRRouteManagerImpl::ProcessASExternals (Vertex* v, DGRRoutingLSA* extlsa)
                 ", advertised by " << extlsa->GetAdvertisingRouter ());
   if (v->GetVertexType () == Vertex::VertexRouter)
     {
-      DGRRoutingLSA *rlsa = v->GetLSA ();
+      LSA *rlsa = v->GetLSA ();
       NS_LOG_LOGIC ("Processing router LSA with id " << rlsa->GetLinkStateId ());
       if ((rlsa->GetLinkStateId ()) == (extlsa->GetAdvertisingRouter ()))
         {
@@ -1214,11 +1100,11 @@ DGRRouteManagerImpl::ProcessASExternals (Vertex* v, DGRRoutingLSA* extlsa)
 //
 
 void
-DGRRouteManagerImpl::SPFAddASExternal (DGRRoutingLSA *extlsa, Vertex *v)
+DijkstraAlgorithm::SPFAddASExternal (LSA *extlsa, Vertex *v)
 {
   NS_LOG_FUNCTION (this << extlsa << v);
 
-  NS_ASSERT_MSG (m_spfroot, "DGRRouteManagerImpl::SPFAddASExternal (): Root pointer not set");
+  NS_ASSERT_MSG (m_spfroot, "DijkstraAlgorithm::SPFAddASExternal (): Root pointer not set");
 // Two cases to consider: We are advertising the external ourselves
 // => No need to add anything
 // OR find best path to the advertising router
@@ -1245,15 +1131,15 @@ DGRRouteManagerImpl::SPFAddASExternal (DGRRoutingLSA *extlsa, Vertex *v)
     {
       Ptr<Node> node = *i;
 //
-// The router ID is accessible through the DGRRouter interface, so we need
-// to QI for that interface.  If there's no DGRRouter interface, the node
+// The router ID is accessible through the RomamRouter interface, so we need
+// to QI for that interface.  If there's no RomamRouter interface, the node
 // in question cannot be the router we want, so we continue.
 // 
-      Ptr<DGRRouter> rtr = node->GetObject<DGRRouter> ();
+      Ptr<RomamRouter> rtr = node->GetObject<RomamRouter> ();
 
       if (!rtr)
         {
-          NS_LOG_LOGIC ("No DGRRouter interface on node " << node->GetId ());
+          NS_LOG_LOGIC ("No RomamRouter interface on node " << node->GetId ());
           continue;
         }
 //
@@ -1273,7 +1159,7 @@ DGRRouteManagerImpl::SPFAddASExternal (DGRRoutingLSA *extlsa, Vertex *v)
 //
           Ptr<Ipv4> ipv4 = node->GetObject<Ipv4> ();
           NS_ASSERT_MSG (ipv4, 
-                         "DGRRouteManagerImpl::SPFIntraAddRouter (): "
+                         "DijkstraAlgorithm::SPFIntraAddRouter (): "
                          "QI for <Ipv4> interface failed");
 //
 // Get the Global Router Link State Advertisement from the vertex we're
@@ -1282,7 +1168,7 @@ DGRRouteManagerImpl::SPFAddASExternal (DGRRoutingLSA *extlsa, Vertex *v)
 // to be interested in the records corresponding to point-to-point links.
 //
           NS_ASSERT_MSG (v->GetLSA (), 
-                         "DGRRouteManagerImpl::SPFIntraAddRouter (): "
+                         "DijkstraAlgorithm::SPFIntraAddRouter (): "
                          "Expected valid LSA in Vertex* v");
           Ipv4Mask tempmask = extlsa->GetNetworkLSANetworkMask ();
           Ipv4Address tempip = extlsa->GetLinkStateId ();
@@ -1301,12 +1187,12 @@ DGRRouteManagerImpl::SPFAddASExternal (DGRRoutingLSA *extlsa, Vertex *v)
 // Similarly, the vertex <v> has an m_rootOif (outbound interface index) to
 // which the packets should be send for forwarding.
 //
-          Ptr<DGRRouter> router = node->GetObject<DGRRouter> ();
+          Ptr<RomamRouter> router = node->GetObject<RomamRouter> ();
           if (!router)
             {
               continue;
             }
-          Ptr<Ipv4DGRRouting> gr = router->GetRoutingProtocol ();
+          Ptr<RomamRouting> gr = router->GetRoutingProtocol ();
           NS_ASSERT (gr);
           // walk through all next-hop-IPs and out-going-interfaces for reaching
           // the stub network gateway 'v' from the root node
@@ -1348,21 +1234,21 @@ DGRRouteManagerImpl::SPFAddASExternal (DGRRoutingLSA *extlsa, Vertex *v)
 // stub link records will exist for point-to-point interfaces and for
 // broadcast interfaces for which no neighboring router can be found
 void
-DGRRouteManagerImpl::SPFProcessStubs (Vertex* v)
+DijkstraAlgorithm::SPFProcessStubs (Vertex* v)
 {
   NS_LOG_FUNCTION (this << v);
   NS_LOG_LOGIC ("Processing stubs for " << v->GetVertexId ());
   if (v->GetVertexType () == Vertex::VertexRouter)
     {
-      DGRRoutingLSA *rlsa = v->GetLSA ();
+      LSA *rlsa = v->GetLSA ();
       NS_LOG_LOGIC ("Processing router LSA with id " << rlsa->GetLinkStateId ());
       for (uint32_t i = 0; i < rlsa->GetNLinkRecords (); i++)
         {
           NS_LOG_LOGIC ("Examining link " << i << " of " << 
                         v->GetVertexId () << "'s " <<
                         v->GetLSA ()->GetNLinkRecords () << " link records");
-          DGRRoutingLinkRecord *l = v->GetLSA ()->GetLinkRecord (i);
-          if (l->GetLinkType () == DGRRoutingLinkRecord::StubNetwork)
+          LinkRecord *l = v->GetLSA ()->GetLinkRecord (i);
+          if (l->GetLinkType () == LinkRecord::StubNetwork)
             {
               NS_LOG_LOGIC ("Found a Stub record to " << l->GetLinkId ());
               SPFIntraAddStub (l, v);
@@ -1382,12 +1268,12 @@ DGRRouteManagerImpl::SPFProcessStubs (Vertex* v)
 
 // RFC2328 16.1. second stage. 
 void
-DGRRouteManagerImpl::SPFIntraAddStub (DGRRoutingLinkRecord *l, Vertex* v)
+DijkstraAlgorithm::SPFIntraAddStub (LinkRecord *l, Vertex* v)
 {
   NS_LOG_FUNCTION (this << l << v);
 
   NS_ASSERT_MSG (m_spfroot, 
-                 "DGRRouteManagerImpl::SPFIntraAddStub (): Root pointer not set");
+                 "DijkstraAlgorithm::SPFIntraAddStub (): Root pointer not set");
 
   // XXX simplifed logic for the moment.  There are two cases to consider:
   // 1) the stub network is on this router; do nothing for now
@@ -1421,16 +1307,16 @@ DGRRouteManagerImpl::SPFIntraAddStub (DGRRoutingLinkRecord *l, Vertex* v)
     {
       Ptr<Node> node = *i;
 //
-// The router ID is accessible through the DGRRouter interface, so we need
-// to QI for that interface.  If there's no DGRRouter interface, the node
+// The router ID is accessible through the RomamRouter interface, so we need
+// to QI for that interface.  If there's no RomamRouter interface, the node
 // in question cannot be the router we want, so we continue.
 // 
-      Ptr<DGRRouter> rtr = 
-        node->GetObject<DGRRouter> ();
+      Ptr<RomamRouter> rtr = 
+        node->GetObject<RomamRouter> ();
 
       if (!rtr)
         {
-          NS_LOG_LOGIC ("No DGRRouter interface on node " << 
+          NS_LOG_LOGIC ("No RomamRouter interface on node " << 
                         node->GetId ());
           continue;
         }
@@ -1451,7 +1337,7 @@ DGRRouteManagerImpl::SPFIntraAddStub (DGRRoutingLinkRecord *l, Vertex* v)
 //
           Ptr<Ipv4> ipv4 = node->GetObject<Ipv4> ();
           NS_ASSERT_MSG (ipv4, 
-                         "DGRRouteManagerImpl::SPFIntraAddRouter (): "
+                         "DijkstraAlgorithm::SPFIntraAddRouter (): "
                          "QI for <Ipv4> interface failed");
 //
 // Get the Global Router Link State Advertisement from the vertex we're
@@ -1460,7 +1346,7 @@ DGRRouteManagerImpl::SPFIntraAddStub (DGRRoutingLinkRecord *l, Vertex* v)
 // to be interested in the records corresponding to point-to-point links.
 //
           NS_ASSERT_MSG (v->GetLSA (), 
-                         "DGRRouteManagerImpl::SPFIntraAddRouter (): "
+                         "DijkstraAlgorithm::SPFIntraAddRouter (): "
                          "Expected valid LSA in Vertex* v");
           Ipv4Mask tempmask (l->GetLinkData ().Get ());
           Ipv4Address tempip = l->GetLinkId ();
@@ -1479,12 +1365,12 @@ DGRRouteManagerImpl::SPFIntraAddStub (DGRRoutingLinkRecord *l, Vertex* v)
 // which the packets should be send for forwarding.
 //
 
-          Ptr<DGRRouter> router = node->GetObject<DGRRouter> ();
+          Ptr<RomamRouter> router = node->GetObject<RomamRouter> ();
           if (!router)
             {
               continue;
             }
-          Ptr<Ipv4DGRRouting> gr = router->GetRoutingProtocol ();
+          Ptr<RomamRouting> gr = router->GetRoutingProtocol ();
           NS_ASSERT (gr);
           // walk through all next-hop-IPs and out-going-interfaces for reaching
           // the stub network gateway 'v' from the root node
@@ -1522,7 +1408,7 @@ DGRRouteManagerImpl::SPFIntraAddStub (DGRRoutingLinkRecord *l, Vertex* v)
 // for routing assumes -1 to be a legal return value)
 //
 int32_t
-DGRRouteManagerImpl::FindOutgoingInterfaceId (Ipv4Address a, Ipv4Mask amask)
+DijkstraAlgorithm::FindOutgoingInterfaceId (Ipv4Address a, Ipv4Mask amask)
 {
   NS_LOG_FUNCTION (this << a << amask);
 //
@@ -1545,10 +1431,10 @@ DGRRouteManagerImpl::FindOutgoingInterfaceId (Ipv4Address a, Ipv4Mask amask)
     {
       Ptr<Node> node = *i;
 
-      Ptr<DGRRouter> rtr = 
-        node->GetObject<DGRRouter> ();
+      Ptr<RomamRouter> rtr = 
+        node->GetObject<RomamRouter> ();
 //
-// If the node doesn't have a DGRRouter interface it can't be the one
+// If the node doesn't have a RomamRouter interface it can't be the one
 // we're interested in.
 //
       if (!rtr)
@@ -1566,7 +1452,7 @@ DGRRouteManagerImpl::FindOutgoingInterfaceId (Ipv4Address a, Ipv4Mask amask)
 //
           Ptr<Ipv4> ipv4 = node->GetObject<Ipv4> ();
           NS_ASSERT_MSG (ipv4, 
-                         "DGRRouteManagerImpl::FindOutgoingInterfaceId (): "
+                         "DijkstraAlgorithm::FindOutgoingInterfaceId (): "
                          "GetObject for <Ipv4> interface failed");
 //
 // Look through the interfaces on this node for one that has the IP address
@@ -1578,7 +1464,7 @@ DGRRouteManagerImpl::FindOutgoingInterfaceId (Ipv4Address a, Ipv4Mask amask)
 #if 0
           if (interface < 0)
             {
-              NS_FATAL_ERROR ("DGRRouteManagerImpl::FindOutgoingInterfaceId(): "
+              NS_FATAL_ERROR ("DijkstraAlgorithm::FindOutgoingInterfaceId(): "
                               "Expected an interface associated with address a:" << a);
             }
 #endif 
@@ -1609,12 +1495,12 @@ DGRRouteManagerImpl::FindOutgoingInterfaceId (Ipv4Address a, Ipv4Mask amask)
 // route.
 //
 void
-DGRRouteManagerImpl::SPFIntraAddRouter (Vertex* v, Vertex* v_init, Ipv4Address nextHop, uint32_t Iface)
+DijkstraAlgorithm::SPFIntraAddRouter (Vertex* v, Vertex* v_init, Ipv4Address nextHop, uint32_t Iface)
 {
   NS_LOG_FUNCTION (this << v);
 
   NS_ASSERT_MSG (m_spfroot, 
-                 "DGRRouteManagerImpl::SPFIntraAddRouter (): Root pointer not set");
+                 "DijkstraAlgorithm::SPFIntraAddRouter (): Root pointer not set");
 //
 // The root of the Shortest Path First tree is the router to which we are 
 // going to write the actual routing table entries.  The vertex corresponding
@@ -1648,8 +1534,8 @@ DGRRouteManagerImpl::SPFIntraAddRouter (Vertex* v, Vertex* v_init, Ipv4Address n
 // to GetObject for that interface.  If there's no GlobalRouter interface, 
 // the node in question cannot be the router we want, so we continue.
 // 
-      Ptr<DGRRouter> rtr = 
-        node->GetObject<DGRRouter> ();
+      Ptr<RomamRouter> rtr = 
+        node->GetObject<RomamRouter> ();
 
       if (!rtr)
         {
@@ -1675,7 +1561,7 @@ DGRRouteManagerImpl::SPFIntraAddRouter (Vertex* v, Vertex* v_init, Ipv4Address n
 //
           Ptr<Ipv4> ipv4 = node->GetObject<Ipv4> ();
           NS_ASSERT_MSG (ipv4, 
-                         "DGRRouteManagerImpl::SPFIntraAddRouter (): "
+                         "DijkstraAlgorithm::SPFIntraAddRouter (): "
                          "GetObject for <Ipv4> interface failed");
 //
 // Get the Global Router Link State Advertisement from the vertex we're
@@ -1683,9 +1569,9 @@ DGRRouteManagerImpl::SPFIntraAddRouter (Vertex* v, Vertex* v_init, Ipv4Address n
 // Link Records corresponding to links off of that vertex / node.  We're going
 // to be interested in the records corresponding to point-to-point links.
 //
-          DGRRoutingLSA *lsa = v->GetLSA ();
+          LSA *lsa = v->GetLSA ();
           NS_ASSERT_MSG (lsa, 
-                         "DGRRouteManagerImpl::SPFIntraAddRouter (): "
+                         "DijkstraAlgorithm::SPFIntraAddRouter (): "
                          "Expected valid LSA in Vertex* v");
 
           uint32_t nLinkRecords = lsa->GetNLinkRecords ();
@@ -1704,17 +1590,17 @@ DGRRouteManagerImpl::SPFIntraAddRouter (Vertex* v, Vertex* v_init, Ipv4Address n
 //
 // We are only concerned about point-to-point links
 //
-              DGRRoutingLinkRecord *lr = lsa->GetLinkRecord (j);
-              if (lr->GetLinkType () != DGRRoutingLinkRecord::PointToPoint)
+              LinkRecord *lr = lsa->GetLinkRecord (j);
+              if (lr->GetLinkType () != LinkRecord::PointToPoint)
                 {
                   continue;
                 }
-              Ptr<DGRRouter> router = node->GetObject<DGRRouter> ();
+              Ptr<RomamRouter> router = node->GetObject<RomamRouter> ();
               if (!router)
                 {
                   continue;
                 }
-              Ptr<Ipv4DGRRouting> gr = router->GetRoutingProtocol ();
+              Ptr<RomamRouting> gr = router->GetRoutingProtocol ();
               NS_ASSERT (gr);
               uint32_t distance = v->GetDistanceFromRoot ();
               if (v->GetNRootExitDirections () >= 1)
@@ -1731,12 +1617,12 @@ DGRRouteManagerImpl::SPFIntraAddRouter (Vertex* v, Vertex* v_init, Ipv4Address n
     }
 }
 void
-DGRRouteManagerImpl::SPFIntraAddTransit (Vertex* v)
+DijkstraAlgorithm::SPFIntraAddTransit (Vertex* v)
 {
   NS_LOG_FUNCTION (this << v);
 
   NS_ASSERT_MSG (m_spfroot, 
-                 "DGRRouteManagerImpl::SPFIntraAddTransit (): Root pointer not set");
+                 "DijkstraAlgorithm::SPFIntraAddTransit (): Root pointer not set");
 //
 // The root of the Shortest Path First tree is the router to which we are 
 // going to write the actual routing table entries.  The vertex corresponding
@@ -1758,16 +1644,16 @@ DGRRouteManagerImpl::SPFIntraAddTransit (Vertex* v)
     {
       Ptr<Node> node = *i;
 //
-// The router ID is accessible through the DGRRouter interface, so we need
-// to GetObject for that interface.  If there's no DGRRouter interface, 
+// The router ID is accessible through the RomamRouter interface, so we need
+// to GetObject for that interface.  If there's no RomamRouter interface, 
 // the node in question cannot be the router we want, so we continue.
 // 
-      Ptr<DGRRouter> rtr = 
-        node->GetObject<DGRRouter> ();
+      Ptr<RomamRouter> rtr = 
+        node->GetObject<RomamRouter> ();
 
       if (!rtr)
         {
-          NS_LOG_LOGIC ("No DGRRouter interface on node " << 
+          NS_LOG_LOGIC ("No RomamRouter interface on node " << 
                         node->GetId ());
           continue;
         }
@@ -1788,7 +1674,7 @@ DGRRouteManagerImpl::SPFIntraAddTransit (Vertex* v)
 //
           Ptr<Ipv4> ipv4 = node->GetObject<Ipv4> ();
           NS_ASSERT_MSG (ipv4, 
-                         "DGRRouteManagerImpl::SPFIntraAddTransit (): "
+                         "DijkstraAlgorithm::SPFIntraAddTransit (): "
                          "GetObject for <Ipv4> interface failed");
 //
 // Get the Global Router Link State Advertisement from the vertex we're
@@ -1796,19 +1682,19 @@ DGRRouteManagerImpl::SPFIntraAddTransit (Vertex* v)
 // Link Records corresponding to links off of that vertex / node.  We're going
 // to be interested in the records corresponding to point-to-point links.
 //
-          DGRRoutingLSA *lsa = v->GetLSA ();
+          LSA *lsa = v->GetLSA ();
           NS_ASSERT_MSG (lsa, 
-                         "DGRRouteManagerImpl::SPFIntraAddTransit (): "
+                         "DijkstraAlgorithm::SPFIntraAddTransit (): "
                          "Expected valid LSA in Vertex* v");
           Ipv4Mask tempmask = lsa->GetNetworkLSANetworkMask ();
           Ipv4Address tempip = lsa->GetLinkStateId ();
           tempip = tempip.CombineMask (tempmask);
-          Ptr<DGRRouter> router = node->GetObject<DGRRouter> ();
+          Ptr<RomamRouter> router = node->GetObject<RomamRouter> ();
           if (!router)
             {
               continue;
             }
-          Ptr<Ipv4DGRRouting> gr = router->GetRoutingProtocol ();
+          Ptr<RomamRouting> gr = router->GetRoutingProtocol ();
           NS_ASSERT (gr);
           // walk through all available exit directions due to ECMP,
           // and add host route for each of the exit direction toward
@@ -1849,7 +1735,7 @@ DGRRouteManagerImpl::SPFIntraAddTransit (Vertex* v)
 // already has set and adds itself to that vertex's list of children.
 //
 void
-DGRRouteManagerImpl::VertexAddParent (Vertex* v)
+DijkstraAlgorithm::VertexAddParent (Vertex* v)
 {
   NS_LOG_FUNCTION (this << v);
 
