@@ -22,47 +22,50 @@
 #include "ns3/point-to-point-module.h"
 #include "ns3/ipv4-list-routing.h"
 
-#include "ipv4-dgr-routing.h"
-#include "datapath/headers-dgr.h"
-#include "routing_algorithm/dgr-route-manager.h"
-#include "priority_manage/dgrv2-queue-disc.h"
+#include "romam-routing.h"
+// #include "datapath/headers-dgr.h"
+// #include "routing_algorithm/dgr-route-manager.h"
+// #include "priority_manage/dgrv2-queue-disc.h"
 #include "datapath/romam-tags.h"
+#include "routing_algorithm/ipv4-route-info-entry.h"
+#include "utility/router-manager.h"
+#include "priority_manage/ddr-queue-disc.h"
 
 #define DGR_PORT 666
 #define DGR_BROAD_CAST "224.0.0.13"
 
 namespace ns3 {
 
-NS_LOG_COMPONENT_DEFINE ("Ipv4DGRRouting");
+NS_LOG_COMPONENT_DEFINE ("RomamRouting");
 
-NS_OBJECT_ENSURE_REGISTERED (Ipv4DGRRouting);
+NS_OBJECT_ENSURE_REGISTERED (RomamRouting);
 
 TypeId 
-Ipv4DGRRouting::GetTypeId (void)
+RomamRouting::GetTypeId (void)
 { 
-  static TypeId tid = TypeId ("ns3::Ipv4DGRRouting")
+  static TypeId tid = TypeId ("ns3::RomamRouting")
     .SetParent<Ipv4RoutingProtocol> ()
     .SetGroupName ("romam")
-    .AddConstructor<Ipv4DGRRouting> ()
+    .AddConstructor<RomamRouting> ()
     .AddAttribute ("RandomEcmpRouting",
                    "Set to true if packets are randomly routed among ECMP; set to false for using only one route consistently",
                    BooleanValue (false),
-                   MakeBooleanAccessor (&Ipv4DGRRouting::m_randomEcmpRouting),
+                   MakeBooleanAccessor (&RomamRouting::m_randomEcmpRouting),
                    MakeBooleanChecker ())
     .AddAttribute ("RespondToInterfaceEvents",
                    "Set to true if you want to dynamically recompute the global routes upon Interface notification events (up/down, or add/remove address)",
                    BooleanValue (false),
-                   MakeBooleanAccessor (&Ipv4DGRRouting::m_respondToInterfaceEvents),
+                   MakeBooleanAccessor (&RomamRouting::m_respondToInterfaceEvents),
                    MakeBooleanChecker ())
     .AddAttribute ("SamplePeriod",
                    "Time between two Unsolicited Neighbor State Updates.",
                    TimeValue(MilliSeconds (10)),
-                   MakeTimeAccessor (&Ipv4DGRRouting::m_unsolicitedUpdate),
+                   MakeTimeAccessor (&RomamRouting::m_unsolicitedUpdate),
                    MakeTimeChecker ())
     .AddAttribute("RouteSelectMode",
                   "Routing Select Mode",
                    EnumValue(NONE),
-                   MakeEnumAccessor(&Ipv4DGRRouting::m_routeSelectMode),
+                   MakeEnumAccessor(&RomamRouting::m_routeSelectMode),
                    MakeEnumChecker(NONE, "ECMP",
                                    KSHORT, "KSHORT",
                                    DGR, "DGR",
@@ -71,7 +74,7 @@ Ipv4DGRRouting::GetTypeId (void)
   return tid;
 }
 
-Ipv4DGRRouting::Ipv4DGRRouting () 
+RomamRouting::RomamRouting () 
   : m_randomEcmpRouting (false),
     m_respondToInterfaceEvents (false),
     m_tsdb ()
@@ -80,29 +83,29 @@ Ipv4DGRRouting::Ipv4DGRRouting ()
   m_rand = CreateObject<UniformRandomVariable> ();
 }
 
-Ipv4DGRRouting::~Ipv4DGRRouting ()
+RomamRouting::~RomamRouting ()
 {
   NS_LOG_FUNCTION (this);
 }
 
 void 
-Ipv4DGRRouting::AddHostRouteTo (Ipv4Address dest, 
+RomamRouting::AddHostRouteTo (Ipv4Address dest, 
                                    Ipv4Address nextHop, 
                                    uint32_t interface)
 {
   NS_LOG_FUNCTION (this << dest << nextHop << interface);
-  Ipv4DGRRoutingTableEntry *route = new Ipv4DGRRoutingTableEntry ();
-  *route = Ipv4DGRRoutingTableEntry::CreateHostRouteTo (dest, nextHop, interface);
+  Ipv4RouteInfoEntry *route = new Ipv4RouteInfoEntry ();
+  *route = Ipv4RouteInfoEntry::CreateHostRouteTo (dest, nextHop, interface);
   m_hostRoutes.push_back (route);
 }
 
 void 
-Ipv4DGRRouting::AddHostRouteTo (Ipv4Address dest, 
+RomamRouting::AddHostRouteTo (Ipv4Address dest, 
                                    uint32_t interface)
 {
   NS_LOG_FUNCTION (this << dest << interface);
-  Ipv4DGRRoutingTableEntry *route = new Ipv4DGRRoutingTableEntry ();
-  *route = Ipv4DGRRoutingTableEntry::CreateHostRouteTo (dest, interface);
+  Ipv4RouteInfoEntry *route = new Ipv4RouteInfoEntry ();
+  *route = Ipv4RouteInfoEntry::CreateHostRouteTo (dest, interface);
   m_hostRoutes.push_back (route);
 }
 
@@ -117,29 +120,30 @@ Ipv4DGRRouting::AddHostRouteTo (Ipv4Address dest,
   * \param distance The distance between root and destination
  */
 void
-Ipv4DGRRouting::AddHostRouteTo (Ipv4Address dest,
+RomamRouting::AddHostRouteTo (Ipv4Address dest,
                        Ipv4Address nextHop,
                        uint32_t interface,
                        uint32_t nextInterface,
                        uint32_t distance)
 {
   NS_LOG_FUNCTION (this << dest << nextHop << interface << nextInterface << distance);
-  Ipv4DGRRoutingTableEntry *route = new Ipv4DGRRoutingTableEntry ();
-  *route = Ipv4DGRRoutingTableEntry::CreateHostRouteTo(dest, nextHop, interface, nextInterface, distance);
+  Ipv4RouteInfoEntry *route = new Ipv4RouteInfoEntry ();
+  // Todo
+  // *route = Ipv4RouteInfoEntry::CreateHostRouteTo(dest, nextHop, interface, nextInterface, distance);
   m_hostRoutes.push_back (route);
 }
 
 
 
 void 
-Ipv4DGRRouting::AddNetworkRouteTo (Ipv4Address network, 
+RomamRouting::AddNetworkRouteTo (Ipv4Address network, 
                                       Ipv4Mask networkMask, 
                                       Ipv4Address nextHop, 
                                       uint32_t interface)
 {
   NS_LOG_FUNCTION (this << network << networkMask << nextHop << interface);
-  Ipv4DGRRoutingTableEntry *route = new Ipv4DGRRoutingTableEntry ();
-  *route = Ipv4DGRRoutingTableEntry::CreateNetworkRouteTo (network,
+  Ipv4RouteInfoEntry *route = new Ipv4RouteInfoEntry ();
+  *route = Ipv4RouteInfoEntry::CreateNetworkRouteTo (network,
                                                         networkMask,
                                                         nextHop,
                                                         interface);
@@ -147,27 +151,27 @@ Ipv4DGRRouting::AddNetworkRouteTo (Ipv4Address network,
 }
 
 void 
-Ipv4DGRRouting::AddNetworkRouteTo (Ipv4Address network, 
+RomamRouting::AddNetworkRouteTo (Ipv4Address network, 
                                       Ipv4Mask networkMask, 
                                       uint32_t interface)
 {
   NS_LOG_FUNCTION (this << network << networkMask << interface);
-  Ipv4DGRRoutingTableEntry *route = new Ipv4DGRRoutingTableEntry ();
-  *route = Ipv4DGRRoutingTableEntry::CreateNetworkRouteTo (network,
+  Ipv4RouteInfoEntry *route = new Ipv4RouteInfoEntry ();
+  *route = Ipv4RouteInfoEntry::CreateNetworkRouteTo (network,
                                                         networkMask,
                                                         interface);
   m_networkRoutes.push_back (route);
 }
 
 void 
-Ipv4DGRRouting::AddASExternalRouteTo (Ipv4Address network, 
+RomamRouting::AddASExternalRouteTo (Ipv4Address network, 
                                          Ipv4Mask networkMask,
                                          Ipv4Address nextHop,
                                          uint32_t interface)
 {
   NS_LOG_FUNCTION (this << network << networkMask << nextHop << interface);
-  Ipv4DGRRoutingTableEntry *route = new Ipv4DGRRoutingTableEntry ();
-  *route = Ipv4DGRRoutingTableEntry::CreateNetworkRouteTo (network,
+  Ipv4RouteInfoEntry *route = new Ipv4RouteInfoEntry ();
+  *route = Ipv4RouteInfoEntry::CreateNetworkRouteTo (network,
                                                         networkMask,
                                                         nextHop,
                                                         interface);
@@ -176,7 +180,7 @@ Ipv4DGRRouting::AddASExternalRouteTo (Ipv4Address network,
 
 
 Ptr<Ipv4Route>
-Ipv4DGRRouting::LookupECMPRoute (Ipv4Address dest, Ptr<NetDevice> oif)
+RomamRouting::LookupECMPRoute (Ipv4Address dest, Ptr<NetDevice> oif)
 {
   /**
    * Get the shortest path in the routing table
@@ -185,380 +189,35 @@ Ipv4DGRRouting::LookupECMPRoute (Ipv4Address dest, Ptr<NetDevice> oif)
   NS_LOG_LOGIC ("Looking for route for destination " << dest);
 
   Ptr<Ipv4Route> rtentry = 0;
-  // store all available routes that bring packets to their destination
-  typedef std::vector<Ipv4DGRRoutingTableEntry*> RouteVec_t;
-  RouteVec_t allRoutes;
-
-  NS_LOG_LOGIC ("Number of m_hostRoutes = " << m_hostRoutes.size ());
-  for (HostRoutesCI i = m_hostRoutes.begin (); 
-       i != m_hostRoutes.end (); 
-       i++) 
-    {
-      NS_ASSERT ((*i)->IsHost ());
-      if ((*i)->GetDest () == dest)
-        {
-          if (oif)
-            {
-              if (oif != m_ipv4->GetNetDevice ((*i)->GetInterface ()))
-                {
-                  NS_LOG_LOGIC ("Not on requested interface, skipping");
-                  continue;
-                }
-            }
-          allRoutes.push_back (*i);
-          NS_LOG_LOGIC (allRoutes.size () << "Found DGR host route" << *i); 
-        }
-    }
-  if (allRoutes.size () > 0 ) // if route(s) is found
-    {
-      uint32_t routRef = 0;
-      uint32_t shortestDist = allRoutes.at(0)->GetDistance ();
-      for (uint32_t i = 0; i < allRoutes.size (); i ++)
-      {
-        if (allRoutes.at (i)->GetDistance () <  shortestDist)
-        {
-          routRef = i;
-          shortestDist = allRoutes.at (i)->GetDistance ();
-        }
-      }
-      Ipv4DGRRoutingTableEntry* route = allRoutes.at (routRef);
-
-      // create a Ipv4Route object from the selected routing table entry
-      rtentry = Create<Ipv4Route> ();
-      rtentry->SetDestination (route->GetDest ());
-      /// \todo handle multi-address case
-      rtentry->SetSource (m_ipv4->GetAddress (route->GetInterface (), 0).GetLocal ());
-      rtentry->SetGateway (route->GetGateway ());
-      uint32_t interfaceIdx = route->GetInterface ();
-      rtentry->SetOutputDevice (m_ipv4->GetNetDevice (interfaceIdx));
-      return rtentry;
-    }
-  else 
-    {
-      return 0;
-    }
+  return rtentry;
 }
 
 Ptr<Ipv4Route>
-Ipv4DGRRouting::LookupDDRRoute (Ipv4Address dest, Ptr<Packet> p, Ptr<const NetDevice> idev)
+RomamRouting::LookupDDRRoute (Ipv4Address dest, Ptr<Packet> p, Ptr<const NetDevice> idev)
 {
-  // std::cout <<"DGR routing" << std::endl;
-  BudgetTag bgtTag;
-  TimestampTag timeTag;
-  p->PeekPacketTag (bgtTag);
-  p->PeekPacketTag (timeTag);
-  // avoid loop
-  DistTag distTag;
-  uint32_t dist = UINT32_MAX;
-  dist -= 1;
-  if (p->PeekPacketTag (distTag))
-    {
-      dist = distTag.GetDistance ();
-    }
-  
-  // budget in microseconds
-  uint32_t bgt;
-  if (bgtTag.GetBudget () + timeTag.GetTimestamp ().GetMicroSeconds () < Simulator::Now ().GetMicroSeconds ())
-    {
-      bgt = 0;
-    }
-  else
-    {
-      bgt = (bgtTag.GetBudget () + timeTag.GetTimestamp ().GetMicroSeconds () - Simulator::Now ().GetMicroSeconds ());
-    }
-  NS_LOG_FUNCTION (this << dest << idev);
-  NS_LOG_LOGIC ("Looking for route for destination " << dest);
   Ptr<Ipv4Route> rtentry = 0;
-  // store all available routes that bring packets to their destination
-  typedef std::vector<Ipv4DGRRoutingTableEntry*> RouteVec_t;
-  // typedef std::vector<Ipv4DGRRoutingTableEntry *>::const_iterator RouteVecCI_t;
-  RouteVec_t allRoutes;
-
-  NS_LOG_LOGIC ("Number of m_hostRoutes = " << m_hostRoutes.size ());
-  for (HostRoutesCI i = m_hostRoutes.begin (); 
-       i != m_hostRoutes.end (); 
-       i++) 
-    {
-      NS_ASSERT ((*i)->IsHost ());
-      if ((*i)->GetDest () == dest)
-        {
-          if (idev)
-            {
-              if (idev == m_ipv4->GetNetDevice ((*i)->GetInterface ()))
-                {
-                  NS_LOG_LOGIC ("Not on requested interface, skipping");
-                  continue;
-                }
-            }
-
-          // if interface is down, continue
-          if (!m_ipv4->IsUp ((*i)->GetInterface ())) continue;
-
-          // get the local queue delay in microsecond
-          Ptr <NetDevice> dev_local = m_ipv4->GetNetDevice ((*i)->GetInterface ());
-          //get the queue disc on the device
-          Ptr<QueueDisc> disc = m_ipv4->GetObject<Node> ()->GetObject<TrafficControlLayer> ()->GetRootQueueDiscOnDevice (dev_local);
-          Ptr<DGRv2QueueDisc> dvq = DynamicCast <DGRv2QueueDisc> (disc);
-          // uint32_t status_local = dvq->GetQueueStatus ();
-          // uint32_t delay_local = status_local * 2000;
-          uint32_t delay_local = dvq->GetQueueDelay ();
-
-          // Get the neighbor queue status in microsecond
-          uint32_t delay_neighbor = 0;
-          if ((*i)->GetNextInterface () != 0xffffffff)
-            {
-              uint32_t iface = (*i)->GetInterface ();
-              uint32_t niface = (*i)->GetNextInterface ();
-              NeighborStatusEntry *entry = m_tsdb.GetNeighborStatusEntry (iface);
-              StatusUnit *su = entry->GetStatusUnit (niface);
-              delay_neighbor = su->GetEstimateDelayDDR ();
-              // std::cout << "Neighbor delay: " << delay_neighbor << std::endl;
-            }
-          // in microsecond
-          uint32_t estimate_delay = ((*i)->GetDistance () + 1) * 1000 + delay_local + delay_neighbor;
-
-          if (estimate_delay > bgt)
-            {
-              NS_LOG_LOGIC ("Too far to the destination, skipping");
-              continue;
-            }
-          
-          if ((*i)->GetDistance () > dist)
-            {
-              NS_LOG_LOGIC ("Loop avoidance, skipping");
-              continue;
-            }
-          
-          allRoutes.push_back (*i);
-          NS_LOG_LOGIC (allRoutes.size () << "Found DGR host route" << *i << " with Cost: " << (*i)->GetDistance ()); 
-        }
-    }
-  if (allRoutes.size () > 0 ) // if route(s) is found
-    {
-      // random select
-      uint32_t selectIndex = 0;
-      uint32_t shortestDist = allRoutes.at(0)->GetDistance ();
-      for (uint32_t i = 0; i < allRoutes.size (); i ++)
-      {
-        if (allRoutes.at (i)->GetDistance () <  shortestDist)
-        {
-          selectIndex = i;
-          shortestDist = allRoutes.at (i)->GetDistance ();
-        }
-      }
-
-      Ipv4DGRRoutingTableEntry* route = allRoutes.at (selectIndex);
-      uint32_t interfaceIdx = route->GetInterface ();
-
-      rtentry = Create<Ipv4Route> ();
-      rtentry->SetDestination (route->GetDest ());
-      /// \todo handle multi-address case
-      rtentry->SetSource (m_ipv4->GetAddress (interfaceIdx, 0).GetLocal ());
-      rtentry->SetGateway (route->GetGateway ());
-      rtentry->SetOutputDevice (m_ipv4->GetNetDevice (interfaceIdx));
-
-      distTag.SetDistance (route->GetDistance ());      
-      p->ReplacePacketTag (distTag);
-      return rtentry;
-    }
-  else 
-    {
-      return LookupECMPRoute (dest);
-    }
+  return rtentry;
 }
 
 
 Ptr<Ipv4Route>
-Ipv4DGRRouting::LookupDGRRoute (Ipv4Address dest, Ptr<Packet> p, Ptr<const NetDevice> idev)
+RomamRouting::LookupDGRRoute (Ipv4Address dest, Ptr<Packet> p, Ptr<const NetDevice> idev)
 {
-  // std::cout <<"DGR routing" << std::endl;
-  BudgetTag bgtTag;
-  TimestampTag timeTag;
-  p->PeekPacketTag (bgtTag);
-  p->PeekPacketTag (timeTag);
-  // avoid loop
-  DistTag distTag;
-  uint32_t dist = UINT32_MAX;
-  dist -= 1;
-  if (p->PeekPacketTag (distTag))
-    {
-      dist = distTag.GetDistance ();
-    }
-  
-  // budget in microseconds
-  uint32_t bgt;
-  if (bgtTag.GetBudget () + timeTag.GetTimestamp ().GetMicroSeconds () < Simulator::Now ().GetMicroSeconds ())
-    {
-      bgt = 0;
-    }
-  else
-    {
-      bgt = (bgtTag.GetBudget () + timeTag.GetTimestamp ().GetMicroSeconds () - Simulator::Now ().GetMicroSeconds ());
-    }
-  NS_LOG_FUNCTION (this << dest << idev);
-  NS_LOG_LOGIC ("Looking for route for destination " << dest);
   Ptr<Ipv4Route> rtentry = 0;
-  // store all available routes that bring packets to their destination
-  typedef std::vector<Ipv4DGRRoutingTableEntry*> RouteVec_t;
-  // typedef std::vector<Ipv4DGRRoutingTableEntry *>::const_iterator RouteVecCI_t;
-  RouteVec_t allRoutes;
-
-  NS_LOG_LOGIC ("Number of m_hostRoutes = " << m_hostRoutes.size ());
-  for (HostRoutesCI i = m_hostRoutes.begin (); 
-       i != m_hostRoutes.end (); 
-       i++) 
-    {
-      NS_ASSERT ((*i)->IsHost ());
-      if ((*i)->GetDest () == dest)
-        {
-          if (idev)
-            {
-              if (idev == m_ipv4->GetNetDevice ((*i)->GetInterface ()))
-                {
-                  NS_LOG_LOGIC ("Not on requested interface, skipping");
-                  continue;
-                }
-            }
-
-          // if interface is down, continue
-          if (!m_ipv4->IsUp ((*i)->GetInterface ())) continue;
-
-          // get the local queue delay in microsecond
-          Ptr <NetDevice> dev_local = m_ipv4->GetNetDevice ((*i)->GetInterface ());
-          //get the queue disc on the device
-          Ptr<QueueDisc> disc = m_ipv4->GetObject<Node> ()->GetObject<TrafficControlLayer> ()->GetRootQueueDiscOnDevice (dev_local);
-          Ptr<DGRv2QueueDisc> dvq = DynamicCast <DGRv2QueueDisc> (disc);
-          // uint32_t status_local = dvq->GetQueueStatus ();
-          // uint32_t delay_local = status_local * 2000;
-          uint32_t delay_local = dvq->GetQueueDelay ();
-
-          // Get the neighbor queue status in microsecond
-          uint32_t delay_neighbor = 0;
-          if ((*i)->GetNextInterface () != 0xffffffff)
-            {
-              uint32_t iface = (*i)->GetInterface ();
-              uint32_t niface = (*i)->GetNextInterface ();
-              NeighborStatusEntry *entry = m_tsdb.GetNeighborStatusEntry (iface);
-              StatusUnit *su = entry->GetStatusUnit (niface);
-              delay_neighbor = su->GetEstimateDelayDGR ();
-            }
-          // in microsecond
-          uint32_t estimate_delay = (*i)->GetDistance () * 1000 + delay_local + delay_neighbor;
-
-          if (estimate_delay > bgt)
-            {
-              NS_LOG_LOGIC ("Too far to the destination, skipping");
-              continue;
-            }
-          
-          if ((*i)->GetDistance () > dist)
-            {
-              NS_LOG_LOGIC ("Loop avoidance, skipping");
-              continue;
-            }
-          
-          allRoutes.push_back (*i);
-          NS_LOG_LOGIC (allRoutes.size () << "Found DGR host route" << *i << " with Cost: " << (*i)->GetDistance ()); 
-        }
-    }
-  if (allRoutes.size () > 0 ) // if route(s) is found
-    {
-      // random select
-      uint32_t selectIndex = m_rand->GetInteger (0, allRoutes.size ()-1);
-
-      Ipv4DGRRoutingTableEntry* route = allRoutes.at (selectIndex);
-      uint32_t interfaceIdx = route->GetInterface ();
-
-      rtentry = Create<Ipv4Route> ();
-      rtentry->SetDestination (route->GetDest ());
-      /// \todo handle multi-address case
-      rtentry->SetSource (m_ipv4->GetAddress (interfaceIdx, 0).GetLocal ());
-      rtentry->SetGateway (route->GetGateway ());
-      rtentry->SetOutputDevice (m_ipv4->GetNetDevice (interfaceIdx));
-
-      distTag.SetDistance (route->GetDistance ());      
-      p->ReplacePacketTag (distTag);
-      return rtentry;
-    }
-  else 
-    {
-      return 0;
-    }
+  
+  return rtentry;
 }
 
 Ptr<Ipv4Route> 
-Ipv4DGRRouting::LookupKShortRoute (Ipv4Address dest, Ptr<Packet> p, Ptr<const NetDevice> idev)
+RomamRouting::LookupKShortRoute (Ipv4Address dest, Ptr<Packet> p, Ptr<const NetDevice> idev)
 {
-  // avoid loop
-  DistTag distTag;
-  uint32_t dist = UINT32_MAX;
-  dist -= 1;
-  if (p->PeekPacketTag (distTag))
-    {
-      dist = distTag.GetDistance ();
-    }
-  
-  NS_LOG_FUNCTION (this << dest << idev);
-  NS_LOG_LOGIC ("Looking for route for destination " << dest);
   Ptr<Ipv4Route> rtentry = 0;
-  // store all available routes that bring packets to their destination
-  typedef std::vector<Ipv4DGRRoutingTableEntry*> RouteVec_t;
-  // typedef std::vector<Ipv4DGRRoutingTableEntry *>::const_iterator RouteVecCI_t;
-  RouteVec_t allRoutes;
-
-  NS_LOG_LOGIC ("Number of m_hostRoutes = " << m_hostRoutes.size ());
-  for (HostRoutesCI i = m_hostRoutes.begin (); 
-       i != m_hostRoutes.end (); 
-       i++) 
-    {
-      NS_ASSERT ((*i)->IsHost ());
-      if ((*i)->GetDest () == dest)
-        {
-          if (idev)
-            {
-              if (idev == m_ipv4->GetNetDevice ((*i)->GetInterface ()))
-                {
-                  NS_LOG_LOGIC ("Not on requested interface, skipping");
-                  continue;
-                }
-            }
-          if ((*i)->GetDistance () > dist)
-            {
-              NS_LOG_LOGIC ("Loop avoidance, skipping");
-              continue;
-            }
-          
-          allRoutes.push_back (*i);
-          NS_LOG_LOGIC (allRoutes.size () << "Found route" << *i << " with Cost: " << (*i)->GetDistance ()); 
-        }
-    }
-  if (allRoutes.size () > 0 ) // if route(s) is found
-    {
-      // random select
-      uint32_t selectIndex = m_rand->GetInteger (0, allRoutes.size ()-1);
-      Ipv4DGRRoutingTableEntry* route = allRoutes.at (selectIndex);
-      uint32_t interfaceIdx = route->GetInterface ();
-
-      rtentry = Create<Ipv4Route> ();
-      rtentry->SetDestination (route->GetDest ());
-      /// \todo handle multi-address case
-      rtentry->SetSource (m_ipv4->GetAddress (interfaceIdx, 0).GetLocal ());
-      rtentry->SetGateway (route->GetGateway ());
-      rtentry->SetOutputDevice (m_ipv4->GetNetDevice (interfaceIdx));
-
-      distTag.SetDistance (route->GetDistance ());      
-      p->ReplacePacketTag (distTag);
-      return rtentry;
-    }
-  else 
-    {
-      return 0;
-    }
+  return rtentry;
 }
 
 
 // Ptr<Ipv4Route>
-// Ipv4DGRRouting::LookupDDRRoute (Ipv4Address dest, Ptr<Packet> p, Ptr<const NetDevice> idev)
+// RomamRouting::LookupDDRRoute (Ipv4Address dest, Ptr<Packet> p, Ptr<const NetDevice> idev)
 // {
 //   // std::cout << "DDR routing" << std::endl;
 //   BudgetTag bgtTag;
@@ -587,8 +246,8 @@ Ipv4DGRRouting::LookupKShortRoute (Ipv4Address dest, Ptr<Packet> p, Ptr<const Ne
 //   NS_LOG_LOGIC ("Looking for route for destination " << dest);
 //   Ptr<Ipv4Route> rtentry = 0;
 //   // store all available routes that bring packets to their destination
-//   typedef std::vector<Ipv4DGRRoutingTableEntry*> RouteVec_t;
-//   // typedef std::vector<Ipv4DGRRoutingTableEntry *>::const_iterator RouteVecCI_t;
+//   typedef std::vector<Ipv4RouteInfoEntry*> RouteVec_t;
+//   // typedef std::vector<Ipv4RouteInfoEntry *>::const_iterator RouteVecCI_t;
 //   RouteVec_t allRoutes;
 
 //   NS_LOG_LOGIC ("Number of m_hostRoutes = " << m_hostRoutes.size ());
@@ -675,7 +334,7 @@ Ipv4DGRRouting::LookupKShortRoute (Ipv4Address dest, Ptr<Packet> p, Ptr<const Ne
 //       // random select
 //       uint32_t selectIndex = m_rand->GetInteger (0, allRoutes.size ()-1);
 
-//       Ipv4DGRRoutingTableEntry* route = allRoutes.at (selectIndex);
+//       Ipv4RouteInfoEntry* route = allRoutes.at (selectIndex);
 //       uint32_t interfaceIdx = route->GetInterface ();
 
 //       rtentry = Create<Ipv4Route> ();
@@ -697,7 +356,7 @@ Ipv4DGRRouting::LookupKShortRoute (Ipv4Address dest, Ptr<Packet> p, Ptr<const Ne
 // }
 
 uint32_t 
-Ipv4DGRRouting::GetNRoutes (void) const
+RomamRouting::GetNRoutes (void) const
 {
   NS_LOG_FUNCTION (this);
   uint32_t n = 0;
@@ -707,8 +366,8 @@ Ipv4DGRRouting::GetNRoutes (void) const
   return n;
 }
 
-Ipv4DGRRoutingTableEntry *
-Ipv4DGRRouting::GetRoute (uint32_t index) const
+Ipv4RouteInfoEntry *
+RomamRouting::GetRoute (uint32_t index) const
 {
   NS_LOG_FUNCTION (this << index);
   if (index < m_hostRoutes.size ())
@@ -757,7 +416,7 @@ Ipv4DGRRouting::GetRoute (uint32_t index) const
   return 0;
 }
 void 
-Ipv4DGRRouting::RemoveRoute (uint32_t index)
+RomamRouting::RemoveRoute (uint32_t index)
 {
   NS_LOG_FUNCTION (this << index);
   if (index < m_hostRoutes.size ())
@@ -814,7 +473,7 @@ Ipv4DGRRouting::RemoveRoute (uint32_t index)
 }
 
 int64_t
-Ipv4DGRRouting::AssignStreams (int64_t stream)
+RomamRouting::AssignStreams (int64_t stream)
 {
   NS_LOG_FUNCTION (this << stream);
   m_rand->SetStream (stream);
@@ -822,7 +481,7 @@ Ipv4DGRRouting::AssignStreams (int64_t stream)
 }
 
 void
-Ipv4DGRRouting::DoDispose (void)
+RomamRouting::DoDispose (void)
 {
   NS_LOG_FUNCTION (this);
   // TODO: Realise memorys 
@@ -849,7 +508,7 @@ Ipv4DGRRouting::DoDispose (void)
 }
 
 void
-Ipv4DGRRouting::DoInitialize ()
+RomamRouting::DoInitialize ()
 {
   NS_LOG_FUNCTION (this);
   // bool addedGlobal = false;
@@ -857,7 +516,7 @@ Ipv4DGRRouting::DoInitialize ()
 
   // To Check: An random value is needed to initialize the protocol?
   Time delay = m_unsolicitedUpdate;
-  m_nextUnsolicitedUpdate = Simulator::Schedule (delay, &Ipv4DGRRouting::SendUnsolicitedUpdate, this);
+  m_nextUnsolicitedUpdate = Simulator::Schedule (delay, &RomamRouting::SendUnsolicitedUpdate, this);
 
   uint32_t nodeId = m_ipv4->GetNetDevice (1)->GetNode ()->GetId ();
   std::stringstream ss;
@@ -868,7 +527,7 @@ Ipv4DGRRouting::DoInitialize ()
   // m_outStream = Create<OutputStreamWrapper> ("Node" + strNodeId + "queueStatusErr.txt", std::ios::out);
 
 
-  m_nextUnsolicitedUpdate = Simulator::Schedule (delay, &Ipv4DGRRouting::SendUnsolicitedUpdate, this);
+  m_nextUnsolicitedUpdate = Simulator::Schedule (delay, &RomamRouting::SendUnsolicitedUpdate, this);
   
   // Initialize the sockets for every netdevice
   for (uint32_t i = 0; i < m_ipv4->GetNInterfaces (); i ++)
@@ -904,7 +563,7 @@ Ipv4DGRRouting::DoInitialize ()
               int ret = socket->Bind (local);
               NS_ASSERT_MSG (ret == 0, "Bind unsuccessful");
 
-              socket->SetRecvCallback (MakeCallback (&Ipv4DGRRouting::Receive, this));
+              socket->SetRecvCallback (MakeCallback (&RomamRouting::Receive, this));
               socket->SetIpRecvTtl (true);
               socket->SetRecvPktInfo (true);
 
@@ -921,7 +580,7 @@ Ipv4DGRRouting::DoInitialize ()
         m_multicastRecvSocket = Socket::CreateSocket (theNode, tid);
         InetSocketAddress local = InetSocketAddress (DGR_BROAD_CAST, DGR_PORT);
         m_multicastRecvSocket->Bind (local);
-        m_multicastRecvSocket->SetRecvCallback (MakeCallback (&Ipv4DGRRouting::Receive, this));
+        m_multicastRecvSocket->SetRecvCallback (MakeCallback (&RomamRouting::Receive, this));
         m_multicastRecvSocket->SetIpRecvTtl (true);
         m_multicastRecvSocket->SetRecvPktInfo (true);
       }
@@ -930,18 +589,18 @@ Ipv4DGRRouting::DoInitialize ()
     //   {
     //     Time delay = Seconds (m_rand->GetValue (m_minTriggeredUpdateDelay.GetSeconds (),
     //                                             m_maxTriggeredUpdateDelay.GetSeconds ()));
-    //     m_nextTriggeredUpdate = Simulator::Schedule (delay, &Ipv4DGRRouting::DoSendNeighborStatusUpdate, this, false);
+    //     m_nextTriggeredUpdate = Simulator::Schedule (delay, &RomamRouting::DoSendNeighborStatusUpdate, this, false);
     //   }
 
     // delay = Seconds (m_rand->GetValue (0.01, m_startupDelay.GetSeconds ()));
-    // m_nextTriggeredUpdate = Simulator::Schedule (delay, &Ipv4DGRRouting::SendNeighborStatusRequest, this);
+    // m_nextTriggeredUpdate = Simulator::Schedule (delay, &RomamRouting::SendNeighborStatusRequest, this);
 
     Ipv4RoutingProtocol::DoInitialize ();
 }
 
 // Formatted like output of "route -n" command
 void
-Ipv4DGRRouting::PrintRoutingTable (Ptr<OutputStreamWrapper> stream, Time::Unit unit) const
+RomamRouting::PrintRoutingTable (Ptr<OutputStreamWrapper> stream, Time::Unit unit) const
 {
   NS_LOG_FUNCTION (this << stream);
   std::ostream* os = stream->GetStream ();
@@ -952,7 +611,7 @@ Ipv4DGRRouting::PrintRoutingTable (Ptr<OutputStreamWrapper> stream, Time::Unit u
   *os << "Node: " << m_ipv4->GetObject<Node> ()->GetId ()
       << ", Time: " << Now().As (unit)
       << ", Local time: " << m_ipv4->GetObject<Node> ()->GetLocalTime ().As (unit)
-      << ", Ipv4DGRRouting table" << std::endl;
+      << ", RomamRouting table" << std::endl;
 
   if (GetNRoutes () > 0)
     {
@@ -960,7 +619,7 @@ Ipv4DGRRouting::PrintRoutingTable (Ptr<OutputStreamWrapper> stream, Time::Unit u
       for (uint32_t j = 0; j < GetNRoutes (); j++)
         {
           std::ostringstream dest, gw, mask, flags, metric;
-          Ipv4DGRRoutingTableEntry route = GetRoute (j);
+          Ipv4RouteInfoEntry route = GetRoute (j);
           dest << route.GetDest ();
           *os  << std::setw (13) << dest.str ();
           gw << route.GetGateway ();
@@ -975,15 +634,15 @@ Ipv4DGRRouting::PrintRoutingTable (Ptr<OutputStreamWrapper> stream, Time::Unit u
               flags << "G";
             }
           *os << std::setiosflags (std::ios::left) << std::setw (6) << flags.str ();
-          metric << route.GetDistance ();
-          if (route.GetDistance () == 0xffffffff)
-            {
-              *os << std::setw (9) << "-";
-            }
-          else
-            {
-              *os << std::setw(9) << metric.str();
-            }
+          // metric << route.GetDistance ();
+          // if (route.GetDistance () == 0xffffffff)
+          //   {
+          //     *os << std::setw (9) << "-";
+          //   }
+          // else
+          //   {
+          //     *os << std::setw(9) << metric.str();
+          //   }
 
           if (Names::FindName (m_ipv4->GetNetDevice (route.GetInterface ())) != "")
             {
@@ -992,14 +651,14 @@ Ipv4DGRRouting::PrintRoutingTable (Ptr<OutputStreamWrapper> stream, Time::Unit u
           else
             {
               *os << std::setw (7) << route.GetInterface ();
-              if (route.GetNextInterface () != 0xffffffff)
-                {
-                  *os << std::setw (8) << route.GetNextInterface ();
-                }
-              else
-                {
-                  *os << std::setw (8) << "-";
-                }
+              // if (route.GetNextInterface () != 0xffffffff)
+              //   {
+              //     *os << std::setw (8) << route.GetNextInterface ();
+              //   }
+              // else
+              //   {
+              //     *os << std::setw (8) << "-";
+              //   }
             }
           *os << std::endl;
         }
@@ -1011,7 +670,7 @@ Ipv4DGRRouting::PrintRoutingTable (Ptr<OutputStreamWrapper> stream, Time::Unit u
 
 
 Ptr<Ipv4Route>
-Ipv4DGRRouting::RouteOutput (Ptr<Packet> p,
+RomamRouting::RouteOutput (Ptr<Packet> p,
                              const Ipv4Header &header,
                              Ptr<NetDevice> oif,
                              Socket::SocketErrno &sockerr)
@@ -1076,7 +735,7 @@ Ipv4DGRRouting::RouteOutput (Ptr<Packet> p,
 }
 
 bool 
-Ipv4DGRRouting::RouteInput(Ptr<const Packet> p,
+RomamRouting::RouteInput(Ptr<const Packet> p,
                   const Ipv4Header& header,
                   Ptr<const NetDevice> idev,
                   const UnicastForwardCallback& ucb,
@@ -1168,55 +827,61 @@ Ipv4DGRRouting::RouteInput(Ptr<const Packet> p,
 }
 
 void 
-Ipv4DGRRouting::NotifyInterfaceUp (uint32_t i)
+RomamRouting::NotifyInterfaceUp (uint32_t i)
 {
   NS_LOG_FUNCTION (this << i);
-  if (m_respondToInterfaceEvents && Simulator::Now ().GetSeconds () > 0)  // avoid startup events
-    {
-      DGRRouteManager::DeleteDGRRoutes ();
-      DGRRouteManager::BuildDGRRoutingDatabase ();
-      DGRRouteManager::InitializeRoutes ();
-    }
-}
+  // if (m_respondToInterfaceEvents && Simulator::Now ().GetSeconds () > 0)  // avoid startup events
+  //   {
+  //     // todo 
+  //     RouterManager::DeleteRoutes ();
+  //     RouterManager::BuildRoutingDatabase ();
+  //     // todo: rerun the routing algorithm to fill routing table
+  //     // DGRRouteManager::InitializeRoutes ();
+  //   }
+} 
 
 void 
-Ipv4DGRRouting::NotifyInterfaceDown (uint32_t i)
+RomamRouting::NotifyInterfaceDown (uint32_t i)
 {
   NS_LOG_FUNCTION (this << i);
-  if (m_respondToInterfaceEvents && Simulator::Now ().GetSeconds () > 0)  // avoid startup events
-    {
-      DGRRouteManager::DeleteDGRRoutes ();
-      DGRRouteManager::BuildDGRRoutingDatabase ();
-      DGRRouteManager::InitializeRoutes ();
-    }
+  // todo 
+  // if (m_respondToInterfaceEvents && Simulator::Now ().GetSeconds () > 0)  // avoid startup events
+  //   {
+  //     RouterManager::DeleteRoutes ();
+  //     RouterManager::BuildRoutingDatabase ();
+  //     // Todo : Reload the RIB from routing algorithm
+  //     // DGRRouteManager::InitializeRoutes ();
+  //   }
 }
 
 void 
-Ipv4DGRRouting::NotifyAddAddress (uint32_t interface, Ipv4InterfaceAddress address)
+RomamRouting::NotifyAddAddress (uint32_t interface, Ipv4InterfaceAddress address)
 {
   NS_LOG_FUNCTION (this << interface << address);
-  if (m_respondToInterfaceEvents && Simulator::Now ().GetSeconds () > 0)  // avoid startup events
-    {
-      DGRRouteManager::DeleteDGRRoutes ();
-      DGRRouteManager::BuildDGRRoutingDatabase ();
-      DGRRouteManager::InitializeRoutes ();
-    }
+  // todo : 
+  // if (m_respondToInterfaceEvents && Simulator::Now ().GetSeconds () > 0)  // avoid startup events
+  //   {
+  //     DGRRouteManager::DeleteDGRRoutes ();
+  //     DGRRouteManager::BuildDGRRoutingDatabase ();
+  //     DGRRouteManager::InitializeRoutes ();
+  //   }
 }
 
 void 
-Ipv4DGRRouting::NotifyRemoveAddress (uint32_t interface, Ipv4InterfaceAddress address)
+RomamRouting::NotifyRemoveAddress (uint32_t interface, Ipv4InterfaceAddress address)
 {
   NS_LOG_FUNCTION (this << interface << address);
-  if (m_respondToInterfaceEvents && Simulator::Now ().GetSeconds () > 0)  // avoid startup events
-    {
-      DGRRouteManager::DeleteDGRRoutes ();
-      DGRRouteManager::BuildDGRRoutingDatabase ();
-      DGRRouteManager::InitializeRoutes ();
-    }
+  // todo 
+  // if (m_respondToInterfaceEvents && Simulator::Now ().GetSeconds () > 0)  // avoid startup events
+  //   {
+  //     DGRRouteManager::DeleteDGRRoutes ();
+  //     DGRRouteManager::BuildDGRRoutingDatabase ();
+  //     DGRRouteManager::InitializeRoutes ();
+  //   }
 }
 
 void 
-Ipv4DGRRouting::SetIpv4 (Ptr<Ipv4> ipv4)
+RomamRouting::SetIpv4 (Ptr<Ipv4> ipv4)
 {
   NS_LOG_FUNCTION (this << ipv4);
   NS_ASSERT (!m_ipv4 && ipv4);
@@ -1224,7 +889,7 @@ Ipv4DGRRouting::SetIpv4 (Ptr<Ipv4> ipv4)
 }
 
 void
-Ipv4DGRRouting::Receive (Ptr<Socket> socket)
+RomamRouting::Receive (Ptr<Socket> socket)
 {
   NS_LOG_FUNCTION (this << socket);
 
@@ -1293,7 +958,7 @@ Ipv4DGRRouting::Receive (Ptr<Socket> socket)
 }
 
 void
-Ipv4DGRRouting:: SendUnsolicitedUpdate ()
+RomamRouting:: SendUnsolicitedUpdate ()
 {
   NS_LOG_FUNCTION (this);
   if (m_nextTriggeredUpdate.IsRunning ())
@@ -1303,11 +968,11 @@ Ipv4DGRRouting:: SendUnsolicitedUpdate ()
   DoSendNeighborStatusUpdate (true);
   // todo : update the delay, do we need some random in the delay
   Time delay = m_unsolicitedUpdate;
-  m_nextUnsolicitedUpdate = Simulator::Schedule (delay, &Ipv4DGRRouting::SendUnsolicitedUpdate, this);
+  m_nextUnsolicitedUpdate = Simulator::Schedule (delay, &RomamRouting::SendUnsolicitedUpdate, this);
 }
 
 void
-Ipv4DGRRouting::DoSendNeighborStatusUpdate (bool periodic)
+RomamRouting::DoSendNeighborStatusUpdate (bool periodic)
 {
   NS_LOG_FUNCTION (this << (periodic ? " periodic" : " triggered"));
   for (SocketListI iter = m_unicastSocketList.begin (); iter != m_unicastSocketList.end (); iter ++)
@@ -1344,7 +1009,7 @@ Ipv4DGRRouting::DoSendNeighborStatusUpdate (bool periodic)
               Ptr<QueueDisc> disc = m_ipv4->GetObject<Node> ()->
                                     GetObject<TrafficControlLayer> ()->
                                     GetRootQueueDiscOnDevice (dev);
-              Ptr<DGRv2QueueDisc> qdisc = DynamicCast <DGRv2QueueDisc> (disc);
+              Ptr<DDRQueueDisc> qdisc = DynamicCast <DDRQueueDisc> (disc);
               DgrNse nse;
               nse.SetInterface (i);
               nse.SetState (qdisc->GetQueueStatus ());
@@ -1369,7 +1034,7 @@ Ipv4DGRRouting::DoSendNeighborStatusUpdate (bool periodic)
 }
 
 void
-Ipv4DGRRouting::HandleResponses (DgrHeader hdr,
+RomamRouting::HandleResponses (DgrHeader hdr,
                                 Ipv4Address senderAddress,
                                 uint32_t incomingInterface,
                                 uint8_t hopLimit)
@@ -1412,7 +1077,7 @@ Ipv4DGRRouting::HandleResponses (DgrHeader hdr,
 }
 
 // void
-// Ipv4DGRRouting::HandleRequests (DgrHeader hdr,
+// RomamRouting::HandleRequests (DgrHeader hdr,
 //                                 Ipv4Address senderAddress,
 //                                 uint16_t senderPort,
 //                                 uint32_t incomingInterface,

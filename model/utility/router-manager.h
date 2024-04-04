@@ -1,26 +1,9 @@
 /* -*- Mode:C++; c-file-style:"gnu"; indent-tabs-mode:nil; -*- */
-/*
- * Copyright 2007 University of Washington
- * 
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation;
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
- *
- * Authors:  Craig Dowell (craigdo@ee.washington.edu)
- *           Tom Henderson (tomhend@u.washington.edu)
- */
 
-#ifndef DGR_ROUTE_MANAGER_H
-#define DGR_ROUTE_MANAGER_H
+#ifndef ROUTER_MANAGER_H
+#define ROUTER_MANAGER_H
+
+#include "ns3/core-module.h"
 
 namespace ns3 {
 
@@ -37,7 +20,7 @@ namespace ns3 {
  *
  * The design is guided by OSPFv2 \RFC{2328} section 16.1.1 and quagga ospfd.
  */
-class DGRRouteManager
+class RouterManager
 {
 public:
 /**
@@ -72,7 +55,7 @@ private:
  *
  * @param srm object to copy from
  */
-  DGRRouteManager (DGRRouteManager& srm);
+  RouterManager (RouterManager& srm);
 
 /**
  * @brief Global Router copy assignment operator is disallowed.  There's no 
@@ -81,9 +64,9 @@ private:
  * @param srm object to copy from
  * @returns the copied object
  */
-  DGRRouteManager& operator= (DGRRouteManager& srm);
+  RouterManager& operator= (RouterManager& srm);
 };
 
 } // namespace ns3
 
-#endif /* DGR_ROUTE_MANAGER_H */
+#endif /* ROUTER_MANAGER_H */

@@ -12,12 +12,8 @@
 #include "ns3/ipv4-address.h"
 #include "ns3/net-device-container.h"
 #include "ns3/bridge-net-device.h"
-// #include "ns3/ipv4-dgr-routing-table-entry.h"
 
 namespace ns3 {
-
-class DGRRouter;
-class Ipv4DGRRouting;
 
 /**
  * \ingroup globalrouting
@@ -28,10 +24,10 @@ class Ipv4DGRRouting;
  * a Link State Advertisement.  Right now we will only see two types of link
  * records corresponding to a stub network and a point-to-point link (channel).
  */
-class DGRRoutingLinkRecord
+class LinkRecord
 {
 public:
-  friend class DGRRoutingLSA; //!< Friend class.
+  friend class LSA; //!< Friend class.
 /**
  * @enum LinkType
  * @brief Enumeration of the possible types of Global Routing Link Records.
@@ -54,7 +50,7 @@ public:
  * The Link Type is set to Unknown;
  * The metric is set to 0.
  */
-  DGRRoutingLinkRecord ();
+  LinkRecord ();
 
 /**
  * Construct an initialized Global Routing Link Record.
@@ -67,7 +63,7 @@ public:
  * @see SetLinkId
  * @see SetLinkData
  */
-  DGRRoutingLinkRecord (
+  LinkRecord (
     LinkType    linkType, 
     Ipv4Address linkId, 
     Ipv4Address linkData, 
@@ -78,7 +74,7 @@ public:
  *
  * Currently does nothing.  Here as a placeholder only.
  */
-  ~DGRRoutingLinkRecord ();
+  ~LinkRecord ();
 
 /**
  * Get the Link ID field of the Global Routing Link Record.
@@ -230,7 +226,7 @@ private:
  * combined with a list of Link Records.  Since it's global, there's
  * no need for age or sequence number.  See \RFC{2328}, Appendix A.
  */
-class DGRRoutingLSA
+class LSA
 {
 public:
 /**
@@ -261,7 +257,7 @@ public:
  * On completion Ipv4Address variables initialized to 0.0.0.0 and the 
  * list of Link State Records is empty.
  */
-  DGRRoutingLSA();
+  LSA();
 
 /**
  * @brief Create an initialized Global Routing Link State Advertisement.
@@ -272,7 +268,7 @@ public:
  * @param linkStateId The Ipv4Address for the link state ID field.
  * @param advertisingRtr The Ipv4Address for the advertising router field.
  */
-  DGRRoutingLSA(SPFStatus status, Ipv4Address linkStateId, 
+  LSA(SPFStatus status, Ipv4Address linkStateId, 
                    Ipv4Address advertisingRtr);
 
 /**
@@ -283,14 +279,14 @@ public:
  *
  * @param lsa The existing LSA to be used as the source.
  */
-  DGRRoutingLSA (DGRRoutingLSA& lsa);
+  LSA (LSA& lsa);
 
 /**
  * @brief Destroy an existing Global Routing Link State Advertisement.
  *
  * Any Global Routing Link Records present in the list are freed.
  */
-  ~DGRRoutingLSA();
+  ~LSA();
 
 /**
  * @brief Assignment operator for a Global Routing Link State Advertisement.
@@ -304,7 +300,7 @@ public:
  * @param lsa The existing LSA to be used as the source.
  * @returns Reference to the overwritten LSA.
  */
-  DGRRoutingLSA& operator= (const DGRRoutingLSA& lsa);
+  LSA& operator= (const LSA& lsa);
 
 /**
  * @brief Copy any Global Routing Link Records in a given Global Routing Link
@@ -316,7 +312,7 @@ public:
  * @see ClearLinkRecords ()
  * @param lsa The LSA to copy the Link Records from.
  */
-  void CopyLinkRecords (const DGRRoutingLSA& lsa);
+  void CopyLinkRecords (const LSA& lsa);
 
 /**
  * @brief Add a given Global Routing Link Record to the LSA.
@@ -324,7 +320,7 @@ public:
  * @param lr The Global Routing Link Record to be added.
  * @returns The number of link records in the list.
  */
-  uint32_t AddLinkRecord (DGRRoutingLinkRecord* lr);
+  uint32_t AddLinkRecord (LinkRecord* lr);
 
 /**
  * @brief Return the number of Global Routing Link Records in the LSA.
@@ -339,7 +335,7 @@ public:
  * @param n The LSA number desired.
  * @returns The number of link records in the list.
  */
-  DGRRoutingLinkRecord* GetLinkRecord (uint32_t n) const;
+  LinkRecord* GetLinkRecord (uint32_t n) const;
 
 /**
  * @brief Release all of the Global Routing Link Records present in the Global
@@ -504,7 +500,7 @@ private:
 /**
  * A convenience typedef to avoid too much writers cramp.
  */
-  typedef std::list<DGRRoutingLinkRecord*> ListOfLinkRecords_t;
+  typedef std::list<LinkRecord*> ListOfLinkRecords_t;
 
 /**
  * Each Link State Advertisement contains a number of Link Records that
@@ -555,7 +551,7 @@ private:
  * \param lsa the LSA
  * \returns the reference to the output stream
  */
-std::ostream& operator<< (std::ostream& os, DGRRoutingLSA& lsa);
+std::ostream& operator<< (std::ostream& os, LSA& lsa);
 
 } // namespace ns3
 

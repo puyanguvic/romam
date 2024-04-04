@@ -1,17 +1,14 @@
 /* -*- Mode:C++; c-file-style:"gnu"; indent-tabs-mode:nil; -*- */
-#ifndef DGR_v2_QUEUE_DISC_H
-#define DGR_v2_QUEUE_DISC_H
+#ifndef DDR_QUEUE_DISC_H
+#define DDR_QUEUE_DISC_H
 
 #include "ns3/queue-disc.h"
 #include "ns3/object.h"
 #include "ns3/packet-filter.h"
 
-#include "ns3/romam-module.h"
-// #include "dgr-header.h"
-
 namespace ns3 {
 
-class DGRv2QueueDisc : public QueueDisc {
+class DDRQueueDisc : public QueueDisc {
   public:
     /**
      * \brief Get the type ID.
@@ -19,13 +16,13 @@ class DGRv2QueueDisc : public QueueDisc {
      */
     static TypeId GetTypeId (void);
     /**
-     * \brief DGRv2QueueDisc constructor
+     * \brief DDRQueueDisc constructor
      */
-    DGRv2QueueDisc ();
+    DDRQueueDisc ();
     /**
-     * \brief DGRv2QueueDisc Destructor
+     * \brief DDRQueueDisc Destructor
     */
-    ~DGRv2QueueDisc();
+    ~DDRQueueDisc();
 
     // Reasons for dropping packets
     static constexpr const char* LIMIT_EXCEEDED_DROP = "Queue disc limit exceeded";  //!< Packet dropped due to queue disc limit exceeded

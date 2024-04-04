@@ -1,15 +1,16 @@
 /* -*- Mode:C++; c-file-style:"gnu"; indent-tabs-mode:nil; -*- */
 
-#ifndef DGR_CANDIDATE_QUEUE_H
-#define DGR_CANDIDATE_QUEUE_H
+#ifndef ROUTE_CANDIDATE_QUEUE_H
+#define ROUTE_CANDIDATE_QUEUE_H
 
 #include <stdint.h>
 #include <list>
 #include "ns3/ipv4-address.h"
+#include "../datapath/lsdb.h"
 
 namespace ns3 {
 
-class DGRVertex;
+// class Vertex;
 
 /**
  * \ingroup globalrouting
@@ -30,29 +31,29 @@ class DGRVertex;
  * requirement for a Reorder () operation led us to implement this simple 
  * enhanced priority queue.
  */
-class DGRCandidateQueue
+class RouteCandidateQueue
 {
 public:
 /**
  * @brief Create an empty SPF Candidate Queue.
  *
- * @see DGRVertex
+ * @see Vertex
  */
-  DGRCandidateQueue ();
+  RouteCandidateQueue ();
 
 /**
  * @brief Destroy an SPF Candidate Queue and release any resources held 
  * by the contents.
  *
- * @see DGRVertex
+ * @see Vertex
  */
-  virtual ~DGRCandidateQueue ();
+  virtual ~RouteCandidateQueue ();
 
 /**
  * @brief Empty the Candidate Queue and release all of the resources 
  * associated with the Shortest Path First Vertex pointers in the queue.
  *
- * @see DGRVertex
+ * @see Vertex
  */
   void Clear (void);
 
@@ -65,10 +66,10 @@ public:
  * m_distanceFromRoot.  Remaining vertices are ordered according to 
  * increasing distance.
  *
- * @see DGRVertex
+ * @see Vertex
  * @param vNew The Shortest Path First Vertex to add to the queue.
  */
-  void Push (DGRVertex *vNew);
+  void Push (Vertex *vNew);
 
 /**
  * @brief Pop the Shortest Path First Vertex pointer at the top of the queue.
@@ -76,24 +77,24 @@ public:
  * The caller is given the responsibility for releasing the resources 
  * associated with the vertex.
  *
- * @see DGRVertex
+ * @see Vertex
  * @see Top ()
  * @returns The Shortest Path First Vertex pointer at the top of the queue.
  */
-  DGRVertex* Pop (void);
+  Vertex* Pop (void);
 
 /**
  * @brief Return the Shortest Path First Vertex pointer at the top of the 
  * queue.
  *
- * This method does not pop the DGRVertex* off of the queue, it simply 
+ * This method does not pop the Vertex* off of the queue, it simply 
  * returns the pointer.
  *
- * @see DGRVertex
+ * @see Vertex
  * @see Pop ()
  * @returns The Shortest Path First Vertex pointer at the top of the queue.
  */
-  DGRVertex* Top (void) const;
+  Vertex* Top (void) const;
 
 /**
  * @brief Test the Candidate Queue to determine if it is empty.
@@ -106,8 +107,8 @@ public:
  * @brief Return the number of Shortest Path First Vertex pointers presently
  * stored in the Candidate Queue.
  *
- * @see DGRVertex
- * @returns The number of DGRVertex* pointers in the Candidate Queue.
+ * @see Vertex
+ * @returns The number of Vertex* pointers in the Candidate Queue.
  */
   uint32_t Size (void) const;
 
@@ -115,11 +116,11 @@ public:
  * @brief Searches the Candidate Queue for a Shortest Path First Vertex 
  * pointer that points to a vertex having the given IP address.
  *
- * @see DGRVertex
+ * @see Vertex
  * @param addr The IP address to search for.
- * @returns The DGRVertex* pointer corresponding to the given IP address.
+ * @returns The Vertex* pointer corresponding to the given IP address.
  */
-  DGRVertex* Find (const Ipv4Address addr) const;
+  Vertex* Find (const Ipv4Address addr) const;
 
 /**
  * @brief Reorders the Candidate Queue according to the priority scheme.
@@ -132,7 +133,7 @@ public:
  * This method is provided in case the values of m_distanceFromRoot change
  * during the routing calculations.
  *
- * @see DGRVertex
+ * @see Vertex
  */
   void Reorder (void);
 
@@ -143,7 +144,7 @@ private:
  * properly deal with deep copies.
  * \param sr object to copy
  */
-  DGRCandidateQueue (DGRCandidateQueue& sr);
+  RouteCandidateQueue (RouteCandidateQueue& sr);
 
 /**
  * Candidate Queue assignment operator is disallowed (not implemented) to
@@ -152,11 +153,11 @@ private:
  * \param sr object to assign
  * \return copied object
  */
-  DGRCandidateQueue& operator= (DGRCandidateQueue& sr);
+  RouteCandidateQueue& operator= (RouteCandidateQueue& sr);
 /**
  * \brief return true if v1 < v2
  *
- * DGRVertexes are added into the queue according to the ordering
+ * Vertexes are added into the queue according to the ordering
  * defined by this method. If v1 should be popped before v2, this 
  * method return true; false otherwise
  *
@@ -164,10 +165,10 @@ private:
  * \param v2 second operand
  * \return True if v1 should be popped before v2; false otherwise
  */
-  static bool CompareDGRVertex (const DGRVertex* v1, const DGRVertex* v2);
+  static bool CompareVertex (const Vertex* v1, const Vertex* v2);
 
-  typedef std::list<DGRVertex*> DGRCandidateList_t; //!< container of DGRVertex pointers
-  DGRCandidateList_t m_candidates;  //!< DGRVertex candidates
+  typedef std::list<Vertex*> DGRCandidateList_t; //!< container of Vertex pointers
+  DGRCandidateList_t m_candidates;  //!< Vertex candidates
 
   /**
    * \brief Stream insertion operator.
@@ -176,7 +177,7 @@ private:
    * \param q the CandidateQueue
    * \returns the reference to the output stream
    */
-  friend std::ostream& operator<< (std::ostream& os, const DGRCandidateQueue& q);
+  friend std::ostream& operator<< (std::ostream& os, const RouteCandidateQueue& q);
 };
 
 } // namespace ns3

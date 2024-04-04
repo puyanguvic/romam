@@ -5,25 +5,25 @@
 #include "ns3/queue.h"
 #include "ns3/socket.h"
 #include "ns3/simulator.h"
-#include "dgrv2-queue-disc.h"
 
-// #include "dgr-tags.h"
+#include "ddr-queue-disc.h"
+#include "../datapath/romam-tags.h"
 
 #define DELAY_SENSITIVE 0
 #define BEST_EFFORT 1
 
 namespace ns3 {
 
-NS_LOG_COMPONENT_DEFINE ("DGRv2QueueDisc");
+NS_LOG_COMPONENT_DEFINE ("DDRQueueDisc");
 
-NS_OBJECT_ENSURE_REGISTERED (DGRv2QueueDisc);
+// NS_OBJECT_ENSURE_REGISTERED (DDRQueueDisc);
 
-TypeId DGRv2QueueDisc::GetTypeId (void)
+TypeId DDRQueueDisc::GetTypeId (void)
 {
-  static TypeId tid = TypeId ("ns3::DGRv2QueueDisc")
+  static TypeId tid = TypeId ("ns3::DDRQueueDisc")
     .SetParent<QueueDisc> ()
-    .SetGroupName ("DGRv2")
-    .AddConstructor<DGRv2QueueDisc> ()
+    .SetGroupName ("romam")
+    .AddConstructor<DDRQueueDisc> ()
     .AddAttribute ("MaxSize",
                    "The maximum size accepted by this queue disc.",
                    QueueSizeValue (QueueSize ("3MB")),
@@ -34,19 +34,19 @@ TypeId DGRv2QueueDisc::GetTypeId (void)
   return tid;
 }
 
-DGRv2QueueDisc::DGRv2QueueDisc ()
+DDRQueueDisc::DDRQueueDisc ()
   : QueueDisc (QueueDiscSizePolicy::MULTIPLE_QUEUES, QueueSizeUnit::BYTES)
 {
   NS_LOG_FUNCTION (this);
 }
 
-DGRv2QueueDisc::~DGRv2QueueDisc ()
+DDRQueueDisc::~DDRQueueDisc ()
 {
   NS_LOG_FUNCTION (this);
 }
 
 uint32_t
-DGRv2QueueDisc::GetQueueStatus ()
+DDRQueueDisc::GetQueueStatus ()
 {
   uint32_t currentSize = GetInternalQueue (0)->GetCurrentSize ().GetValue ();
   uint32_t maxSize = GetInternalQueue (0)->GetMaxSize ().GetValue ();
@@ -54,7 +54,7 @@ DGRv2QueueDisc::GetQueueStatus ()
 }
 
 uint32_t
-DGRv2QueueDisc::GetQueueDelay ()
+DDRQueueDisc::GetQueueDelay ()
 {
   // in microsecond
   uint32_t currentSize = GetInternalQueue (0)->GetCurrentSize ().GetValue ();
@@ -63,7 +63,7 @@ DGRv2QueueDisc::GetQueueDelay ()
 }
 
 bool
-DGRv2QueueDisc::DoEnqueue (Ptr<QueueDiscItem> item)
+DDRQueueDisc::DoEnqueue (Ptr<QueueDiscItem> item)
 {
   NS_LOG_FUNCTION (this << item);
   uint32_t band = EnqueueClassify (item);
@@ -90,7 +90,7 @@ DGRv2QueueDisc::DoEnqueue (Ptr<QueueDiscItem> item)
 }
 
 Ptr<QueueDiscItem>
-DGRv2QueueDisc::DoDequeue (void)
+DDRQueueDisc::DoDequeue (void)
 {
   NS_LOG_FUNCTION (this);
 
@@ -113,7 +113,7 @@ DGRv2QueueDisc::DoDequeue (void)
 }
 
 Ptr<const QueueDiscItem>
-DGRv2QueueDisc::DoPeek (void)
+DDRQueueDisc::DoPeek (void)
 {
   NS_LOG_FUNCTION (this);
 
@@ -135,18 +135,18 @@ DGRv2QueueDisc::DoPeek (void)
 }
 
 bool
-DGRv2QueueDisc::CheckConfig (void)
+DDRQueueDisc::CheckConfig (void)
 {
   NS_LOG_FUNCTION (this);
   if (GetNQueueDiscClasses () > 0)
     {
-      NS_LOG_ERROR ("DGRv2QueueDisc cannot have classes");
+      NS_LOG_ERROR ("DDRQueueDisc cannot have classes");
       return false;
     }
 
   if (GetNPacketFilters () != 0)
     {
-      NS_LOG_ERROR ("DGRv2QueueDisc needs no packet filter");
+      NS_LOG_ERROR ("DDRQueueDisc needs no packet filter");
       return false;
     }
   
@@ -174,14 +174,14 @@ DGRv2QueueDisc::CheckConfig (void)
   if (GetInternalQueue (0)-> GetMaxSize ().GetUnit () != QueueSizeUnit::BYTES ||
       GetInternalQueue (1)-> GetMaxSize ().GetUnit () != QueueSizeUnit::BYTES)
     {
-      NS_LOG_ERROR ("DGRv2QueueDisc needs 2 internal queues operating in BYTES mode");
+      NS_LOG_ERROR ("DDRQueueDisc needs 2 internal queues operating in BYTES mode");
       return false;
     }
   return true;
 }
 
 void
-DGRv2QueueDisc::InitializeParams (void)
+DDRQueueDisc::InitializeParams (void)
 {
   m_fastWeight = 10;
   m_normalWeight = 1;
@@ -191,7 +191,7 @@ DGRv2QueueDisc::InitializeParams (void)
 }
 
 uint32_t
-DGRv2QueueDisc::EnqueueClassify (Ptr<QueueDiscItem> item)
+DDRQueueDisc::EnqueueClassify (Ptr<QueueDiscItem> item)
 {
   PriorityTag priorityTag;
   if (item->GetPacket ()->PeekPacketTag (priorityTag))

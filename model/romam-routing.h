@@ -1,10 +1,7 @@
 // -*- Mode:C++; c-file-style:"gnu"; indent-tabs-mode:nil; -*-
 
-// #ifndef IPV4_GLOBAL_ROUTING_H
-// #define IPV4_GLOBAL_ROUTING_H
-
-#ifndef IPV4_DGR_ROUTING_H
-#define IPV4_DGR_ROUTING_H
+#ifndef ROMAM_ROUTING_H
+#define ROMAM_ROUTING_H
 
 #include <list>
 #include <map>
@@ -17,9 +14,10 @@
 #include "ns3/random-variable-stream.h"
 #include "ns3/nstime.h"
 
-#include "datapath/headers-dgr.h"
+#include "datapath/dgr-headers.h"
 #include "routing_algorithm/route-manager-impl.h"
 #include "datapath/lsdb.h"
+#include "routing_algorithm/ipv4-route-info-entry.h"
 #include "routing_algorithm/ipv4-dgr-routing-table-entry.h"
 #include "datapath/tsdb.h"
 
@@ -27,11 +25,11 @@ namespace ns3 {
 
 class Packet;
 class NetDevice;
-class Ipv4Interface;
+// class Ipv4Interface;
 class Ipv4Address;
 class Ipv4Header;
-class Ipv4DGRRoutingTableEntry;
-class Ipv4MulticastRoutingTableEntry;
+class Ipv4RouteInfoEntry;
+// class Ipv4MulticastRoutingTableEntry;
 class Node;
 
 typedef enum
@@ -69,7 +67,7 @@ typedef enum
  * \see Ipv4RoutingProtocol
  * \see GlobalRouteManager
  */
-class Ipv4DGRRouting : public Ipv4RoutingProtocol
+class RomamRouting : public Ipv4RoutingProtocol
 {
 public:
   /**
@@ -85,8 +83,8 @@ public:
    *
    * \see Ipv4GlobalRouting
    */
-  Ipv4DGRRouting ();
-  ~Ipv4DGRRouting ();
+  RomamRouting ();
+  ~RomamRouting ();
 
 
   // These methods inherited from base class
@@ -223,7 +221,7 @@ public:
    * \see Ipv4RoutingTableEntry
    * \see Ipv4GlobalRouting::RemoveRoute
    */
-  Ipv4DGRRoutingTableEntry *GetRoute (uint32_t i) const;
+  Ipv4RouteInfoEntry *GetRoute (uint32_t i) const;
 
   /**
    * \brief Remove a route from the global unicast routing table.
@@ -260,7 +258,7 @@ public:
    */
   int64_t AssignStreams (int64_t stream);
 
-  // static bool CompareRouteCost(Ipv4DGRRoutingTableEntry* route1, Ipv4DGRRoutingTableEntry* route2);
+  // static bool CompareRouteCost(Ipv4RouteInfoEntry* route1, Ipv4RouteInfoEntry* route2);
     /**
    * \brief Lookup in the forwarding table for destination.
    * \param dest destination address
@@ -292,25 +290,25 @@ private:
   Ptr<UniformRandomVariable> m_rand;
 
   /// container of Ipv4RoutingTableEntry (routes to hosts)
-  typedef std::list<Ipv4DGRRoutingTableEntry *> HostRoutes;
+  typedef std::list<Ipv4RouteInfoEntry *> HostRoutes;
   /// const iterator of container of Ipv4RoutingTableEntry (routes to hosts)
-  typedef std::list<Ipv4DGRRoutingTableEntry *>::const_iterator HostRoutesCI;
+  typedef std::list<Ipv4RouteInfoEntry *>::const_iterator HostRoutesCI;
   /// iterator of container of Ipv4RoutingTableEntry (routes to hosts)
-  typedef std::list<Ipv4DGRRoutingTableEntry *>::iterator HostRoutesI;
+  typedef std::list<Ipv4RouteInfoEntry *>::iterator HostRoutesI;
 
   /// container of Ipv4RoutingTableEntry (routes to networks)
-  typedef std::list<Ipv4DGRRoutingTableEntry *> NetworkRoutes;
+  typedef std::list<Ipv4RouteInfoEntry *> NetworkRoutes;
   /// const iterator of container of Ipv4RoutingTableEntry (routes to networks)
-  typedef std::list<Ipv4DGRRoutingTableEntry *>::const_iterator NetworkRoutesCI;
+  typedef std::list<Ipv4RouteInfoEntry *>::const_iterator NetworkRoutesCI;
   /// iterator of container of Ipv4RoutingTableEntry (routes to networks)
-  typedef std::list<Ipv4DGRRoutingTableEntry *>::iterator NetworkRoutesI;
+  typedef std::list<Ipv4RouteInfoEntry *>::iterator NetworkRoutesI;
 
   /// container of Ipv4RoutingTableEntry (routes to external AS)
-  typedef std::list<Ipv4DGRRoutingTableEntry *> ASExternalRoutes;
+  typedef std::list<Ipv4RouteInfoEntry *> ASExternalRoutes;
   /// const iterator of container of Ipv4RoutingTableEntry (routes to external AS)
-  typedef std::list<Ipv4DGRRoutingTableEntry *>::const_iterator ASExternalRoutesCI;
+  typedef std::list<Ipv4RouteInfoEntry *>::const_iterator ASExternalRoutesCI;
   /// iterator of container of Ipv4RoutingTableEntry (routes to external AS)
-  typedef std::list<Ipv4DGRRoutingTableEntry *>::iterator ASExternalRoutesI;
+  typedef std::list<Ipv4RouteInfoEntry *>::iterator ASExternalRoutesI;
 
   HostRoutes m_hostRoutes;             //!< Routes to hosts
   NetworkRoutes m_networkRoutes;       //!< Routes to networks
@@ -410,6 +408,6 @@ private:
 };
 
 
-} // Namespace ns3
+} // namespace ns3
 
-#endif /* IPV4_DGR_ROUTING_H */
+#endif /* ROMAM_ROUTING_H */

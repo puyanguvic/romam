@@ -1,7 +1,7 @@
 /* -*- Mode:C++; c-file-style:"gnu"; indent-tabs-mode:nil; -*- */
 
-#ifndef DGR_ROUTER_INTERFACE_H
-#define DGR_ROUTER_INTERFACE_H
+#ifndef ROMAM_ROUTER_H
+#define ROMAM_ROUTER_H
 
 #include <stdint.h>
 #include <list>
@@ -12,16 +12,14 @@
 #include "ns3/ipv4-address.h"
 #include "ns3/net-device-container.h"
 #include "ns3/bridge-net-device.h"
-#include "ns3/ipv4-dgr-routing-table-entry.h"
 
-#include "../routing_algorithm/dgr-route-manager.h"
+// #include "../ipv4-dgr-routing.h"
+#include "../routing_algorithm/ipv4-route-info-entry.h"
 #include "../datapath/lsa.h"
 
 namespace ns3 {
 
-class DGRRouter;
-class Ipv4DGRRouting;
-
+class RomamRouting;
 /**
  * @brief An interface aggregated to a node to provide global routing info
  *
@@ -31,7 +29,7 @@ class Ipv4DGRRouting;
  * advertises its connections to neighboring routers.  We're basically 
  * allowing the route manager to query for link state advertisements.
  */
-class DGRRouter : public Object
+class RomamRouter : public Object
 {
 public:
   /**
@@ -43,19 +41,19 @@ public:
 /**
  * @brief Create a Global Router class 
  */
-  DGRRouter ();
+  RomamRouter ();
 
   /**
    * \brief Set the specific Global Routing Protocol to be used
    * \param routing the routing protocol
    */
-  void SetRoutingProtocol (Ptr<Ipv4DGRRouting> routing);
+  void SetRoutingProtocol (Ptr<RomamRouting> routing);
 
   /**
    * \brief Get the specific Global Routing Protocol used
    * \returns the routing protocol
    */
-  Ptr<Ipv4DGRRouting> GetRoutingProtocol (void);
+  Ptr<RomamRouting> GetRoutingProtocol (void);
 
 /**
  * @brief Get the Router ID associated with this Global Router.
@@ -122,7 +120,7 @@ public:
  * @param lsa The GlobalRoutingLSA class to receive the LSA information.
  * @returns The number of Global Router Link State Advertisements.
  */
-  bool GetLSA (uint32_t n, DGRRoutingLSA &lsa) const;
+  bool GetLSA (uint32_t n, LSA &lsa) const;
 
 /**
  * @brief Inject a route to be circulated to other routers as an external
@@ -146,7 +144,7 @@ public:
  * @return a pointer to that Ipv4RoutingTableEntry is returned
  *
  */
-  Ipv4DGRRoutingTableEntry *GetInjectedRoute (uint32_t i);
+  Ipv4RouteInfoEntry *GetInjectedRoute (uint32_t i);
 
 /**
  * @brief Withdraw a route from the global unicast routing table.
@@ -173,7 +171,7 @@ public:
   bool WithdrawRoute (Ipv4Address network, Ipv4Mask networkMask);
 
 private:
-  virtual ~DGRRouter ();
+  virtual ~RomamRouter ();
 
   /**
    * \brief Clear list of LSAs
@@ -239,7 +237,7 @@ private:
    * \param pLSA the Global LSA
    * \param c the returned NetDevice container
    */
-  void ProcessBroadcastLink (Ptr<NetDevice> nd, DGRRoutingLSA *pLSA, NetDeviceContainer &c);
+  void ProcessBroadcastLink (Ptr<NetDevice> nd, LSA *pLSA, NetDeviceContainer &c);
 
   /**
    * \brief Process a single broadcast link
@@ -248,7 +246,7 @@ private:
    * \param pLSA the Global LSA
    * \param c the returned NetDevice container
    */
-  void ProcessSingleBroadcastLink (Ptr<NetDevice> nd, DGRRoutingLSA *pLSA, NetDeviceContainer &c);
+  void ProcessSingleBroadcastLink (Ptr<NetDevice> nd, LSA *pLSA, NetDeviceContainer &c);
 
   /**
    * \brief Process a bridged broadcast link
@@ -257,7 +255,7 @@ private:
    * \param pLSA the Global LSA
    * \param c the returned NetDevice container
    */
-  void ProcessBridgedBroadcastLink (Ptr<NetDevice> nd, DGRRoutingLSA *pLSA, NetDeviceContainer &c);
+  void ProcessBridgedBroadcastLink (Ptr<NetDevice> nd, LSA *pLSA, NetDeviceContainer &c);
 
   /**
    * \brief Process a point to point link
@@ -265,7 +263,7 @@ private:
    * \param ndLocal the NetDevice
    * \param pLSA the Global LSA
    */
-  void ProcessPointToPointLink (Ptr<NetDevice> ndLocal, DGRRoutingLSA *pLSA);
+  void ProcessPointToPointLink (Ptr<NetDevice> ndLocal, LSA *pLSA);
 
   /**
    * \brief Build one NetworkLSA for each net device talking to a network that we are the
@@ -300,15 +298,15 @@ private:
   Ptr<BridgeNetDevice> NetDeviceIsBridged (Ptr<NetDevice> nd) const;
 
 
-  typedef std::list<DGRRoutingLSA*> ListOfLSAs_t; //!< container for the GlobalRoutingLSAs
+  typedef std::list<LSA*> ListOfLSAs_t; //!< container for the GlobalRoutingLSAs
   ListOfLSAs_t m_LSAs; //!< database of GlobalRoutingLSAs
 
   Ipv4Address m_routerId; //!< router ID (its IPv4 address)
-  Ptr<Ipv4DGRRouting> m_routingProtocol; //!< the Ipv4GlobalRouting in use
+  Ptr<RomamRouting> m_routingProtocol; //!< the Ipv4GlobalRouting in use
 
-  typedef std::list<Ipv4DGRRoutingTableEntry *> InjectedRoutes; //!< container of Ipv4RoutingTableEntry
-  typedef std::list<Ipv4DGRRoutingTableEntry *>::const_iterator InjectedRoutesCI; //!< Const Iterator to container of Ipv4RoutingTableEntry
-  typedef std::list<Ipv4DGRRoutingTableEntry *>::iterator InjectedRoutesI; //!< Iterator to container of Ipv4RoutingTableEntry
+  typedef std::list<Ipv4RouteInfoEntry *> InjectedRoutes; //!< container of Ipv4RoutingTableEntry
+  typedef std::list<Ipv4RouteInfoEntry *>::const_iterator InjectedRoutesCI; //!< Const Iterator to container of Ipv4RoutingTableEntry
+  typedef std::list<Ipv4RouteInfoEntry *>::iterator InjectedRoutesI; //!< Iterator to container of Ipv4RoutingTableEntry
   InjectedRoutes m_injectedRoutes; //!< Routes we are exporting
 
   // Declared mutable so that const member functions can clear it
@@ -344,16 +342,16 @@ private:
  * @brief Global Router copy construction is disallowed.
  * @param sr object to copy from.
  */
-  DGRRouter (DGRRouter& sr);
+  RomamRouter (RomamRouter& sr);
 
 /**
  * @brief Global Router assignment operator is disallowed.
  * @param sr object to copy from.
  * @returns The object copied.
  */
-  DGRRouter& operator= (DGRRouter& sr);
+  RomamRouter& operator= (RomamRouter& sr);
 };
 
 } // namespace ns3
 
-#endif /* DGR_ROUTER_INTERFACE_H */
+#endif /* ROMAM_ROUTER_H */

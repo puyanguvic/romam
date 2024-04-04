@@ -1,26 +1,7 @@
 /* -*- Mode:C++; c-file-style:"gnu"; indent-tabs-mode:nil; -*- */
-/*
- * Copyright 2007 University of Washington
- * 
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation;
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
- *
- * Authors:  Craig Dowell (craigdo@ee.washington.edu)
- *           Tom Henderson (tomhend@u.washington.edu)
- */
 
-#ifndef DGR_ROUTE_MANAGER_IMPL_H
-#define DGR_ROUTE_MANAGER_IMPL_H
+#ifndef DIJKSTRAS_ALGORITHM_H
+#define DIJKSTRAS_ALGORITHM_H
 
 #include <stdint.h>
 #include <list>
@@ -33,32 +14,20 @@
 
 #include "../utility/romam-router.h"
 #include "../datapath/lsdb.h"
-// #include "../datapath/dgr-router-interface.h"
-#include "dgr-candidate-queue.h"
+#include "route-candidate-queue.h"
 // #include "dgr-router-interface.h"
 // #include "dgr-candidate-queue.h"
 
 namespace ns3 {
 
-class DgrCandidateQueue;
-class Ipv4DGRRouting;
+// class DgrCandidateQueue;
+// class Ipv4DGRRouting;
 
-/**
- * @brief A global router implementation.
- *
- * This singleton object can query interface each node in the system
- * for a DGRRouter interface.  For those nodes, it fetches one or
- * more Link State Advertisements and stores them in a local database.
- * Then, it can compute shortest paths on a per-node basis to all routers, 
- * and finally configure each of the node's forwarding tables.
- *
- * The design is guided by OSPFv2 \RFC{2328} section 16.1.1 and quagga ospfd.
- */
-class DGRRouteManagerImpl
+class DijkstraAlgorithm
 {
 public:
-  DGRRouteManagerImpl ();
-  virtual ~DGRRouteManagerImpl ();
+  DijkstraAlgorithm ();
+  virtual ~DijkstraAlgorithm ();
 /**
  * @brief Delete all static routes on all nodes that have a
  * DGRRouterInterface
@@ -93,13 +62,13 @@ public:
 
 private:
 /**
- * @brief DGRRouteManagerImpl copy construction is disallowed.
+ * @brief DijkstraAlgorithm copy construction is disallowed.
  * There's no  need for it and a compiler provided shallow copy would be 
  * wrong.
  *
  * @param srmi object to copy from
  */
-  DGRRouteManagerImpl (DGRRouteManagerImpl& srmi);
+  DijkstraAlgorithm (DijkstraAlgorithm& srmi);
 
 /**
  * @brief Global Route Manager Implementation assignment operator is
@@ -109,9 +78,9 @@ private:
  * @param srmi object to copy from
  * @returns the copied object
  */
-  DGRRouteManagerImpl& operator= (DGRRouteManagerImpl& srmi);
+  DijkstraAlgorithm& operator= (DijkstraAlgorithm& srmi);
 
-  DGRVertex* m_spfroot; //!< the root node
+  Vertex* m_spfroot; //!< the root node
   DGRRouteManagerLSDB* m_lsdb; //!< the Link State DataBase (LSDB) of the Global Route Manager
 
   /**
@@ -143,7 +112,7 @@ private:
    *
    * \param v vertex to be processed
    */
-  void SPFProcessStubs (DGRVertex* v);
+  void SPFProcessStubs (Vertex* v);
 
   /**
    * \brief Process Autonomous Systems (AS) External LSA
@@ -151,7 +120,7 @@ private:
    * \param v vertex to be processed
    * \param extlsa external LSA
    */
-  void ProcessASExternals (DGRVertex* v, DGRRoutingLSA* extlsa);
+  void ProcessASExternals (Vertex* v, DGRRoutingLSA* extlsa);
 
   /**
    * \brief Examine the links in v's LSA and update the list of candidates with any
@@ -174,7 +143,7 @@ private:
    * \param v the vertex
    * \param candidate the SPF candidate queue
    */
-  void SPFNext (DGRVertex* v, DGRCandidateQueue& candidate);
+  void SPFNext (Vertex* v, DGRCandidateQueue& candidate);
 
   /**
    * \brief Calculate nexthop from root through V (parent) to vertex W (destination)
@@ -189,7 +158,7 @@ private:
    * \param distance the target distance
    * \returns 1 on success
    */
-  int SPFNexthopCalculation (DGRVertex* v, DGRVertex* w, 
+  int SPFNexthopCalculation (Vertex* v, Vertex* w, 
                              DGRRoutingLinkRecord* l, uint32_t distance);
 
   /**
@@ -206,7 +175,7 @@ private:
    *
    * \param v the vertex
    */
-  void DGRVertexAddParent (DGRVertex* v);
+  void VertexAddParent (Vertex* v);
 
   /**
    * \brief Search for a link between two vertices.
@@ -227,7 +196,7 @@ private:
    * \param prev_link the previous link in the list
    * \returns the link's record
    */
-  DGRRoutingLinkRecord* SPFGetNextLink (DGRVertex* v, DGRVertex* w, 
+  DGRRoutingLinkRecord* SPFGetNextLink (Vertex* v, Vertex* w, 
                                            DGRRoutingLinkRecord* prev_link);
 
   /**
@@ -252,14 +221,14 @@ private:
    * \param v the vertex
    *
    */
-  void SPFIntraAddRouter (DGRVertex* v, DGRVertex* v_init, Ipv4Address nextHop,  uint32_t Iface);
+  void SPFIntraAddRouter (Vertex* v, Vertex* v_init, Ipv4Address nextHop,  uint32_t Iface);
 
   /**
    * \brief Add a transit to the routing tables
    *
    * \param v the vertex
    */
-  void SPFIntraAddTransit (DGRVertex* v);
+  void SPFIntraAddTransit (Vertex* v);
 
   /**
    * \brief Add a stub to the routing tables
@@ -267,7 +236,7 @@ private:
    * \param l the global routing link record
    * \param v the vertex
    */
-  void SPFIntraAddStub (DGRRoutingLinkRecord *l, DGRVertex* v);
+  void SPFIntraAddStub (DGRRoutingLinkRecord *l, Vertex* v);
 
   /**
    * \brief Add an external route to the routing tables
@@ -275,7 +244,7 @@ private:
    * \param extlsa the external LSA
    * \param v the vertex
    */
-  void SPFAddASExternal (DGRRoutingLSA *extlsa, DGRVertex *v);
+  void SPFAddASExternal (DGRRoutingLSA *extlsa, Vertex *v);
 
   /**
    * \brief Return the interface number corresponding to a given IP address and mask
@@ -295,4 +264,4 @@ private:
 
 } // namespace ns3
 
-#endif /* GLOBAL_ROUTE_MANAGER_IMPL_H */
+#endif /* DIJKSTRAS_ALGORITHM_H */

@@ -20,38 +20,37 @@
 #include <iostream>
 #include "ns3/log.h"
 #include "ns3/assert.h"
-#include "dgr-candidate-queue.h"
-#include "route-manager-impl.h"
+#include "route-candidate-queue.h"
 
 namespace ns3 {
 
-NS_LOG_COMPONENT_DEFINE ("DGRCandidateQueue");
+NS_LOG_COMPONENT_DEFINE ("RouteCandidateQueue");
 
 /**
  * \brief Stream insertion operator.
  *
  * \param os the reference to the output stream
- * \param t the DGRVertex type
+ * \param t the Vertex type
  * \returns the reference to the output stream
  */
 std::ostream&
-operator<< (std::ostream& os, const DGRVertex::VertexType& t)
+operator<< (std::ostream& os, const Vertex::VertexType& t)
 {
   switch (t)
     {
-    case DGRVertex::VertexRouter:  os << "router"; break;
-    case DGRVertex::VertexNetwork: os << "network"; break;
+    case Vertex::VertexRouter:  os << "router"; break;
+    case Vertex::VertexNetwork: os << "network"; break;
     default:                       os << "unknown"; break;
     };
   return os;
 }
 
 std::ostream& 
-operator<< (std::ostream& os, const DGRCandidateQueue& q)
+operator<< (std::ostream& os, const RouteCandidateQueue& q)
 {
-  typedef DGRCandidateQueue::DGRCandidateList_t List_t;
+  typedef RouteCandidateQueue::DGRCandidateList_t List_t;
   typedef List_t::const_iterator CIter_t;
-  const DGRCandidateQueue::DGRCandidateList_t& list = q.m_candidates;
+  const RouteCandidateQueue::DGRCandidateList_t& list = q.m_candidates;
 
   os << "*** CandidateQueue Begin (<id, distance, LSA-type>) ***" << std::endl;
   for (CIter_t iter = list.begin (); iter != list.end (); iter++)
@@ -65,44 +64,44 @@ operator<< (std::ostream& os, const DGRCandidateQueue& q)
   return os;
 }
 
-DGRCandidateQueue::DGRCandidateQueue()
+RouteCandidateQueue::RouteCandidateQueue()
   : m_candidates ()
 {
   NS_LOG_FUNCTION (this);
 }
 
-DGRCandidateQueue::~DGRCandidateQueue()
+RouteCandidateQueue::~RouteCandidateQueue()
 {
   NS_LOG_FUNCTION (this);
   Clear ();
 }
 
 void
-DGRCandidateQueue::Clear (void)
+RouteCandidateQueue::Clear (void)
 {
   NS_LOG_FUNCTION (this);
   while (!m_candidates.empty ())
     {
-      DGRVertex *p = Pop ();
+      Vertex *p = Pop ();
       delete p;
       p = 0;
     }
 }
 
 void
-DGRCandidateQueue::Push (DGRVertex *vNew)
+RouteCandidateQueue::Push (Vertex *vNew)
 {
   NS_LOG_FUNCTION (this << vNew);
 
   DGRCandidateList_t::iterator i = std::upper_bound (
       m_candidates.begin (), m_candidates.end (), vNew,
-      &DGRCandidateQueue::CompareDGRVertex
+      &RouteCandidateQueue::CompareVertex
       );
   m_candidates.insert (i, vNew);
 }
 
-DGRVertex *
-DGRCandidateQueue::Pop (void)
+Vertex *
+RouteCandidateQueue::Pop (void)
 {
   NS_LOG_FUNCTION (this);
   if (m_candidates.empty ())
@@ -110,13 +109,13 @@ DGRCandidateQueue::Pop (void)
       return 0;
     }
 
-  DGRVertex *v = m_candidates.front ();
+  Vertex *v = m_candidates.front ();
   m_candidates.pop_front ();
   return v;
 }
 
-DGRVertex *
-DGRCandidateQueue::Top (void) const
+Vertex *
+RouteCandidateQueue::Top (void) const
 {
   NS_LOG_FUNCTION (this);
   if (m_candidates.empty ())
@@ -128,28 +127,28 @@ DGRCandidateQueue::Top (void) const
 }
 
 bool
-DGRCandidateQueue::Empty (void) const
+RouteCandidateQueue::Empty (void) const
 {
   NS_LOG_FUNCTION (this);
   return m_candidates.empty ();
 }
 
 uint32_t
-DGRCandidateQueue::Size (void) const
+RouteCandidateQueue::Size (void) const
 {
   NS_LOG_FUNCTION (this);
   return m_candidates.size ();
 }
 
-DGRVertex *
-DGRCandidateQueue::Find (const Ipv4Address addr) const
+Vertex *
+RouteCandidateQueue::Find (const Ipv4Address addr) const
 {
   NS_LOG_FUNCTION (this);
   DGRCandidateList_t::const_iterator i = m_candidates.begin ();
 
   for (; i != m_candidates.end (); i++)
     {
-      DGRVertex *v = *i;
+      Vertex *v = *i;
       if (v->GetVertexId () == addr)
         {
           return v;
@@ -160,24 +159,24 @@ DGRCandidateQueue::Find (const Ipv4Address addr) const
 }
 
 void
-DGRCandidateQueue::Reorder (void)
+RouteCandidateQueue::Reorder (void)
 {
   NS_LOG_FUNCTION (this);
 
-  m_candidates.sort (&DGRCandidateQueue::CompareDGRVertex);
+  m_candidates.sort (&RouteCandidateQueue::CompareVertex);
   NS_LOG_LOGIC ("After reordering the CandidateQueue");
   NS_LOG_LOGIC (*this);
 }
 
 /*
- * In this implementation, DGRVertex follows the ordering where
+ * In this implementation, Vertex follows the ordering where
  * a vertex is ranked first if its GetDistanceFromRoot () is smaller;
  * In case of a tie, NetworkLSA is always ranked before RouterLSA.
  *
  * This ordering is necessary for implementing ECMP
  */
 bool 
-DGRCandidateQueue::CompareDGRVertex (const DGRVertex* v1, const DGRVertex* v2)
+RouteCandidateQueue::CompareVertex (const Vertex* v1, const Vertex* v2)
 {
   NS_LOG_FUNCTION (&v1 << &v2);
 
@@ -188,8 +187,8 @@ DGRCandidateQueue::CompareDGRVertex (const DGRVertex* v1, const DGRVertex* v2)
     }
   else if (v1->GetDistanceFromRoot () == v2->GetDistanceFromRoot ())
     {
-      if (v1->GetVertexType () == DGRVertex::VertexNetwork 
-          && v2->GetVertexType () == DGRVertex::VertexRouter)
+      if (v1->GetVertexType () == Vertex::VertexNetwork 
+          && v2->GetVertexType () == Vertex::VertexRouter)
         {
           result = true;
         }

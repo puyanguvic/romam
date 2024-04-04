@@ -19,7 +19,7 @@
 
 namespace ns3 {
 
-NS_LOG_COMPONENT_DEFINE ("DGRRouteManagerImpl");
+NS_LOG_COMPONENT_DEFINE ("LinkStateDataBase");
 
 /**
  * \brief Stream insertion operator.
@@ -29,16 +29,16 @@ NS_LOG_COMPONENT_DEFINE ("DGRRouteManagerImpl");
  * \returns the reference to the output stream
  */
 std::ostream& 
-operator<< (std::ostream& os, const DGRVertex::NodeExit_t& exit)
+operator<< (std::ostream& os, const Vertex::NodeExit_t& exit)
 {
   os << "(" << exit.first << " ," << exit.second << ")";
   return os;
 }
 
 std::ostream& 
-operator<< (std::ostream& os, const DGRVertex::ListOfDGRVertex_t& vs)
+operator<< (std::ostream& os, const Vertex::ListOfVertex_t& vs)
 {
-  typedef DGRVertex::ListOfDGRVertex_t::const_iterator CIter_t;
+  typedef Vertex::ListOfVertex_t::const_iterator CIter_t;
   os << "{";
   for (CIter_t iter = vs.begin (); iter != vs.end ();)
     {
@@ -58,11 +58,11 @@ operator<< (std::ostream& os, const DGRVertex::ListOfDGRVertex_t& vs)
 
 // ---------------------------------------------------------------------------
 //
-// DGRVertex Implementation
+// Vertex Implementation
 //
 // ---------------------------------------------------------------------------
 
-DGRVertex::DGRVertex () : 
+Vertex::Vertex () : 
   m_vertexType (VertexUnknown), 
   m_vertexId ("255.255.255.255"), 
   m_lsa (0),
@@ -76,7 +76,7 @@ DGRVertex::DGRVertex () :
   NS_LOG_FUNCTION (this);
 }
 
-DGRVertex::DGRVertex (DGRRoutingLSA* lsa) : 
+Vertex::Vertex (LSA* lsa) : 
   m_vertexId (lsa->GetLinkStateId ()),
   m_lsa (lsa),
   m_distanceFromRoot (DISTINFINITY), 
@@ -88,19 +88,19 @@ DGRVertex::DGRVertex (DGRRoutingLSA* lsa) :
 {
   NS_LOG_FUNCTION (this << lsa);
 
-  if (lsa->GetLSType () == DGRRoutingLSA::RouterLSA) 
+  if (lsa->GetLSType () == LSA::RouterLSA) 
     {
       NS_LOG_LOGIC ("Setting m_vertexType to VertexRouter");
-      m_vertexType = DGRVertex::VertexRouter;
+      m_vertexType = Vertex::VertexRouter;
     }
-  else if (lsa->GetLSType () == DGRRoutingLSA::NetworkLSA) 
+  else if (lsa->GetLSType () == LSA::NetworkLSA) 
     { 
       NS_LOG_LOGIC ("Setting m_vertexType to VertexNetwork");
-      m_vertexType = DGRVertex::VertexNetwork;
+      m_vertexType = Vertex::VertexNetwork;
     }
 }
 
-DGRVertex::~DGRVertex ()
+Vertex::~Vertex ()
 {
   NS_LOG_FUNCTION (this);
 
@@ -109,7 +109,7 @@ DGRVertex::~DGRVertex ()
 
   // find this node from all its parents and remove the entry of this node
   // from all its parents
-  for (ListOfDGRVertex_t::iterator piter = m_parents.begin (); 
+  for (ListOfVertex_t::iterator piter = m_parents.begin (); 
        piter != m_parents.end ();
        piter++)
     {
@@ -135,7 +135,7 @@ DGRVertex::~DGRVertex ()
       //
       // Note that m_children.pop_front () is not necessary as this
       // p is removed from the children list when p is deleted
-      DGRVertex* p = m_children.front ();
+      Vertex* p = m_children.front ();
       // 'p' == 0, this child is already deleted by its other parent
       if (p == 0) continue;
       NS_LOG_LOGIC ("Parent vertex-" << m_vertexId << " deleting its child vertex-" << p->GetVertexId ());
@@ -152,63 +152,63 @@ DGRVertex::~DGRVertex ()
 }
 
 void
-DGRVertex::SetVertexType (DGRVertex::VertexType type)
+Vertex::SetVertexType (Vertex::VertexType type)
 {
   NS_LOG_FUNCTION (this << type);
   m_vertexType = type;
 }
 
-DGRVertex::VertexType
-DGRVertex::GetVertexType (void) const
+Vertex::VertexType
+Vertex::GetVertexType (void) const
 {
   NS_LOG_FUNCTION (this);
   return m_vertexType;
 }
 
 void
-DGRVertex::SetVertexId (Ipv4Address id)
+Vertex::SetVertexId (Ipv4Address id)
 {
   NS_LOG_FUNCTION (this << id);
   m_vertexId = id;
 }
 
 Ipv4Address
-DGRVertex::GetVertexId (void) const
+Vertex::GetVertexId (void) const
 {
   NS_LOG_FUNCTION (this);
   return m_vertexId;
 }
 
 void
-DGRVertex::SetLSA (DGRRoutingLSA* lsa)
+Vertex::SetLSA (LSA* lsa)
 {
   NS_LOG_FUNCTION (this << lsa);
   m_lsa = lsa;
 }
 
-DGRRoutingLSA*
-DGRVertex::GetLSA (void) const
+LSA*
+Vertex::GetLSA (void) const
 {
   NS_LOG_FUNCTION (this);
   return m_lsa;
 }
 
 void
-DGRVertex::SetDistanceFromRoot (uint32_t distance)
+Vertex::SetDistanceFromRoot (uint32_t distance)
 {
   NS_LOG_FUNCTION (this << distance);
   m_distanceFromRoot = distance;
 }
 
 uint32_t
-DGRVertex::GetDistanceFromRoot (void) const
+Vertex::GetDistanceFromRoot (void) const
 {
   NS_LOG_FUNCTION (this);
   return m_distanceFromRoot;
 }
 
 void
-DGRVertex::SetParent (DGRVertex* parent)
+Vertex::SetParent (Vertex* parent)
 {
   NS_LOG_FUNCTION (this << parent);
 
@@ -217,18 +217,18 @@ DGRVertex::SetParent (DGRVertex* parent)
   m_parents.push_back (parent);
 }
 
-DGRVertex*
-DGRVertex::GetParent (uint32_t i) const
+Vertex*
+Vertex::GetParent (uint32_t i) const
 {
   NS_LOG_FUNCTION (this << i);
 
   // If the index i is out-of-range, return 0 and do nothing
   if (m_parents.size () <= i)
     {
-      NS_LOG_LOGIC ("Index to DGRVertex's parent is out-of-range.");
+      NS_LOG_LOGIC ("Index to Vertex's parent is out-of-range.");
       return 0;
     }
-  ListOfDGRVertex_t::const_iterator iter = m_parents.begin ();
+  ListOfVertex_t::const_iterator iter = m_parents.begin ();
   while (i-- > 0) 
     {
       iter++;
@@ -237,7 +237,7 @@ DGRVertex::GetParent (uint32_t i) const
 }
 
 void 
-DGRVertex::MergeParent (const DGRVertex* v)
+Vertex::MergeParent (const Vertex* v)
 {
   NS_LOG_FUNCTION (this << v);
 
@@ -252,7 +252,7 @@ DGRVertex::MergeParent (const DGRVertex* v)
 }
 
 void 
-DGRVertex::SetRootExitDirection (Ipv4Address nextHop, int32_t id)
+Vertex::SetRootExitDirection (Ipv4Address nextHop, int32_t id)
 {
   NS_LOG_FUNCTION (this << nextHop << id);
 
@@ -266,27 +266,27 @@ DGRVertex::SetRootExitDirection (Ipv4Address nextHop, int32_t id)
 }
 
 void 
-DGRVertex::SetRootExitDirection (DGRVertex::NodeExit_t exit)
+Vertex::SetRootExitDirection (Vertex::NodeExit_t exit)
 {
   NS_LOG_FUNCTION (this << exit);
   SetRootExitDirection (exit.first, exit.second);
 }
 
-DGRVertex::NodeExit_t
-DGRVertex::GetRootExitDirection (uint32_t i) const
+Vertex::NodeExit_t
+Vertex::GetRootExitDirection (uint32_t i) const
 {
   NS_LOG_FUNCTION (this << i);
   typedef ListOfNodeExit_t::const_iterator CIter_t;
 
-  NS_ASSERT_MSG (i < m_ecmpRootExits.size (), "Index out-of-range when accessing DGRVertex::m_ecmpRootExits!");
+  NS_ASSERT_MSG (i < m_ecmpRootExits.size (), "Index out-of-range when accessing Vertex::m_ecmpRootExits!");
   CIter_t iter = m_ecmpRootExits.begin ();
   while (i-- > 0) { iter++; }
 
   return *iter;
 }
 
-DGRVertex::NodeExit_t 
-DGRVertex::GetRootExitDirection () const
+Vertex::NodeExit_t 
+Vertex::GetRootExitDirection () const
 {
   NS_LOG_FUNCTION (this);
 
@@ -295,7 +295,7 @@ DGRVertex::GetRootExitDirection () const
 }
 
 void 
-DGRVertex::MergeRootExitDirections (const DGRVertex* vertex)
+Vertex::MergeRootExitDirections (const Vertex* vertex)
 {
   NS_LOG_FUNCTION (this << vertex);
 
@@ -310,7 +310,7 @@ DGRVertex::MergeRootExitDirections (const DGRVertex* vertex)
 }
 
 void 
-DGRVertex::InheritAllRootExitDirections (const DGRVertex* vertex)
+Vertex::InheritAllRootExitDirections (const Vertex* vertex)
 {
   NS_LOG_FUNCTION (this << vertex);
 
@@ -326,26 +326,26 @@ DGRVertex::InheritAllRootExitDirections (const DGRVertex* vertex)
 }
 
 uint32_t 
-DGRVertex::GetNRootExitDirections () const
+Vertex::GetNRootExitDirections () const
 {
   NS_LOG_FUNCTION (this);
   return m_ecmpRootExits.size ();
 }
 
 uint32_t 
-DGRVertex::GetNChildren (void) const
+Vertex::GetNChildren (void) const
 {
   NS_LOG_FUNCTION (this);
   return m_children.size ();
 }
 
-DGRVertex*
-DGRVertex::GetChild (uint32_t n) const
+Vertex*
+Vertex::GetChild (uint32_t n) const
 {
   NS_LOG_FUNCTION (this << n);
   uint32_t j = 0;
 
-  for ( ListOfDGRVertex_t::const_iterator i = m_children.begin ();
+  for ( ListOfVertex_t::const_iterator i = m_children.begin ();
         i != m_children.end ();
         i++, j++)
     {
@@ -359,7 +359,7 @@ DGRVertex::GetChild (uint32_t n) const
 }
 
 uint32_t
-DGRVertex::AddChild (DGRVertex* child)
+Vertex::AddChild (Vertex* child)
 {
   NS_LOG_FUNCTION (this << child);
   m_children.push_back (child);
@@ -367,21 +367,21 @@ DGRVertex::AddChild (DGRVertex* child)
 }
 
 void 
-DGRVertex::SetVertexProcessed (bool value)
+Vertex::SetVertexProcessed (bool value)
 {
   NS_LOG_FUNCTION (this << value);
   m_vertexProcessed = value;
 }
 
 bool 
-DGRVertex::IsVertexProcessed (void) const
+Vertex::IsVertexProcessed (void) const
 {
   NS_LOG_FUNCTION (this);
   return m_vertexProcessed;
 }
 
 void
-DGRVertex::ClearVertexProcessed (void)
+Vertex::ClearVertexProcessed (void)
 {
   NS_LOG_FUNCTION (this);
   for (uint32_t i = 0; i < this->GetNChildren (); i++)
@@ -393,11 +393,11 @@ DGRVertex::ClearVertexProcessed (void)
 
 // ---------------------------------------------------------------------------
 //
-// DGRRouteManagerLSDB Implementation
+// LSDB Implementation
 //
 // ---------------------------------------------------------------------------
 
-DGRRouteManagerLSDB::DGRRouteManagerLSDB ()
+LSDB::LSDB ()
   :
     m_database (),
     m_extdatabase ()
@@ -405,20 +405,20 @@ DGRRouteManagerLSDB::DGRRouteManagerLSDB ()
   NS_LOG_FUNCTION (this);
 }
 
-DGRRouteManagerLSDB::~DGRRouteManagerLSDB ()
+LSDB::~LSDB ()
 {
   NS_LOG_FUNCTION (this);
   LSDBMap_t::iterator i;
   for (i= m_database.begin (); i!= m_database.end (); i++)
     {
       NS_LOG_LOGIC ("free LSA");
-      DGRRoutingLSA* temp = i->second;
+      LSA* temp = i->second;
       delete temp;
     }
   for (uint32_t j = 0; j < m_extdatabase.size (); j++)
     {
       NS_LOG_LOGIC ("free ASexternalLSA");
-      DGRRoutingLSA* temp = m_extdatabase.at (j);
+      LSA* temp = m_extdatabase.at (j);
       delete temp;
     }
   NS_LOG_LOGIC ("clear map");
@@ -426,22 +426,22 @@ DGRRouteManagerLSDB::~DGRRouteManagerLSDB ()
 }
 
 void
-DGRRouteManagerLSDB::Initialize ()
+LSDB::Initialize ()
 {
   NS_LOG_FUNCTION (this);
   LSDBMap_t::iterator i;
   for (i= m_database.begin (); i!= m_database.end (); i++)
     {
-      DGRRoutingLSA* temp = i->second;
-      temp->SetStatus (DGRRoutingLSA::LSA_SPF_NOT_EXPLORED);
+      LSA* temp = i->second;
+      temp->SetStatus (LSA::LSA_SPF_NOT_EXPLORED);
     }
 }
 
 void
-DGRRouteManagerLSDB::Insert (Ipv4Address addr, DGRRoutingLSA* lsa)
+LSDB::Insert (Ipv4Address addr, LSA* lsa)
 {
   NS_LOG_FUNCTION (this << addr << lsa);
-  if (lsa->GetLSType () == DGRRoutingLSA::ASExternalLSAs) 
+  if (lsa->GetLSType () == LSA::ASExternalLSAs) 
     {
       m_extdatabase.push_back (lsa);
     } 
@@ -451,22 +451,36 @@ DGRRouteManagerLSDB::Insert (Ipv4Address addr, DGRRoutingLSA* lsa)
     }
 }
 
-DGRRoutingLSA*
-DGRRouteManagerLSDB::GetExtLSA (uint32_t index) const
+void
+LSDB::Print (std::ostream &os) const
+{
+  os << "At node: ???" << std::endl;
+  LSDBMap_t::const_iterator ci;
+  std::cout << "const iterator";
+  for (ci = m_database.begin (); ci != m_database.end (); ci ++)
+    {
+      os << "Interface = " << ci->first << std::endl;
+      ci->second->Print (os);
+    }
+
+}
+
+LSA*
+LSDB::GetExtLSA (uint32_t index) const
 {
   NS_LOG_FUNCTION (this << index);
   return m_extdatabase.at (index);
 }
 
 uint32_t
-DGRRouteManagerLSDB::GetNumExtLSAs () const
+LSDB::GetNumExtLSAs () const
 {
   NS_LOG_FUNCTION (this);
   return m_extdatabase.size ();
 }
 
-DGRRoutingLSA*
-DGRRouteManagerLSDB::GetLSA (Ipv4Address addr) const
+LSA*
+LSDB::GetLSA (Ipv4Address addr) const
 {
   NS_LOG_FUNCTION (this << addr);
 //
@@ -483,8 +497,8 @@ DGRRouteManagerLSDB::GetLSA (Ipv4Address addr) const
   return 0;
 }
 
-DGRRoutingLSA*
-DGRRouteManagerLSDB::GetLSAByLinkData (Ipv4Address addr) const
+LSA*
+LSDB::GetLSAByLinkData (Ipv4Address addr) const
 {
   NS_LOG_FUNCTION (this << addr);
 //
@@ -493,12 +507,12 @@ DGRRouteManagerLSDB::GetLSAByLinkData (Ipv4Address addr) const
   LSDBMap_t::const_iterator i;
   for (i= m_database.begin (); i!= m_database.end (); i++)
     {
-      DGRRoutingLSA* temp = i->second;
+      LSA* temp = i->second;
 // Iterate among temp's Link Records
       for (uint32_t j = 0; j < temp->GetNLinkRecords (); j++)
         {
-          DGRRoutingLinkRecord *lr = temp->GetLinkRecord (j);
-          if ( lr->GetLinkType () == DGRRoutingLinkRecord::TransitNetwork &&
+          LinkRecord *lr = temp->GetLinkRecord (j);
+          if ( lr->GetLinkType () == LinkRecord::TransitNetwork &&
                lr->GetLinkData () == addr)
             {
               return temp;
