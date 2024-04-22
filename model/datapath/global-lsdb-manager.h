@@ -17,28 +17,40 @@ namespace ns3 {
 
 class GlobalLSDBManager
 {
-public:
-  GlobalLSDBManager ();
-  virtual ~GlobalLSDBManager ();
-/**
- * @brief Delete all static routes on all nodes that have a
- * DGRRouterInterface
- *
- * \todo  separate manually assigned static routes from static routes that
- * the global routing code injects, and only delete the latter
- */
-  virtual void DeleteRoutes ();
+  public:
+    GlobalLSDBManager ();
+    virtual ~GlobalLSDBManager ();
 
-/**
- * @brief Build the routing database by gathering Link State Advertisements
- * from each node exporting a DGRRouter interface.
- */
-  virtual void BuildRoutingDatabase ();
+    // /**
+    //  * @brief Delete all static routes on all nodes that have a
+    //  * DGRRouterInterface
+    //  *
+    //  * \todo  separate manually assigned static routes from static routes that
+    //  * the global routing code injects, and only delete the latter
+    //  */
+    // virtual void DeleteRoutes ();
 
-  Vertex* m_spfroot; //!< the root node
-  LSDB* m_lsdb; //!< the Link State DataBase (LSDB) of the Global Route Manager
+    /**
+     * @brief Build the Link State Database (LSDB) by gathering Link State Advertisements
+     * from each node exporting a DGRRouter interface.
+     */
+    virtual void BuildLinkStateDatabase ();
+
+    /**
+     * @brief Delete the Link State Database (LSDB), create a new one.
+     */
+    void DeleteLinkStateDatabase ();
+
+    /**
+     * @brief Get LSDB
+     * @return LSDB
+     */
+    LSDB* GetLSDB (void) const;
+  private:
+    Vertex* m_spfroot; //!< the root node
+    LSDB* m_lsdb; //!< the Link State DataBase (LSDB) of the Global Route Manager
 };
 
 } // namespace ns3
 
-#endif /* GLOBAL_ROUTE_MANAGER_H */
+#endif /* GLOBAL_LSDB_MANAGER_H */

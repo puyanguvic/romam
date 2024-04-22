@@ -151,13 +151,6 @@ Vertex::~Vertex ()
   NS_LOG_LOGIC ("Vertex-" << m_vertexId << " completed deleted");
 }
 
-void
-Vertex::SetVertexType (Vertex::VertexType type)
-{
-  NS_LOG_FUNCTION (this << type);
-  m_vertexType = type;
-}
-
 Vertex::VertexType
 Vertex::GetVertexType (void) const
 {
@@ -166,10 +159,10 @@ Vertex::GetVertexType (void) const
 }
 
 void
-Vertex::SetVertexId (Ipv4Address id)
+Vertex::SetVertexType (Vertex::VertexType type)
 {
-  NS_LOG_FUNCTION (this << id);
-  m_vertexId = id;
+  NS_LOG_FUNCTION (this << type);
+  m_vertexType = type;
 }
 
 Ipv4Address
@@ -180,10 +173,10 @@ Vertex::GetVertexId (void) const
 }
 
 void
-Vertex::SetLSA (LSA* lsa)
+Vertex::SetVertexId (Ipv4Address id)
 {
-  NS_LOG_FUNCTION (this << lsa);
-  m_lsa = lsa;
+  NS_LOG_FUNCTION (this << id);
+  m_vertexId = id;
 }
 
 LSA*
@@ -194,10 +187,10 @@ Vertex::GetLSA (void) const
 }
 
 void
-Vertex::SetDistanceFromRoot (uint32_t distance)
+Vertex::SetLSA (LSA* lsa)
 {
-  NS_LOG_FUNCTION (this << distance);
-  m_distanceFromRoot = distance;
+  NS_LOG_FUNCTION (this << lsa);
+  m_lsa = lsa;
 }
 
 uint32_t
@@ -208,47 +201,10 @@ Vertex::GetDistanceFromRoot (void) const
 }
 
 void
-Vertex::SetParent (Vertex* parent)
+Vertex::SetDistanceFromRoot (uint32_t distance)
 {
-  NS_LOG_FUNCTION (this << parent);
-
-  // always maintain only one parent when using setter/getter methods
-  m_parents.clear ();
-  m_parents.push_back (parent);
-}
-
-Vertex*
-Vertex::GetParent (uint32_t i) const
-{
-  NS_LOG_FUNCTION (this << i);
-
-  // If the index i is out-of-range, return 0 and do nothing
-  if (m_parents.size () <= i)
-    {
-      NS_LOG_LOGIC ("Index to Vertex's parent is out-of-range.");
-      return 0;
-    }
-  ListOfVertex_t::const_iterator iter = m_parents.begin ();
-  while (i-- > 0) 
-    {
-      iter++;
-    }
-  return *iter;
-}
-
-void 
-Vertex::MergeParent (const Vertex* v)
-{
-  NS_LOG_FUNCTION (this << v);
-
-  NS_LOG_LOGIC ("Before merge, list of parents = " << m_parents);
-  // combine the two lists first, and then remove any duplicated after
-  m_parents.insert (m_parents.end (), 
-                    v->m_parents.begin (), v->m_parents.end ());
-  // remove duplication
-  m_parents.sort ();
-  m_parents.unique ();
-  NS_LOG_LOGIC ("After merge, list of parents = " << m_parents);
+  NS_LOG_FUNCTION (this << distance);
+  m_distanceFromRoot = distance;
 }
 
 void 
@@ -289,7 +245,6 @@ Vertex::NodeExit_t
 Vertex::GetRootExitDirection () const
 {
   NS_LOG_FUNCTION (this);
-
   NS_ASSERT_MSG (m_ecmpRootExits.size () <= 1, "Assumed there is at most one exit from the root to this vertex");
   return GetRootExitDirection (0);
 }
@@ -330,6 +285,50 @@ Vertex::GetNRootExitDirections () const
 {
   NS_LOG_FUNCTION (this);
   return m_ecmpRootExits.size ();
+}
+
+Vertex*
+Vertex::GetParent (uint32_t i) const
+{
+  NS_LOG_FUNCTION (this << i);
+
+  // If the index i is out-of-range, return 0 and do nothing
+  if (m_parents.size () <= i)
+    {
+      NS_LOG_LOGIC ("Index to Vertex's parent is out-of-range.");
+      return 0;
+    }
+  ListOfVertex_t::const_iterator iter = m_parents.begin ();
+  while (i-- > 0) 
+    {
+      iter++;
+    }
+  return *iter;
+}
+
+void
+Vertex::SetParent (Vertex* parent)
+{
+  NS_LOG_FUNCTION (this << parent);
+
+  // always maintain only one parent when using setter/getter methods
+  m_parents.clear ();
+  m_parents.push_back (parent);
+}
+
+void 
+Vertex::MergeParent (const Vertex* v)
+{
+  NS_LOG_FUNCTION (this << v);
+
+  NS_LOG_LOGIC ("Before merge, list of parents = " << m_parents);
+  // combine the two lists first, and then remove any duplicated after
+  m_parents.insert (m_parents.end (), 
+                    v->m_parents.begin (), v->m_parents.end ());
+  // remove duplication
+  m_parents.sort ();
+  m_parents.unique ();
+  NS_LOG_LOGIC ("After merge, list of parents = " << m_parents);
 }
 
 uint32_t 
@@ -398,8 +397,7 @@ Vertex::ClearVertexProcessed (void)
 // ---------------------------------------------------------------------------
 
 LSDB::LSDB ()
-  :
-    m_database (),
+  : m_database (),
     m_extdatabase ()
 {
   NS_LOG_FUNCTION (this);
@@ -454,15 +452,13 @@ LSDB::Insert (Ipv4Address addr, LSA* lsa)
 void
 LSDB::Print (std::ostream &os) const
 {
-  os << "At node: ???" << std::endl;
   LSDBMap_t::const_iterator ci;
-  std::cout << "const iterator";
+  std::cout << "const iterator\n";
   for (ci = m_database.begin (); ci != m_database.end (); ci ++)
     {
-      os << "Interface = " << ci->first << std::endl;
+      os << "IPv4 Address = " << ci->first << std::endl;
       ci->second->Print (os);
     }
-
 }
 
 LSA*

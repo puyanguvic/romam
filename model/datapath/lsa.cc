@@ -387,7 +387,7 @@ LSA::Print (std::ostream &os) const
 {
   NS_LOG_FUNCTION (this << &os);
   os << std::endl;
-  os << "========== DGR Routing LSA ==========" << std::endl;
+  os << "========== Link State Advertisement ==========" << std::endl;
   os << "m_lsType = " << m_lsType;
   if (m_lsType == LSA::RouterLSA) 
     {
@@ -472,7 +472,7 @@ LSA::Print (std::ostream &os) const
     {
       NS_ASSERT_MSG (0, "Illegal LSA LSType: " << m_lsType);
     }
-  os << "========== End Global Routing LSA ==========" << std::endl;
+  os << "========== End Link State Advertisement ==========" << std::endl;
 }
 
 std::ostream& operator<< (std::ostream& os, LSA& lsa)

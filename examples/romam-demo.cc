@@ -1,208 +1,167 @@
-/* -*- Mode:C++; c-file-style:"gnu"; indent-tabs-mode:nil; -*- */
-#include <ctime>
-#include <sstream>
-#include "ns3/core-module.h"
-#include "ns3/network-module.h"
-#include "ns3/internet-module.h"
-#include "ns3/point-to-point-module.h"
-#include "ns3/applications-module.h"
-#include "ns3/netanim-module.h"
-#include "ns3/topology-read-module.h"
-#include "ns3/traffic-control-module.h"
-#include "ns3/node-list.h"
-#include "ns3/romam-module.h"
-#include <stdlib.h> 
+/*
+ * This program is free software; you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License version 2 as
+ * published by the Free Software Foundation;
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with this program; if not, write to the Free Software
+ * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
+ *
+ */
 
-#include <list>
+//
+// Network topology
+//
+//  n0
+//     \ 5 Mb/s, 2ms
+//      \          1.5Mb/s, 10ms
+//       n2 -------------------------n3
+//      /
+//     / 5 Mb/s, 2ms
+//   n1
+//
+// - all links are point-to-point links with indicated one-way BW/delay
+// - CBR/UDP flows from n0 to n3, and from n3 to n1
+// - FTP/TCP flow from n0 to n3, starting at time 1.2 to time 1.35 sec.
+// - UDP packet size of 210 bytes, with per-packet interval 0.00375 sec.
+//   (i.e., DataRate of 448,000 bps)
+// - DropTail queues
+// - Tracing of queues and packet receptions to file "simple-global-routing.tr"
+
+#include "ns3/applications-module.h"
+#include "ns3/core-module.h"
+#include "ns3/flow-monitor-helper.h"
+#include "ns3/internet-module.h"
+#include "ns3/ipv4-global-routing-helper.h"
+#include "ns3/network-module.h"
+#include "ns3/point-to-point-module.h"
+#include "ns3/romam-module.h"
+
+#include <cassert>
 #include <fstream>
-#include <sstream>
+#include <iostream>
 #include <string>
 
 using namespace ns3;
 
-std::string expName = "dgrv2_demo";
+NS_LOG_COMPONENT_DEFINE("SimpleGlobalRoutingExample");
 
-NS_LOG_COMPONENT_DEFINE (expName);
-
-int main (int argc, char *argv[])
+int
+main(int argc, char* argv[])
 {
-  Packet::EnablePrinting ();
-  std::string topo ("2_node");
-  std::string format ("Inet");
+    // Users may find it convenient to turn on explicit debugging
+    // for selected modules; the below lines suggest how to do this
+#if 0
+  LogComponentEnable ("SimpleGlobalRoutingExample", LOG_LEVEL_INFO);
+#endif
 
-  // Set up command line parameters used to control the experiment.
-  CommandLine cmd (__FILE__);
-  cmd.AddValue ("format", "Format to use for data input [Orbis|Inet|Rocketfuel].",
-                format);
-  cmd.AddValue ("topo", "topology", topo);
-  cmd.Parse (argc, argv);
-  std::string input ("contrib/dgrv2/topo/Inet_" + topo + "_topo.txt");
-  // ------------------------------------------------------------
-  // -- Read topology data.
-  // --------------------------------------------
-  
-  // Pick a topology reader based in the requested format.
-  TopologyReaderHelper topoHelp;
-  topoHelp.SetFileName (input);
-  topoHelp.SetFileType (format);
-  Ptr<TopologyReader> inFile = topoHelp.GetTopologyReader ();
+    // Set up some default values for the simulation.  Use the
+    Config::SetDefault("ns3::OnOffApplication::PacketSize", UintegerValue(210));
+    Config::SetDefault("ns3::OnOffApplication::DataRate", StringValue("448kb/s"));
 
-  NodeContainer nodes;
+    // DefaultValue::Bind ("DropTailQueue::m_maxPackets", 30);
 
-  if (inFile)
-    {
-      nodes = inFile->Read ();
-    }
+    // Allow the user to override any of the defaults and the above
+    // DefaultValue::Bind ()s at run-time, via command-line arguments
+    CommandLine cmd(__FILE__);
+    bool enableFlowMonitor = false;
+    cmd.AddValue("EnableMonitor", "Enable Flow Monitor", enableFlowMonitor);
+    cmd.Parse(argc, argv);
 
-  if (inFile->LinksSize () == 0)
-    {
-      NS_LOG_ERROR ("Problems reading the topology file. Failing.");
-      return -1;
-    }
+    // Here, we will explicitly create four nodes.  In more sophisticated
+    // topologies, we could configure a node factory.
+    NS_LOG_INFO("Create nodes.");
+    NodeContainer c;
+    c.Create(4);
+    NodeContainer n0n2 = NodeContainer(c.Get(0), c.Get(2));
+    NodeContainer n1n2 = NodeContainer(c.Get(1), c.Get(2));
+    NodeContainer n3n2 = NodeContainer(c.Get(3), c.Get(2));
 
-  // ------------------------------------------------------------
-  // -- Create nodes and network stacks
-  // --------------------------------------------
-  NS_LOG_INFO ("creating internet stack");
-  InternetStackHelper stack;
+    RomamRoutingHelper romam;
+    Ipv4ListRoutingHelper list;
+    list.Add (romam, 10);
+    InternetStackHelper internet;
+    internet.SetRoutingHelper (list);
+    internet.Install(c);
 
-  // Setup Routing algorithm
-  Ipv4DGRRoutingHelper dgr;
-  Ipv4ListRoutingHelper list;
-  list.Add (dgr, 10);
-  InternetStackHelper internet;
-  internet.SetRoutingHelper (list);
-  internet.Install (nodes);
+    // We create the channels first without any IP addressing information
+    NS_LOG_INFO("Create channels.");
+    PointToPointHelper p2p;
+    p2p.SetDeviceAttribute("DataRate", StringValue("5Mbps"));
+    p2p.SetChannelAttribute("Delay", StringValue("2ms"));
+    NetDeviceContainer d0d2 = p2p.Install(n0n2);
 
-  NS_LOG_INFO ("creating ipv4 addresses");
-  Ipv4AddressHelper address;
-  address.SetBase ("10.0.0.0", "255.255.255.252");
+    NetDeviceContainer d1d2 = p2p.Install(n1n2);
 
-  int totlinks = inFile->LinksSize ();
+    p2p.SetDeviceAttribute("DataRate", StringValue("1500kbps"));
+    p2p.SetChannelAttribute("Delay", StringValue("10ms"));
+    NetDeviceContainer d3d2 = p2p.Install(n3n2);
 
-  NS_LOG_INFO ("creating node containers");
-  NodeContainer* nc = new NodeContainer[totlinks];
-  NetDeviceContainer* ndc = new NetDeviceContainer[totlinks];
-  PointToPointHelper p2p;
-  TrafficControlHelper tch;
-  tch.SetRootQueueDisc ("ns3::DGRv2QueueDisc");
-  NS_LOG_INFO ("creating ipv4 interfaces");
-  Ipv4InterfaceContainer* ipic = new Ipv4InterfaceContainer[totlinks];
-  std::cout << "totlinks number: " << totlinks << std::endl;
-  TopologyReader::ConstLinksIterator iter;
-  int i = 0;
-  for ( iter = inFile->LinksBegin (); iter != inFile->LinksEnd (); iter++, i++)
-    {
-      nc[i] = NodeContainer (iter->GetFromNode (), iter->GetToNode ());
-      std::string delay = iter->GetAttribute ("Weight");
-      std::stringstream ss;
-      ss << delay;
-      uint16_t metric;  //!< metric in milliseconds
-      ss >> metric;
-      p2p.SetChannelAttribute ("Delay", StringValue (delay + "ms"));
-      p2p.SetDeviceAttribute ("DataRate", StringValue ("100Mbps"));
-      ndc[i] = p2p.Install (nc[i]);
-      // QueueDiscContainer container = 
-      tch.Install (ndc[i]);
-      // std::cout << "the container size: " << container.GetN () << std::endl;
-      // container.Get (0)->GetInternalQueue (0)->SetMaxSize (QueueSize ("250KB"));
-      // container.Get (1)->GetInternalQueue (0)->SetMaxSize (QueueSize ("250KB"));
-      ipic[i] = address.Assign (ndc[i]);
-      ipic[i].SetMetric (0, metric);
-      ipic[i].SetMetric (1, metric);
-      address.NewNetwork ();
-    }
+    // Later, we add IP addresses.
+    NS_LOG_INFO("Assign IP Addresses.");
+    Ipv4AddressHelper ipv4;
+    ipv4.SetBase("10.1.1.0", "255.255.255.0");
+    Ipv4InterfaceContainer i0i2 = ipv4.Assign(d0d2);
 
-  Ipv4DGRRoutingHelper::PopulateRoutingTables ();
+    ipv4.SetBase("10.1.2.0", "255.255.255.0");
+    Ipv4InterfaceContainer i1i2 = ipv4.Assign(d1d2);
 
-  // ------------------------------------------------------------
-  // -- Print routing table
-  // ---------------------------------------------
-  Ipv4DGRRoutingHelper d;
-  Ptr<OutputStreamWrapper> routingStream = Create<OutputStreamWrapper>
-  (topo + "_" + expName + ".routes", std::ios::out);
-  d.PrintRoutingTableAllAt (Seconds (0), routingStream);
+    ipv4.SetBase("10.1.3.0", "255.255.255.0");
+    Ipv4InterfaceContainer i3i2 = ipv4.Assign(d3d2);
 
-  // // -------------- Udp traffic 0-->2 ------------------
-  // uint16_t udpPort = 9;
-  // uint32_t udpSink = 3;
-  // uint32_t udpSender = 0;
-  // Ptr<Node> udpSinkNode = nodes.Get (udpSink);
-  // Ptr<Ipv4> ipv4UdpSink = udpSinkNode->GetObject<Ipv4> ();
-  // Ipv4InterfaceAddress iaddrUdpSink = ipv4UdpSink->GetAddress (1,0);
-  // Ipv4Address ipv4AddrUdpSink = iaddrUdpSink.GetLocal ();
+    // Create router nodes, initialize routing database and set up the routing
+    // tables in the nodes.
+    // Ipv4GlobalRoutingHelper::PopulateRoutingTables();
 
-  // DGRSinkHelper sinkHelper ("ns3::UdpSocketFactory",
-  //                        InetSocketAddress (Ipv4Address::GetAny (), udpPort));
-  // ApplicationContainer sinkApp = sinkHelper.Install (nodes.Get (udpSink));
-  // sinkApp.Start (Seconds (0.0));
-  // sinkApp.Stop (Seconds (20.0));
-  
-  // // udp sender
-  // Ptr<Socket> udpSocket = Socket::CreateSocket (nodes.Get (udpSender), UdpSocketFactory::GetTypeId ());
-  // Ptr<DGRUdpApplication> app = CreateObject<DGRUdpApplication> ();
-  // app->Setup (udpSocket, InetSocketAddress (ipv4AddrUdpSink, udpPort), 150, 10, DataRate ("1Mbps"), 1000, false);
-  // nodes.Get (udpSender)->AddApplication (app);
-  // app->SetStartTime (Seconds (1.0));
-  // app->SetStopTime (Seconds (20.0));
-  
-  // -------------- TCP Back ground traffic 0-->2 ------------------
-  uint16_t tcpPort = 8080;
-  uint32_t tcpSink = 3;
-  uint32_t tcpSender = 0;
-  Ptr<Node> tcpSinkNode = nodes.Get (tcpSink);
-  Ptr<Ipv4> ipv4TcpSink = tcpSinkNode->GetObject<Ipv4> ();
-  Ipv4InterfaceAddress iaddrTcpSink = ipv4TcpSink->GetAddress (1,0);
-  Ipv4Address ipv4AddrTcpSink = iaddrTcpSink.GetLocal ();
+    RomamRoutingHelper::PopulateRoutingTables ();
+    
+    // // Create the OnOff application to send UDP datagrams of size
+    // // 210 bytes at a rate of 448 Kb/s
+    // NS_LOG_INFO("Create Applications.");
+    // uint16_t port = 9; // Discard port (RFC 863)
+    // OnOffHelper onoff("ns3::UdpSocketFactory",
+    //                   Address(InetSocketAddress(i3i2.GetAddress(0), port)));
+    // onoff.SetConstantRate(DataRate("448kb/s"));
+    // ApplicationContainer apps = onoff.Install(c.Get(0));
+    // apps.Start(Seconds(1.0));
+    // apps.Stop(Seconds(10.0));
 
-  DGRSinkHelper sinkHelper ("ns3::TcpSocketFactory",
-                         InetSocketAddress (Ipv4Address::GetAny (), tcpPort));
-  ApplicationContainer sinkApp = sinkHelper.Install (nodes.Get (tcpSink));
-  sinkApp.Start (Seconds (0.0));
-  sinkApp.Stop (Seconds (20.0));
-  
-  // tcp send
-  DGRTcpAppHelper sourceHelper ("ns3::TcpSocketFactory",
-                               InetSocketAddress (ipv4AddrTcpSink, tcpPort));
-  sourceHelper.SetAttribute ("MaxBytes", UintegerValue (7500000));
-  sourceHelper.SetAttribute ("Budget", UintegerValue (100));
-  ApplicationContainer sourceApp = sourceHelper.Install (nodes.Get (tcpSender));
-  sourceApp.Start (Seconds (1.0));
-  sourceApp.Stop (Seconds (20.0));
+    // // Create a packet sink to receive these packets
+    // PacketSinkHelper sink("ns3::UdpSocketFactory",
+    //                       Address(InetSocketAddress(Ipv4Address::GetAny(), port)));
+    // apps = sink.Install(c.Get(3));
+    // apps.Start(Seconds(1.0));
+    // apps.Stop(Seconds(10.0));
 
-  // ------------------------------------------------------------
-  // -- Net anim
-  // ---------------------------------------------
-  AnimationInterface anim (topo + expName + ".xml");
-  std::ifstream topoNetanim (input);
-  std::istringstream buffer;
-  std::string line;
-  getline (topoNetanim, line);
-  for (uint32_t i = 0; i < nodes.GetN (); i ++)
-  {
-    getline (topoNetanim, line);
-    buffer.clear ();
-    buffer.str (line);
-    int no;
-    double x, y;
-    buffer >> no;
-    buffer >> x;
-    buffer >> y;
-    anim.SetConstantPosition (nodes.Get (no), x*10, y*10);
-  }
+    // // Create a similar flow from n3 to n1, starting at time 1.1 seconds
+    // onoff.SetAttribute("Remote", AddressValue(InetSocketAddress(i1i2.GetAddress(0), port)));
+    // apps = onoff.Install(c.Get(3));
+    // apps.Start(Seconds(1.1));
+    // apps.Stop(Seconds(10.0));
 
-  // ------------------------------------------------------------
-  // -- Run the simulation
-  // --------------------------------------------
-  NS_LOG_INFO ("Run Simulation.");
-  Simulator::Run ();
-  Simulator::Destroy ();
+    // // Create a packet sink to receive these packets
+    // apps = sink.Install(c.Get(1));
+    // apps.Start(Seconds(1.1));
+    // apps.Stop(Seconds(10.0));
 
-  delete[] ipic;
-  delete[] ndc;
-  delete[] nc;
+    // ------------------------------------------------------------
+    // -- Print routing table
+    // ---------------------------------------------
+    RomamRoutingHelper r;
+    Ptr<OutputStreamWrapper> routingStream = Create<OutputStreamWrapper>
+    ("RomamRouting.routes", std::ios::out);
+    r.PrintRoutingTableAllAt (Seconds (0), routingStream);
 
-  NS_LOG_INFO ("Done.");
+    NS_LOG_INFO("Run Simulation.");
+    Simulator::Stop(Seconds(11));
+    Simulator::Run();
+    NS_LOG_INFO("Done.");
 
-  return 0;
+    Simulator::Destroy();
+    return 0;
 }

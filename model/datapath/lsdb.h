@@ -659,6 +659,20 @@ public:
     * 
     */
   void Print (std::ostream &os) const override;
+  
+  /**
+   * @brief LSDB copy construction is disallowed.  There's no 
+   * need for it and a compiler provided shallow copy would be wrong.
+   * @param lsdb object to copy from
+   */
+    LSDB (LSDB& lsdb);
+
+  /**
+   * @brief The Vertex copy assignment operator
+   * @param lsdb object to copy from
+   * @returns the copied object
+   */
+  LSDB& operator= (LSDB& lsdb);
 
 private:
   typedef std::map<Ipv4Address, LSA*> LSDBMap_t; //!< container of IPv4 addresses / Link State Advertisements
@@ -666,21 +680,6 @@ private:
 
   LSDBMap_t m_database; //!< database of IPv4 addresses / Link State Advertisements
   std::vector<LSA*> m_extdatabase; //!< database of External Link State Advertisements
-
-/**
- * @brief LSDB copy construction is disallowed.  There's no 
- * need for it and a compiler provided shallow copy would be wrong.
- * @param lsdb object to copy from
- */
-  LSDB (LSDB& lsdb);
-
-/**
- * @brief The Vertex copy assignment operator is disallowed.  There's no 
- * need for it and a compiler provided shallow copy would be wrong.
- * @param lsdb object to copy from
- * @returns the copied object
- */
-  LSDB& operator= (LSDB& lsdb);
 };
 
 } // namespace ns3
