@@ -17,19 +17,9 @@
 namespace ns3
 {
 
-class RomamRouting;
-class RouteInfoEntry;
 class LSA;
+class DijkstraRIE;
 
-/**
- * @brief An interface aggregated to a node to provide global routing info
- *
- * An interface aggregated to a node that provides global routing information
- * to a global route manager.  The presence of the interface indicates that
- * the node is a router.  The interface is the mechanism by which the router
- * advertises its connections to neighboring routers.  We're basically
- * allowing the route manager to query for link state advertisements.
- */
 class RomamRouter : public Object
 {
   public:
@@ -37,24 +27,16 @@ class RomamRouter : public Object
      * \brief Get the type ID.
      * \return the object TypeId
      */
-    static TypeId GetTypeId(void);
+    static TypeId GetTypeId();
 
     /**
      * @brief Create a Global Router class
      */
     RomamRouter();
 
-    /**
-     * \brief Set the specific Global Routing Protocol to be used
-     * \param routing the routing protocol
-     */
-    void SetRoutingProtocol(Ptr<RomamRouting> routing);
-
-    /**
-     * \brief Get the specific Global Routing Protocol used
-     * \returns the routing protocol
-     */
-    Ptr<RomamRouting> GetRoutingProtocol(void);
+    // Delete copy constructor and assignment operator to avoid misuse
+    RomamRouter(const RomamRouter&) = delete;
+    RomamRouter& operator=(const RomamRouter&) = delete;
 
     /**
      * @brief Get the Router ID associated with this Global Router.
@@ -65,7 +47,7 @@ class RomamRouter : public Object
      * @see RoutingEnvironment::AllocateRouterId ()
      * @returns The Router ID associated with the Global Router.
      */
-    Ipv4Address GetRouterId(void) const;
+    Ipv4Address GetRouterId() const;
 
     /**
      * @brief Walk the connected channels, discover the adjacent routers and build
@@ -81,10 +63,10 @@ class RomamRouter : public Object
      * and then by reading those advertisements.
      *
      * @see GlobalRoutingLSA
-     * @see GlobalRouter::GetLSA ()
+     * @see RomamRouter::GetLSA ()
      * @returns The number of Global Routing Link State Advertisements.
      */
-    uint32_t DiscoverLSAs(void);
+    uint32_t DiscoverLSAs();
 
     /**
      * @brief Get the Number of Global Routing Link State Advertisements that this
@@ -94,12 +76,12 @@ class RomamRouter : public Object
      * After you know how many LSAs are present in the router, you may call
      * GetLSA () to retrieve the actual advertisement.
      *
-     * @see GlobalRouterLSA
+     * @see RomamRouterLSA
      * @see GlobalRouting::DiscoverLSAs ()
      * @see GlobalRouting::GetLSA ()
      * @returns The number of Global Routing Link State Advertisements.
      */
-    uint32_t GetNumLSAs(void) const;
+    uint32_t GetNumLSAs() const;
 
     /**
      * @brief Get a Global Routing Link State Advertisements that this router has
@@ -109,7 +91,7 @@ class RomamRouter : public Object
      * was done in GetNumLSAs.  We just copy the indicated Global Routing Link
      * State Advertisement into the requested GlobalRoutingLSA object.
      *
-     * You must call GlobalRouter::GetNumLSAs before calling this method in
+     * You must call RomamRouter::GetNumLSAs before calling this method in
      * order to discover the adjacent routers and build the advertisements.
      * GetNumLSAs will return the number of LSAs this router advertises.
      * The parameter n (requested LSA number) must be in the range 0 to
@@ -137,7 +119,7 @@ class RomamRouter : public Object
      * to the routing table.
      * @return number of injected routes
      */
-    uint32_t GetNInjectedRoutes(void);
+    uint32_t GetNInjectedRoutes();
 
     /**
      * @brief Return the injected route indexed by i
@@ -145,7 +127,7 @@ class RomamRouter : public Object
      * @return a pointer to that Ipv4RoutingTableEntry is returned
      *
      */
-    RouteInfoEntry* GetInjectedRoute(uint32_t i);
+    DijkstraRIE* GetInjectedRoute(uint32_t i);
 
     /**
      * @brief Withdraw a route from the global unicast routing table.
@@ -156,7 +138,7 @@ class RomamRouter : public Object
      *
      * @param i The index (into the injected routing list) of the route to remove.
      *
-     * @see GlobalRouter::WithdrawRoute ()
+     * @see RomamRouter::WithdrawRoute ()
      */
     void RemoveInjectedRoute(uint32_t i);
 
@@ -167,17 +149,20 @@ class RomamRouter : public Object
      * @param networkMask The Network Mask to withdraw
      * @return whether the operation succeeded (will return false if no such route)
      *
-     * @see GlobalRouter::RemoveInjectedRoute ()
+     * @see RomamRouter::RemoveInjectedRoute ()
      */
     bool WithdrawRoute(Ipv4Address network, Ipv4Mask networkMask);
 
-  private:
-    virtual ~RomamRouter();
+  protected:
+    virtual ~RomamRouter() override;
+    // inherited from Object
+    virtual void DoDispose() override;
 
+  private:
     /**
      * \brief Clear list of LSAs
      */
-    void ClearLSAs(void);
+    void ClearLSAs();
 
     /**
      * \brief Link through the given channel and find the net device that's on the other end.
@@ -191,26 +176,10 @@ class RomamRouter : public Object
     Ptr<NetDevice> GetAdjacent(Ptr<NetDevice> nd, Ptr<Channel> ch) const;
 
     /**
-     * \brief Given a node and a net device, find an IPV4 interface index that corresponds
-     *        to that net device.
-     *
-     * This function may fail for various reasons.  If a node
-     * does not have an internet stack (for example if it is a bridge) we won't have
-     * an IPv4 at all.  If the node does have a stack, but the net device in question
-     * is bridged, there will not be an interface associated directly with the device.
-     *
-     * \param node the node
-     * \param nd outgoing NetDevice
-     * \param index the IPV4 interface index
-     * \returns true on success
-     */
-    bool FindInterfaceForDevice(Ptr<Node> node, Ptr<NetDevice> nd, uint32_t& index) const;
-
-    /**
      * \brief Finds a designated router
      *
      * Given a local net device, we need to walk the channel to which the net device is
-     * attached and look for nodes with GlobalRouter interfaces on them (one of them
+     * attached and look for nodes with RomamRouter interfaces on them (one of them
      * will be us).  Of these, the router with the lowest IP address on the net device
      * connecting to the channel becomes the designated router for the link.
      *
@@ -224,7 +193,7 @@ class RomamRouter : public Object
      *
      * Given a node and an attached net device, take a look off in the channel to
      * which the net device is attached and look for a node on the other side
-     * that has a GlobalRouter interface aggregated.
+     * that has a RomamRouter interface aggregated.
      *
      * \param nd NetDevice to scan
      * \returns true if a router is found
@@ -301,13 +270,13 @@ class RomamRouter : public Object
     typedef std::list<LSA*> ListOfLSAs_t; //!< container for the GlobalRoutingLSAs
     ListOfLSAs_t m_LSAs;                  //!< database of GlobalRoutingLSAs
 
-    Ipv4Address m_routerId;              //!< router ID (its IPv4 address)
-    Ptr<RomamRouting> m_routingProtocol; //!< the Ipv4GlobalRouting in use
+    Ipv4Address m_routerId; //!< router ID (its IPv4 address)
+    // Ptr<Ipv4GlobalRouting> m_routingProtocol; //!< the Ipv4GlobalRouting in use
 
-    typedef std::list<RouteInfoEntry*> InjectedRoutes; //!< container of Ipv4RoutingTableEntry
-    typedef std::list<RouteInfoEntry*>::const_iterator
+    typedef std::list<DijkstraRIE*> InjectedRoutes; //!< container of Ipv4RoutingTableEntry
+    typedef std::list<DijkstraRIE*>::const_iterator
         InjectedRoutesCI; //!< Const Iterator to container of Ipv4RoutingTableEntry
-    typedef std::list<RouteInfoEntry*>::iterator
+    typedef std::list<DijkstraRIE*>::iterator
         InjectedRoutesI;             //!< Iterator to container of Ipv4RoutingTableEntry
     InjectedRoutes m_injectedRoutes; //!< Routes we are exporting
 
@@ -320,7 +289,7 @@ class RomamRouter : public Object
     /**
      * Clear the list of bridges visited on the link
      */
-    void ClearBridgesVisited(void) const;
+    void ClearBridgesVisited() const;
     /**
      * When recursively checking for devices on the link, check whether a
      * given device has already been visited.
@@ -336,22 +305,6 @@ class RomamRouter : public Object
      * \param device the bridge device to mark
      */
     void MarkBridgeAsVisited(Ptr<BridgeNetDevice> device) const;
-
-    // inherited from Object
-    virtual void DoDispose(void);
-
-    /**
-     * @brief Global Router copy construction is disallowed.
-     * @param sr object to copy from.
-     */
-    RomamRouter(RomamRouter& sr);
-
-    /**
-     * @brief Global Router assignment operator is disallowed.
-     * @param sr object to copy from.
-     * @returns The object copied.
-     */
-    RomamRouter& operator=(RomamRouter& sr);
 };
 
 } // namespace ns3

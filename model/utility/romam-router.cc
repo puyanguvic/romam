@@ -1,11 +1,8 @@
-/* -*- Mode:C++; c-file-style:"gnu"; indent-tabs-mode:nil; -*- */
 
 #include "romam-router.h"
 
 #include "../datapath/lsa.h"
-#include "../datapath/lsdb.h"
-#include "../romam-routing.h"
-// #include "../routing_algorithm/ipv4-route-info-entry.h"
+#include "../routing_algorithm/dijkstra-route-info-entry.h"
 #include "route-manager.h"
 
 #include "ns3/abort.h"
@@ -29,9 +26,9 @@ NS_LOG_COMPONENT_DEFINE("RomamRouter");
 NS_OBJECT_ENSURE_REGISTERED(RomamRouter);
 
 TypeId
-RomamRouter::GetTypeId(void)
+RomamRouter::GetTypeId()
 {
-    static TypeId tid = TypeId("ns3::RomamRouter").SetParent<Object>().SetGroupName("romam");
+    static TypeId tid = TypeId("ns3::RomamRouter").SetParent<Object>().SetGroupName("Romam");
     return tid;
 }
 
@@ -49,25 +46,11 @@ RomamRouter::~RomamRouter()
 }
 
 void
-RomamRouter::SetRoutingProtocol(Ptr<RomamRouting> routing)
-{
-    NS_LOG_FUNCTION(this << routing);
-    m_routingProtocol = routing;
-}
-
-Ptr<RomamRouting>
-RomamRouter::GetRoutingProtocol(void)
-{
-    NS_LOG_FUNCTION(this);
-    return m_routingProtocol;
-}
-
-void
 RomamRouter::DoDispose()
 {
+    // TODO: need to be override in the subclasses
     NS_LOG_FUNCTION(this);
-    m_routingProtocol = 0;
-    for (InjectedRoutesI k = m_injectedRoutes.begin(); k != m_injectedRoutes.end();
+    for (auto k = m_injectedRoutes.begin(); k != m_injectedRoutes.end();
          k = m_injectedRoutes.erase(k))
     {
         delete (*k);
@@ -79,22 +62,22 @@ void
 RomamRouter::ClearLSAs()
 {
     NS_LOG_FUNCTION(this);
-    for (ListOfLSAs_t::iterator i = m_LSAs.begin(); i != m_LSAs.end(); i++)
+    for (auto i = m_LSAs.begin(); i != m_LSAs.end(); i++)
     {
         NS_LOG_LOGIC("Free LSA");
 
         LSA* p = *i;
         delete p;
-        p = 0;
+        p = nullptr;
 
-        *i = 0;
+        *i = nullptr;
     }
     NS_LOG_LOGIC("Clear list of LSAs");
     m_LSAs.clear();
 }
 
 Ipv4Address
-RomamRouter::GetRouterId(void) const
+RomamRouter::GetRouterId() const
 {
     NS_LOG_FUNCTION(this);
     return m_routerId;
@@ -136,7 +119,7 @@ RomamRouter::DiscoverLSAs()
     //
     // Every router node originates a Router-LSA
     //
-    LSA* pLSA = new LSA;
+    auto pLSA = new LSA;
     pLSA->SetLSType(LSA::RouterLSA);
     pLSA->SetLinkStateId(m_routerId);
     pLSA->SetAdvertisingRouter(m_routerId);
@@ -171,11 +154,9 @@ RomamRouter::DiscoverLSAs()
         //
         if (NetDeviceIsBridged(ndLocal))
         {
-            // Initialize to value out of bounds to silence compiler
-            uint32_t interfaceBridge = ipv4Local->GetNInterfaces() + 1;
-            bool rc = FindInterfaceForDevice(node, ndLocal, interfaceBridge);
+            int32_t ifIndex = ipv4Local->GetInterfaceForDevice(ndLocal);
             NS_ABORT_MSG_IF(
-                rc,
+                ifIndex != -1,
                 "RomamRouter::DiscoverLSAs(): Bridge ports must not have an IPv4 interface index");
         }
 
@@ -185,18 +166,9 @@ RomamRouter::DiscoverLSAs()
         // associated with a bridge.  We are only going to involve devices with
         // IP addresses in routing.
         //
-        bool isForwarding = false;
-        for (uint32_t j = 0; j < ipv4Local->GetNInterfaces(); ++j)
-        {
-            if (ipv4Local->GetNetDevice(j) == ndLocal && ipv4Local->IsUp(j) &&
-                ipv4Local->IsForwarding(j))
-            {
-                isForwarding = true;
-                break;
-            }
-        }
-
-        if (!isForwarding)
+        int32_t interfaceNumber = ipv4Local->GetInterfaceForDevice(ndLocal);
+        if (interfaceNumber == -1 ||
+            !(ipv4Local->IsUp(interfaceNumber) && ipv4Local->IsForwarding(interfaceNumber)))
         {
             NS_LOG_LOGIC("Net device "
                          << ndLocal
@@ -233,7 +205,7 @@ RomamRouter::DiscoverLSAs()
     NS_LOG_LOGIC("========== LSA for node " << node->GetId() << " ==========");
     NS_LOG_LOGIC(*pLSA);
     m_LSAs.push_back(pLSA);
-    pLSA = 0;
+    pLSA = nullptr;
 
     //
     // Now, determine whether we need to build a NetworkLSA.  This is the case if
@@ -250,9 +222,9 @@ RomamRouter::DiscoverLSAs()
     // Build injected route LSAs as external routes
     // RFC 2328, section 12.4.4
     //
-    for (InjectedRoutesCI i = m_injectedRoutes.begin(); i != m_injectedRoutes.end(); i++)
+    for (auto i = m_injectedRoutes.begin(); i != m_injectedRoutes.end(); i++)
     {
-        LSA* pLSA = new LSA;
+        auto pLSA = new LSA;
         pLSA->SetLSType(LSA::ASExternalLSAs);
         pLSA->SetLinkStateId((*i)->GetDestNetwork());
         pLSA->SetAdvertisingRouter(m_routerId);
@@ -283,8 +255,9 @@ RomamRouter::ProcessSingleBroadcastLink(Ptr<NetDevice> nd, LSA* pLSA, NetDeviceC
 {
     NS_LOG_FUNCTION(this << nd << pLSA << &c);
 
-    LinkRecord* plr = new LinkRecord;
-    NS_ABORT_MSG_IF(plr == 0, "RomamRouter::ProcessSingleBroadcastLink(): Can't alloc link record");
+    auto plr = new LinkRecord;
+    NS_ABORT_MSG_IF(plr == nullptr,
+                    "RomamRouter::ProcessSingleBroadcastLink(): Can't alloc link record");
 
     //
     // We have some preliminaries to do to get enough information to proceed.
@@ -300,11 +273,9 @@ RomamRouter::ProcessSingleBroadcastLink(Ptr<NetDevice> nd, LSA* pLSA, NetDeviceC
         ipv4Local,
         "RomamRouter::ProcessSingleBroadcastLink (): GetObject for <Ipv4> interface failed");
 
-    // Initialize to value out of bounds to silence compiler
-    uint32_t interfaceLocal = ipv4Local->GetNInterfaces() + 1;
-    bool rc = FindInterfaceForDevice(node, nd, interfaceLocal);
+    int32_t interfaceLocal = ipv4Local->GetInterfaceForDevice(nd);
     NS_ABORT_MSG_IF(
-        rc == false,
+        interfaceLocal == -1,
         "RomamRouter::ProcessSingleBroadcastLink(): No interface index associated with device");
 
     if (ipv4Local->GetNAddresses(interfaceLocal) > 1)
@@ -323,7 +294,7 @@ RomamRouter::ProcessSingleBroadcastLink(Ptr<NetDevice> nd, LSA* pLSA, NetDeviceC
     // is a transit network.
     //
     ClearBridgesVisited();
-    if (AnotherRouterOnLink(nd) == false)
+    if (!AnotherRouterOnLink(nd))
     {
         //
         // This is a net device connected to a stub network
@@ -345,7 +316,7 @@ RomamRouter::ProcessSingleBroadcastLink(Ptr<NetDevice> nd, LSA* pLSA, NetDeviceC
         plr->SetLinkData(maskLocalAddr);
         plr->SetMetric(metricLocal);
         pLSA->AddLinkRecord(plr);
-        plr = 0;
+        plr = nullptr;
     }
     else
     {
@@ -363,29 +334,29 @@ RomamRouter::ProcessSingleBroadcastLink(Ptr<NetDevice> nd, LSA* pLSA, NetDeviceC
         // case.
         //
         ClearBridgesVisited();
-        Ipv4Address desigRtr;
-        desigRtr = FindDesignatedRouterForLink(nd);
+        Ipv4Address designatedRtr;
+        designatedRtr = FindDesignatedRouterForLink(nd);
 
         //
         // Let's double-check that any designated router we find out on our
         // network is really on our network.
         //
-        if (desigRtr != "255.255.255.255")
+        if (designatedRtr != "255.255.255.255")
         {
             Ipv4Address networkHere = addrLocal.CombineMask(maskLocal);
-            Ipv4Address networkThere = desigRtr.CombineMask(maskLocal);
+            Ipv4Address networkThere = designatedRtr.CombineMask(maskLocal);
             NS_ABORT_MSG_UNLESS(
                 networkHere == networkThere,
                 "RomamRouter::ProcessSingleBroadcastLink(): Network number confusion ("
-                    << addrLocal << "/" << maskLocal.GetPrefixLength() << ", " << desigRtr << "/"
-                    << maskLocal.GetPrefixLength() << ")");
+                    << addrLocal << "/" << maskLocal.GetPrefixLength() << ", " << designatedRtr
+                    << "/" << maskLocal.GetPrefixLength() << ")");
         }
-        if (desigRtr == addrLocal)
+        if (designatedRtr == addrLocal)
         {
             c.Add(nd);
             NS_LOG_LOGIC("Node " << node->GetId() << " elected a designated router");
         }
-        plr->SetLinkId(desigRtr);
+        plr->SetLinkId(designatedRtr);
 
         //
         // OSPF says that the Link Data is this router's own IP address.
@@ -393,7 +364,7 @@ RomamRouter::ProcessSingleBroadcastLink(Ptr<NetDevice> nd, LSA* pLSA, NetDeviceC
         plr->SetLinkData(addrLocal);
         plr->SetMetric(metricLocal);
         pLSA->AddLinkRecord(plr);
-        plr = 0;
+        plr = nullptr;
     }
 }
 
@@ -421,7 +392,7 @@ RomamRouter::ProcessBridgedBroadcastLink(Ptr<NetDevice> nd, LSA* pLSA, NetDevice
   //
   // We have some preliminaries to do to get enough information to proceed.
   // This information we need comes from the internet stack, so notice that
-  // there is an implied assumption that global routing is only going to 
+  // there is an implied assumption that global routing is only going to
   // work with devices attached to the internet stack (have an ipv4 interface
   // associated to them.
   //
@@ -429,10 +400,8 @@ RomamRouter::ProcessBridgedBroadcastLink(Ptr<NetDevice> nd, LSA* pLSA, NetDevice
   Ptr<Ipv4> ipv4Local = node->GetObject<Ipv4> ();
   NS_ABORT_MSG_UNLESS (ipv4Local, "RomamRouter::ProcessBridgedBroadcastLink (): GetObject for <Ipv4> interface failed");
 
-  // Initialize to value out of bounds to silence compiler
-  uint32_t interfaceLocal = ipv4Local->GetNInterfaces () + 1;
-  bool rc = FindInterfaceForDevice (node, nd, interfaceLocal);
-  NS_ABORT_MSG_IF (rc == false, "RomamRouter::ProcessBridgedBroadcastLink(): No interface index associated with device");
+  int32_t interfaceLocal = ipv4Local->GetInterfaceForDevice (nd);
+  NS_ABORT_MSG_IF (interfaceLocal == -1, "RomamRouter::ProcessBridgedBroadcastLink(): No interface index associated with device");
 
   if (ipv4Local->GetNAddresses (interfaceLocal) > 1)
     {
@@ -444,16 +413,16 @@ RomamRouter::ProcessBridgedBroadcastLink(Ptr<NetDevice> nd, LSA* pLSA, NetDevice
   uint16_t metricLocal = ipv4Local->GetMetric (interfaceLocal);
 
   //
-  // We need to handle a bridge on the router.  This means that we have been 
+  // We need to handle a bridge on the router.  This means that we have been
   // given a net device that is a BridgeNetDevice.  It has an associated Ipv4
   // interface index and address.  Some number of other net devices live "under"
   // the bridge device as so-called bridge ports.  In a nutshell, what we have
-  // to do is to repeat what is done for a single broadcast link on all of 
+  // to do is to repeat what is done for a single broadcast link on all of
   // those net devices living under the bridge (trolls?)
   //
 
   bool areTransitNetwork = false;
-  Ipv4Address desigRtr ("255.255.255.255");
+  Ipv4Address designatedRtr ("255.255.255.255");
 
   for (uint32_t i = 0; i < bnd->GetNBridgePorts (); ++i)
     {
@@ -472,29 +441,29 @@ RomamRouter::ProcessBridgedBroadcastLink(Ptr<NetDevice> nd, LSA* pLSA, NetDevice
           //
           // If we're going to be a transit network, then we have got to elect
           // a designated router for the whole bridge.  This means finding the
-          // router with the lowest IP address on the whole bridge.  We ask 
+          // router with the lowest IP address on the whole bridge.  We ask
           // for the lowest address on each segment and pick the lowest of them
           // all.
           //
           ClearBridgesVisited ();
-          Ipv4Address desigRtrTemp = FindDesignatedRouterForLink (ndTemp);
+          Ipv4Address designatedRtrTemp = FindDesignatedRouterForLink (ndTemp);
 
           //
           // Let's double-check that any designated router we find out on our
           // network is really on our network.
           //
-          if (desigRtrTemp != "255.255.255.255")
+          if (designatedRtrTemp != "255.255.255.255")
             {
               Ipv4Address networkHere = addrLocal.CombineMask (maskLocal);
-              Ipv4Address networkThere = desigRtrTemp.CombineMask (maskLocal);
-              NS_ABORT_MSG_UNLESS (networkHere == networkThere, 
+              Ipv4Address networkThere = designatedRtrTemp.CombineMask (maskLocal);
+              NS_ABORT_MSG_UNLESS (networkHere == networkThere,
                                    "RomamRouter::ProcessSingleBroadcastLink(): Network number confusion (" <<
                                    addrLocal << "/" << maskLocal.GetPrefixLength () << ", " <<
-                                   desigRtrTemp << "/" << maskLocal.GetPrefixLength () << ")");
+                                   designatedRtrTemp << "/" << maskLocal.GetPrefixLength () << ")");
             }
-          if (desigRtrTemp < desigRtr)
+          if (designatedRtrTemp < designatedRtr)
             {
-              desigRtr = desigRtrTemp;
+              designatedRtr = designatedRtrTemp;
             }
         }
     }
@@ -503,7 +472,7 @@ RomamRouter::ProcessBridgedBroadcastLink(Ptr<NetDevice> nd, LSA* pLSA, NetDevice
   // in the case of a single broadcast link.
   //
 
-  LinkRecord *plr = new LinkRecord;
+  GlobalRoutingLinkRecord *plr = new GlobalRoutingLinkRecord;
   NS_ABORT_MSG_IF (plr == 0, "RomamRouter::ProcessBridgedBroadcastLink(): Can't alloc link record");
 
   if (areTransitNetwork == false)
@@ -512,10 +481,10 @@ RomamRouter::ProcessBridgedBroadcastLink(Ptr<NetDevice> nd, LSA* pLSA, NetDevice
       // This is a net device connected to a bridge of stub networks
       //
       NS_LOG_LOGIC ("Router-LSA Stub Network");
-      plr->SetLinkType (LinkRecord::StubNetwork);
+      plr->SetLinkType (GlobalRoutingLinkRecord::StubNetwork);
 
-      // 
-      // According to OSPF, the Link ID is the IP network number of 
+      //
+      // According to OSPF, the Link ID is the IP network number of
       // the attached network.
       //
       plr->SetLinkId (addrLocal.CombineMask (maskLocal));
@@ -537,20 +506,20 @@ RomamRouter::ProcessBridgedBroadcastLink(Ptr<NetDevice> nd, LSA* pLSA, NetDevice
       // a transit network.
       //
       NS_LOG_LOGIC ("Router-LSA Transit Network");
-      plr->SetLinkType (LinkRecord::TransitNetwork);
+      plr->SetLinkType (GlobalRoutingLinkRecord::TransitNetwork);
 
-      // 
+      //
       // By definition, the router with the lowest IP address is the
       // designated router for the network.  OSPF says that the Link ID
-      // gets the IP interface address of the designated router in this 
+      // gets the IP interface address of the designated router in this
       // case.
       //
-      if (desigRtr == addrLocal) 
+      if (designatedRtr == addrLocal)
         {
           c.Add (nd);
           NS_LOG_LOGIC ("Node " << node->GetId () << " elected a designated router");
         }
-      plr->SetLinkId (desigRtr);
+      plr->SetLinkId (designatedRtr);
 
       //
       // OSPF says that the Link Data is this router's own IP address.
@@ -582,10 +551,9 @@ RomamRouter::ProcessPointToPointLink(Ptr<NetDevice> ndLocal, LSA* pLSA)
         ipv4Local,
         "RomamRouter::ProcessPointToPointLink (): GetObject for <Ipv4> interface failed");
 
-    uint32_t interfaceLocal = ipv4Local->GetNInterfaces() + 1;
-    bool rc = FindInterfaceForDevice(nodeLocal, ndLocal, interfaceLocal);
+    int32_t interfaceLocal = ipv4Local->GetInterfaceForDevice(ndLocal);
     NS_ABORT_MSG_IF(
-        rc == false,
+        interfaceLocal == -1,
         "RomamRouter::ProcessPointToPointLink (): No interface index associated with device");
 
     if (ipv4Local->GetNAddresses(interfaceLocal) > 1)
@@ -642,9 +610,8 @@ RomamRouter::ProcessPointToPointLink(Ptr<NetDevice> ndLocal, LSA* pLSA)
     // Now, just like we did above, we need to get the IP interface index for the
     // net device on the other end of the point-to-point channel.
     //
-    uint32_t interfaceRemote = ipv4Remote->GetNInterfaces() + 1;
-    rc = FindInterfaceForDevice(nodeRemote, ndRemote, interfaceRemote);
-    NS_ABORT_MSG_IF(rc == false,
+    int32_t interfaceRemote = ipv4Remote->GetInterfaceForDevice(ndRemote);
+    NS_ABORT_MSG_IF(interfaceRemote == -1,
                     "RomamRouter::ProcessPointToPointLinks(): No interface index associated with "
                     "remote device");
 
@@ -671,25 +638,26 @@ RomamRouter::ProcessPointToPointLink(Ptr<NetDevice> ndLocal, LSA* pLSA)
         NS_LOG_LOGIC("Remote side interface " << interfaceRemote << " is up-- add a type 1 link");
 
         plr = new LinkRecord;
-        NS_ABORT_MSG_IF(plr == 0,
+        NS_ABORT_MSG_IF(plr == nullptr,
                         "RomamRouter::ProcessPointToPointLink(): Can't alloc link record");
         plr->SetLinkType(LinkRecord::PointToPoint);
         plr->SetLinkId(rtrIdRemote);
         plr->SetLinkData(addrLocal);
         plr->SetMetric(metricLocal);
         pLSA->AddLinkRecord(plr);
-        plr = 0;
+        plr = nullptr;
     }
 
     // Regardless of state of peer, add a type 3 link (RFC 2328: 12.4.1.1)
     plr = new LinkRecord;
-    NS_ABORT_MSG_IF(plr == 0, "RomamRouter::ProcessPointToPointLink(): Can't alloc link record");
+    NS_ABORT_MSG_IF(plr == nullptr,
+                    "RomamRouter::ProcessPointToPointLink(): Can't alloc link record");
     plr->SetLinkType(LinkRecord::StubNetwork);
     plr->SetLinkId(addrRemote);
     plr->SetLinkData(Ipv4Address(maskRemote.Get())); // Frown
     plr->SetMetric(metricLocal);
     pLSA->AddLinkRecord(plr);
-    plr = 0;
+    plr = nullptr;
 }
 
 void
@@ -714,10 +682,9 @@ RomamRouter::BuildNetworkLSAs(NetDeviceContainer c)
             ipv4Local,
             "RomamRouter::ProcessPointToPointLink (): GetObject for <Ipv4> interface failed");
 
-        uint32_t interfaceLocal = ipv4Local->GetNInterfaces() + 1;
-        bool rc = FindInterfaceForDevice(node, ndLocal, interfaceLocal);
+        int32_t interfaceLocal = ipv4Local->GetInterfaceForDevice(ndLocal);
         NS_ABORT_MSG_IF(
-            rc == false,
+            interfaceLocal == -1,
             "RomamRouter::BuildNetworkLSAs (): No interface index associated with device");
 
         if (ipv4Local->GetNAddresses(interfaceLocal) > 1)
@@ -727,8 +694,9 @@ RomamRouter::BuildNetworkLSAs(NetDeviceContainer c)
         Ipv4Address addrLocal = ipv4Local->GetAddress(interfaceLocal, 0).GetLocal();
         Ipv4Mask maskLocal = ipv4Local->GetAddress(interfaceLocal, 0).GetMask();
 
-        LSA* pLSA = new LSA;
-        NS_ABORT_MSG_IF(pLSA == 0, "RomamRouter::BuildNetworkLSAs(): Can't alloc link record");
+        auto pLSA = new LSA;
+        NS_ABORT_MSG_IF(pLSA == nullptr,
+                        "RomamRouter::BuildNetworkLSAs(): Can't alloc link record");
 
         pLSA->SetLSType(LSA::NetworkLSA);
         pLSA->SetLinkStateId(addrLocal);
@@ -776,8 +744,10 @@ RomamRouter::BuildNetworkLSAs(NetDeviceContainer c)
             // Does the attached node have an ipv4 interface for the device we're probing?
             // If not, it can't play router.
             //
-            uint32_t tempInterface = 0;
-            if (FindInterfaceForDevice(tempNode, tempNd, tempInterface))
+            Ptr<Ipv4> tempIpv4 = tempNode->GetObject<Ipv4>();
+            int32_t tempInterface = tempIpv4->GetInterfaceForDevice(tempNd);
+
+            if (tempInterface != -1)
             {
                 Ptr<Ipv4> tempIpv4 = tempNode->GetObject<Ipv4>();
                 NS_ASSERT(tempIpv4);
@@ -806,7 +776,7 @@ RomamRouter::BuildNetworkLSAs(NetDeviceContainer c)
         m_LSAs.push_back(pLSA);
         NS_LOG_LOGIC("========== LSA for node " << node->GetId() << " ==========");
         NS_LOG_LOGIC(*pLSA);
-        pLSA = 0;
+        pLSA = nullptr;
     }
 }
 
@@ -821,7 +791,7 @@ RomamRouter::FindAllNonBridgedDevicesOnLink(Ptr<Channel> ch) const
         Ptr<NetDevice> nd = ch->GetDevice(i);
         NS_LOG_LOGIC("checking to see if the device " << nd << " is bridged");
         Ptr<BridgeNetDevice> bnd = NetDeviceIsBridged(nd);
-        if (bnd && BridgeHasAlreadyBeenVisited(bnd) == false)
+        if (bnd && !BridgeHasAlreadyBeenVisited(bnd))
         {
             NS_LOG_LOGIC("Device is bridged by BridgeNetDevice "
                          << bnd << " with " << bnd->GetNBridgePorts() << " ports");
@@ -868,7 +838,7 @@ RomamRouter::FindDesignatedRouterForLink(Ptr<NetDevice> ndLocal) const
     NS_LOG_LOGIC("Looking for designated router off of net device " << ndLocal << " on node "
                                                                     << ndLocal->GetNode()->GetId());
 
-    Ipv4Address desigRtr("255.255.255.255");
+    Ipv4Address designatedRtr("255.255.255.255");
 
     //
     // Look through all of the devices on the channel to which the net device
@@ -918,9 +888,8 @@ RomamRouter::FindDesignatedRouterForLink(Ptr<NetDevice> ndLocal) const
             Ptr<Ipv4> ipv4 = nodeOther->GetObject<Ipv4>();
             if (rtr && ipv4)
             {
-                // Initialize to value out of bounds to silence compiler
-                uint32_t interfaceOther = ipv4->GetNInterfaces() + 1;
-                if (FindInterfaceForDevice(nodeOther, bnd, interfaceOther))
+                int32_t interfaceOther = ipv4->GetInterfaceForDevice(bnd);
+                if (interfaceOther != -1)
                 {
                     NS_LOG_LOGIC("Found router on bridge net device " << bnd);
                     if (!ipv4->IsUp(interfaceOther))
@@ -934,8 +903,8 @@ RomamRouter::FindDesignatedRouterForLink(Ptr<NetDevice> ndLocal) const
                                     "primary one");
                     }
                     Ipv4Address addrOther = ipv4->GetAddress(interfaceOther, 0).GetLocal();
-                    desigRtr = addrOther < desigRtr ? addrOther : desigRtr;
-                    NS_LOG_LOGIC("designated router now " << desigRtr);
+                    designatedRtr = addrOther < designatedRtr ? addrOther : designatedRtr;
+                    NS_LOG_LOGIC("designated router now " << designatedRtr);
                 }
             }
 
@@ -965,8 +934,8 @@ RomamRouter::FindDesignatedRouterForLink(Ptr<NetDevice> ndLocal) const
 
                 NS_LOG_LOGIC("Recursively looking for routers down bridge port " << ndBridged);
                 Ipv4Address addrOther = FindDesignatedRouterForLink(ndBridged);
-                desigRtr = addrOther < desigRtr ? addrOther : desigRtr;
-                NS_LOG_LOGIC("designated router now " << desigRtr);
+                designatedRtr = addrOther < designatedRtr ? addrOther : designatedRtr;
+                NS_LOG_LOGIC("designated router now " << designatedRtr);
             }
         }
         else
@@ -983,9 +952,8 @@ RomamRouter::FindDesignatedRouterForLink(Ptr<NetDevice> ndLocal) const
             Ptr<Ipv4> ipv4 = nodeOther->GetObject<Ipv4>();
             if (rtr && ipv4)
             {
-                // Initialize to value out of bounds to silence compiler
-                uint32_t interfaceOther = ipv4->GetNInterfaces() + 1;
-                if (FindInterfaceForDevice(nodeOther, ndOther, interfaceOther))
+                int32_t interfaceOther = ipv4->GetInterfaceForDevice(ndOther);
+                if (interfaceOther != -1)
                 {
                     if (!ipv4->IsUp(interfaceOther))
                     {
@@ -999,13 +967,13 @@ RomamRouter::FindDesignatedRouterForLink(Ptr<NetDevice> ndLocal) const
                                     "primary one");
                     }
                     Ipv4Address addrOther = ipv4->GetAddress(interfaceOther, 0).GetLocal();
-                    desigRtr = addrOther < desigRtr ? addrOther : desigRtr;
-                    NS_LOG_LOGIC("designated router now " << desigRtr);
+                    designatedRtr = addrOther < designatedRtr ? addrOther : designatedRtr;
+                    NS_LOG_LOGIC("designated router now " << designatedRtr);
                 }
             }
         }
     }
-    return desigRtr;
+    return designatedRtr;
 }
 
 //
@@ -1118,7 +1086,7 @@ RomamRouter::AnotherRouterOnLink(Ptr<NetDevice> nd) const
 }
 
 uint32_t
-RomamRouter::GetNumLSAs(void) const
+RomamRouter::GetNumLSAs() const
 {
     NS_LOG_FUNCTION(this);
     return m_LSAs.size();
@@ -1137,7 +1105,7 @@ RomamRouter::GetLSA(uint32_t n, LSA& lsa) const
     // walk the list of link state advertisements created there and return the
     // one the client is interested in.
     //
-    ListOfLSAs_t::const_iterator i = m_LSAs.begin();
+    auto i = m_LSAs.begin();
     uint32_t j = 0;
 
     for (; i != m_LSAs.end(); i++, j++)
@@ -1157,22 +1125,22 @@ void
 RomamRouter::InjectRoute(Ipv4Address network, Ipv4Mask networkMask)
 {
     NS_LOG_FUNCTION(this << network << networkMask);
-    Ipv4RouteInfoEntry* route = new Ipv4RouteInfoEntry();
+    auto route = new DijkstraRIE();
     //
     // Interface number does not matter here, using 1.
     //
-    *route = Ipv4RouteInfoEntry::CreateNetworkRouteTo(network, networkMask, 1);
+    *route = DijkstraRIE::CreateNetworkRouteTo(network, networkMask, 1);
     m_injectedRoutes.push_back(route);
 }
 
-Ipv4RouteInfoEntry*
+DijkstraRIE*
 RomamRouter::GetInjectedRoute(uint32_t index)
 {
     NS_LOG_FUNCTION(this << index);
     if (index < m_injectedRoutes.size())
     {
         uint32_t tmp = 0;
-        for (InjectedRoutesCI i = m_injectedRoutes.begin(); i != m_injectedRoutes.end(); i++)
+        for (auto i = m_injectedRoutes.begin(); i != m_injectedRoutes.end(); i++)
         {
             if (tmp == index)
             {
@@ -1183,7 +1151,7 @@ RomamRouter::GetInjectedRoute(uint32_t index)
     }
     NS_ASSERT(false);
     // quiet compiler.
-    return 0;
+    return nullptr;
 }
 
 uint32_t
@@ -1199,7 +1167,7 @@ RomamRouter::RemoveInjectedRoute(uint32_t index)
     NS_LOG_FUNCTION(this << index);
     NS_ASSERT(index < m_injectedRoutes.size());
     uint32_t tmp = 0;
-    for (InjectedRoutesI i = m_injectedRoutes.begin(); i != m_injectedRoutes.end(); i++)
+    for (auto i = m_injectedRoutes.begin(); i != m_injectedRoutes.end(); i++)
     {
         if (tmp == index)
         {
@@ -1216,7 +1184,7 @@ bool
 RomamRouter::WithdrawRoute(Ipv4Address network, Ipv4Mask networkMask)
 {
     NS_LOG_FUNCTION(this << network << networkMask);
-    for (InjectedRoutesI i = m_injectedRoutes.begin(); i != m_injectedRoutes.end(); i++)
+    for (auto i = m_injectedRoutes.begin(); i != m_injectedRoutes.end(); i++)
     {
         if ((*i)->GetDestNetwork() == network && (*i)->GetDestNetworkMask() == networkMask)
         {
@@ -1260,42 +1228,8 @@ RomamRouter::GetAdjacent(Ptr<NetDevice> nd, Ptr<Channel> ch) const
     else
     {
         NS_ASSERT_MSG(false, "RomamRouter::GetAdjacent (): Wrong or confused channel?");
-        return 0;
+        return nullptr;
     }
-}
-
-//
-// Given a node and a net device, find an IPV4 interface index that corresponds
-// to that net device.  This function may fail for various reasons.  If a node
-// does not have an internet stack (for example if it is a bridge) we won't have
-// an IPv4 at all.  If the node does have a stack, but the net device in question
-// is bridged, there will not be an interface associated directly with the device.
-//
-bool
-RomamRouter::FindInterfaceForDevice(Ptr<Node> node, Ptr<NetDevice> nd, uint32_t& index) const
-{
-    NS_LOG_FUNCTION(this << node << nd << &index);
-    NS_LOG_LOGIC("For node " << node->GetId() << " for net device " << nd);
-
-    Ptr<Ipv4> ipv4 = node->GetObject<Ipv4>();
-    if (!ipv4)
-    {
-        NS_LOG_LOGIC("No Ipv4 interface on node " << node->GetId());
-        return false;
-    }
-
-    for (uint32_t i = 0; i < ipv4->GetNInterfaces(); ++i)
-    {
-        if (ipv4->GetNetDevice(i) == nd)
-        {
-            NS_LOG_LOGIC("Device " << nd << " has associated ipv4 index " << i);
-            index = i;
-            return true;
-        }
-    }
-
-    NS_LOG_LOGIC("Device " << nd << " has no associated ipv4 index");
-    return false;
 }
 
 //
@@ -1340,14 +1274,14 @@ RomamRouter::NetDeviceIsBridged(Ptr<NetDevice> nd) const
         }
     }
     NS_LOG_LOGIC("Net device " << nd << " is not bridged");
-    return 0;
+    return nullptr;
 }
 
 //
 // Start a new enumeration of an L2 broadcast domain by clearing m_bridgesVisited
 //
 void
-RomamRouter::ClearBridgesVisited(void) const
+RomamRouter::ClearBridgesVisited() const
 {
     m_bridgesVisited.clear();
 }
@@ -1358,8 +1292,7 @@ RomamRouter::ClearBridgesVisited(void) const
 bool
 RomamRouter::BridgeHasAlreadyBeenVisited(Ptr<BridgeNetDevice> bridgeNetDevice) const
 {
-    std::vector<Ptr<BridgeNetDevice>>::iterator iter;
-    for (iter = m_bridgesVisited.begin(); iter != m_bridgesVisited.end(); ++iter)
+    for (auto iter = m_bridgesVisited.begin(); iter != m_bridgesVisited.end(); ++iter)
     {
         if (bridgeNetDevice == *iter)
         {

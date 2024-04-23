@@ -22,6 +22,7 @@ set (source_files
     # model/routing_algorithm/spf-route-info-entry.cc
     
     model/utility/romam-router.cc
+    model/utility/ospf-router.cc
     model/utility/route-manager.cc
 
     model/romam-routing.cc
@@ -53,6 +54,7 @@ set (header_files
     # model/routing_algorithm/spf-route-info-entry.h
 
     model/utility/romam-router.h
+    model/utility/ospf-router.h
     model/utility/route-manager.h
 
     model/romam-routing.h

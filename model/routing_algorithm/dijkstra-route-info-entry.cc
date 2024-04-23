@@ -6,19 +6,19 @@
 namespace ns3
 {
 
-NS_LOG_COMPONENT_DEFINE("DijkstraRTE");
+NS_LOG_COMPONENT_DEFINE("DijkstraRIE");
 
-DijkstraRTE::DijkstraRTE()
+DijkstraRIE::DijkstraRIE()
 {
     NS_LOG_FUNCTION(this);
 }
 
-DijkstraRTE::~DijkstraRTE()
+DijkstraRIE::~DijkstraRIE()
 {
     NS_LOG_FUNCTION(this);
 }
 
-DijkstraRTE::DijkstraRTE(const DijkstraRTE& route)
+DijkstraRIE::DijkstraRIE(const DijkstraRIE& route)
     : m_dest(route.m_dest),
       m_destNetworkMask(route.m_destNetworkMask),
       m_gateway(route.m_gateway),
@@ -27,7 +27,7 @@ DijkstraRTE::DijkstraRTE(const DijkstraRTE& route)
     NS_LOG_FUNCTION(this << route);
 }
 
-DijkstraRTE::DijkstraRTE(const DijkstraRTE* route)
+DijkstraRIE::DijkstraRIE(const DijkstraRIE* route)
     : m_dest(route->m_dest),
       m_destNetworkMask(route->m_destNetworkMask),
       m_gateway(route->m_gateway),
@@ -36,7 +36,7 @@ DijkstraRTE::DijkstraRTE(const DijkstraRTE* route)
     NS_LOG_FUNCTION(this << route);
 }
 
-DijkstraRTE::DijkstraRTE(Ipv4Address dest, Ipv4Address gateway, uint32_t interface)
+DijkstraRIE::DijkstraRIE(Ipv4Address dest, Ipv4Address gateway, uint32_t interface)
     : m_dest(dest),
       m_destNetworkMask(Ipv4Mask::GetOnes()),
       m_gateway(gateway),
@@ -44,7 +44,7 @@ DijkstraRTE::DijkstraRTE(Ipv4Address dest, Ipv4Address gateway, uint32_t interfa
 {
 }
 
-DijkstraRTE::DijkstraRTE(Ipv4Address dest, uint32_t interface)
+DijkstraRIE::DijkstraRIE(Ipv4Address dest, uint32_t interface)
     : m_dest(dest),
       m_destNetworkMask(Ipv4Mask::GetOnes()),
       m_gateway(Ipv4Address::GetZero()),
@@ -52,7 +52,7 @@ DijkstraRTE::DijkstraRTE(Ipv4Address dest, uint32_t interface)
 {
 }
 
-DijkstraRTE::DijkstraRTE(Ipv4Address network,
+DijkstraRIE::DijkstraRIE(Ipv4Address network,
                          Ipv4Mask networkMask,
                          Ipv4Address gateway,
                          uint32_t interface)
@@ -64,7 +64,7 @@ DijkstraRTE::DijkstraRTE(Ipv4Address network,
     NS_LOG_FUNCTION(this << network << networkMask << gateway << interface);
 }
 
-DijkstraRTE::DijkstraRTE(Ipv4Address network, Ipv4Mask networkMask, uint32_t interface)
+DijkstraRIE::DijkstraRIE(Ipv4Address network, Ipv4Mask networkMask, uint32_t interface)
     : m_dest(network),
       m_destNetworkMask(networkMask),
       m_gateway(Ipv4Address::GetZero()),
@@ -74,108 +74,108 @@ DijkstraRTE::DijkstraRTE(Ipv4Address network, Ipv4Mask networkMask, uint32_t int
 }
 
 bool
-DijkstraRTE::IsHost() const
+DijkstraRIE::IsHost() const
 {
     NS_LOG_FUNCTION(this);
     return m_destNetworkMask == Ipv4Mask::GetOnes();
 }
 
 Ipv4Address
-DijkstraRTE::GetDest() const
+DijkstraRIE::GetDest() const
 {
     NS_LOG_FUNCTION(this);
     return m_dest;
 }
 
 bool
-DijkstraRTE::IsNetwork() const
+DijkstraRIE::IsNetwork() const
 {
     NS_LOG_FUNCTION(this);
     return !IsHost();
 }
 
 bool
-DijkstraRTE::IsDefault() const
+DijkstraRIE::IsDefault() const
 {
     NS_LOG_FUNCTION(this);
     return m_dest == Ipv4Address::GetZero();
 }
 
 Ipv4Address
-DijkstraRTE::GetDestNetwork() const
+DijkstraRIE::GetDestNetwork() const
 {
     NS_LOG_FUNCTION(this);
     return m_dest;
 }
 
 Ipv4Mask
-DijkstraRTE::GetDestNetworkMask() const
+DijkstraRIE::GetDestNetworkMask() const
 {
     NS_LOG_FUNCTION(this);
     return m_destNetworkMask;
 }
 
 bool
-DijkstraRTE::IsGateway() const
+DijkstraRIE::IsGateway() const
 {
     NS_LOG_FUNCTION(this);
     return m_gateway != Ipv4Address::GetZero();
 }
 
 Ipv4Address
-DijkstraRTE::GetGateway() const
+DijkstraRIE::GetGateway() const
 {
     NS_LOG_FUNCTION(this);
     return m_gateway;
 }
 
 uint32_t
-DijkstraRTE::GetInterface() const
+DijkstraRIE::GetInterface() const
 {
     NS_LOG_FUNCTION(this);
     return m_interface;
 }
 
-DijkstraRTE
-DijkstraRTE::CreateHostRouteTo(Ipv4Address dest, Ipv4Address nextHop, uint32_t interface)
+DijkstraRIE
+DijkstraRIE::CreateHostRouteTo(Ipv4Address dest, Ipv4Address nextHop, uint32_t interface)
 {
     NS_LOG_FUNCTION(dest << nextHop << interface);
-    return DijkstraRTE(dest, nextHop, interface);
+    return DijkstraRIE(dest, nextHop, interface);
 }
 
-DijkstraRTE
-DijkstraRTE::CreateHostRouteTo(Ipv4Address dest, uint32_t interface)
+DijkstraRIE
+DijkstraRIE::CreateHostRouteTo(Ipv4Address dest, uint32_t interface)
 {
     NS_LOG_FUNCTION(dest << interface);
-    return DijkstraRTE(dest, interface);
+    return DijkstraRIE(dest, interface);
 }
 
-DijkstraRTE
-DijkstraRTE::CreateNetworkRouteTo(Ipv4Address network,
+DijkstraRIE
+DijkstraRIE::CreateNetworkRouteTo(Ipv4Address network,
                                   Ipv4Mask networkMask,
                                   Ipv4Address nextHop,
                                   uint32_t interface)
 {
     NS_LOG_FUNCTION(network << networkMask << nextHop << interface);
-    return DijkstraRTE(network, networkMask, nextHop, interface);
+    return DijkstraRIE(network, networkMask, nextHop, interface);
 }
 
-DijkstraRTE
-DijkstraRTE::CreateNetworkRouteTo(Ipv4Address network, Ipv4Mask networkMask, uint32_t interface)
+DijkstraRIE
+DijkstraRIE::CreateNetworkRouteTo(Ipv4Address network, Ipv4Mask networkMask, uint32_t interface)
 {
     NS_LOG_FUNCTION(network << networkMask << interface);
-    return DijkstraRTE(network, networkMask, interface);
+    return DijkstraRIE(network, networkMask, interface);
 }
 
-DijkstraRTE
-DijkstraRTE::CreateDefaultRoute(Ipv4Address nextHop, uint32_t interface)
+DijkstraRIE
+DijkstraRIE::CreateDefaultRoute(Ipv4Address nextHop, uint32_t interface)
 {
     NS_LOG_FUNCTION(nextHop << interface);
-    return DijkstraRTE(Ipv4Address::GetZero(), Ipv4Mask::GetZero(), nextHop, interface);
+    return DijkstraRIE(Ipv4Address::GetZero(), Ipv4Mask::GetZero(), nextHop, interface);
 }
 
 std::ostream&
-operator<<(std::ostream& os, const DijkstraRTE& route)
+operator<<(std::ostream& os, const DijkstraRIE& route)
 {
     if (route.IsDefault())
     {
@@ -215,7 +215,7 @@ operator<<(std::ostream& os, const DijkstraRTE& route)
 }
 
 bool
-operator==(const DijkstraRTE a, const DijkstraRTE b)
+operator==(const DijkstraRIE a, const DijkstraRIE b)
 {
     return (a.GetDest() == b.GetDest() && a.GetDestNetworkMask() == b.GetDestNetworkMask() &&
             a.GetGateway() == b.GetGateway() && a.GetInterface() == b.GetInterface());
