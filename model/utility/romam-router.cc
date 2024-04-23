@@ -5,8 +5,8 @@
 #include "../datapath/lsa.h"
 #include "../datapath/lsdb.h"
 #include "../romam-routing.h"
-#include "../routing_algorithm/ipv4-route-info-entry.h"
-#include "router-manager.h"
+// #include "../routing_algorithm/ipv4-route-info-entry.h"
+#include "route-manager.h"
 
 #include "ns3/abort.h"
 #include "ns3/assert.h"
@@ -39,7 +39,7 @@ RomamRouter::RomamRouter()
     : m_LSAs()
 {
     NS_LOG_FUNCTION(this);
-    m_routerId.Set(RouterManager::AllocateRouterId());
+    m_routerId.Set(RouteManager::AllocateRouterId());
 }
 
 RomamRouter::~RomamRouter()

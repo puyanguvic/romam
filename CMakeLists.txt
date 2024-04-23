@@ -12,19 +12,21 @@ set (source_files
     # model/datapath/state-machine.cc
     
     # model/priority_manage/ddr-queue-disc.cc
-    # model/routing_algorithm/ipv4-dgr-routing-table-entry.cc
+
+    model/routing_algorithm/routing-algorithm.cc
     model/routing_algorithm/route-info-entry.cc
-    model/routing_algorithm/dijkstra-route-info-entry.cc
-    model/routing_algorithm/spf-route-info-entry.cc
-    # model/routing_algorithm/ipv4-route-info-entry.cc
     model/routing_algorithm/route-candidate-queue.cc
+    model/routing_algorithm/dijkstra-route-info-entry.cc
     model/routing_algorithm/dijkstra-algorithm.cc
-    # model/routing_algorithm/route-manager-impl.cc    
+    # model/routing_algorithm/spf-algorithm.cc
+    # model/routing_algorithm/spf-route-info-entry.cc
+    
     model/utility/romam-router.cc
     model/utility/route-manager.cc
+
     model/romam-routing.cc
-    # model/ospf-in-romam-routing.cc
-    # helper/ospf-in-romam-helper.cc
+    model/ospf-in-romam-routing.cc
+    helper/ospf-in-romam-helper.cc
     helper/romam-routing-helper.cc
 )
 set (header_files
@@ -33,26 +35,29 @@ set (header_files
     model/datapath/global-lsdb-manager.h
     model/datapath/lsa.h
     model/datapath/lsdb.h
+    model/datapath/tsdb.h
     # model/datapath/ospf-headers.h
     # model/datapath/ospf-FSM.h
     # model/datapath/ospf-headers.h
     # model/datapath/romam-tags.h
     # model/datapath/state-machine.h
-    model/datapath/tsdb.h
+
     # model/priority_manage/ddr-queue-disc.h
-    # model/routing_algorithm/ipv4-dgr-routing-table-entry.h
+
+    model/routing_algorithm/routing-algorithm.h
     model/routing_algorithm/route-info-entry.h
-    model/routing_algorithm/dijkstra-route-info-entry.cc
-    model/routing_algorithm/spf-route-info-entry.cc
-    # model/routing_algorithm/ipv4-route-info-entry.h
     model/routing_algorithm/route-candidate-queue.h
+    model/routing_algorithm/dijkstra-route-info-entry.h
     model/routing_algorithm/dijkstra-algorithm.h
-    # model/routing_algorithm/route-manager-impl.h   
+    # model/routing_algorithm/spf-algorithm.h
+    # model/routing_algorithm/spf-route-info-entry.h
+
     model/utility/romam-router.h
     model/utility/route-manager.h
+
     model/romam-routing.h
-    # model/ospf-in-romam-routing.h
-    # helper/ospf-in-romam-helper.h
+    model/ospf-in-romam-routing.h
+    helper/ospf-in-romam-helper.h
     helper/romam-routing-helper.h
 )
 
