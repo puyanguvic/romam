@@ -61,7 +61,7 @@ class DijkstraRTE : public RouteInfoEntry
      * \param nextHop Ipv4Address of the next hop
      * \param interface Outgoing interface
      */
-    DijkstraRTE CreateHostRouteTo(Ipv4Address dest, Ipv4Address nextHop, uint32_t interface);
+    static DijkstraRTE CreateHostRouteTo(Ipv4Address dest, Ipv4Address nextHop, uint32_t interface);
 
     /**
      * \return An DijkstraRTE object corresponding to the input parameters.

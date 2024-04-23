@@ -21,7 +21,7 @@ set (source_files
     model/routing_algorithm/dijkstra-algorithm.cc
     # model/routing_algorithm/route-manager-impl.cc    
     model/utility/romam-router.cc
-    model/utility/router-manager.cc
+    model/utility/route-manager.cc
     model/romam-routing.cc
     # model/ospf-in-romam-routing.cc
     # helper/ospf-in-romam-helper.cc
@@ -49,7 +49,7 @@ set (header_files
     model/routing_algorithm/dijkstra-algorithm.h
     # model/routing_algorithm/route-manager-impl.h   
     model/utility/romam-router.h
-    model/utility/router-manager.h
+    model/utility/route-manager.h
     model/romam-routing.h
     # model/ospf-in-romam-routing.h
     # helper/ospf-in-romam-helper.h

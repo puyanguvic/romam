@@ -41,13 +41,15 @@ class DijkstraAlgorithm : public RoutingAlgorithm
      * \todo  separate manually assigned static routes from static routes that
      * the global routing code injects, and only delete the latter
      */
-    void DeleteRoutes();
+    void DeleteRoutes() override;
 
     /**
      * @brief Compute routes using a dijkstra SPF computation and
      * populate per-node forwarding tables
      */
-    void InitializeRoutes(LSDB* lsdb);
+    void InitializeRoutes() override;
+
+    void InsertLSDB(LSDB* lsdb);
 
   private:
     Vertex* m_spfroot; //!< the root node

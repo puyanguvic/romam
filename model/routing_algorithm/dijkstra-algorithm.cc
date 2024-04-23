@@ -3,6 +3,7 @@
 #include "dijkstra-algorithm.h"
 
 #include "../romam-routing.h"
+#include "../utility/romam-router.h"
 #include "route-candidate-queue.h"
 
 #include "ns3/assert.h"
@@ -77,20 +78,25 @@ DijkstraAlgorithm::DeleteRoutes()
 }
 
 void
-DijkstraAlgorithm::InitializeRoutes(LSDB* lsdb)
+DijkstraAlgorithm::InsertLSDB(LSDB* lsdb)
+{
+    m_lsdb = lsdb;
+}
+
+void
+DijkstraAlgorithm::InitializeRoutes()
 {
     NS_LOG_FUNCTION(this);
     //
     // Walk the list of nodes in the system.
     //
-    if (lsdb == nullptr)
+    if (m_lsdb == nullptr)
     {
-        NS_LOG_LOGIC("Empty LSDB!");
+        NS_LOG_LOGIC("Empty LSDB, please insert LSDB.");
         return;
     }
 
     NS_LOG_INFO("About to start SPF calculation");
-    m_lsdb = lsdb;
     for (auto i = NodeList::Begin(); i != NodeList::End(); i++)
     {
         Ptr<Node> node = *i;
