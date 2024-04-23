@@ -1,27 +1,30 @@
 /* -*- Mode:C++; c-file-style:"gnu"; indent-tabs-mode:nil; -*- */
 
-#include <utility>
-#include <vector>
-#include <queue>
-#include <algorithm>
-#include <iostream>
-#include "ns3/assert.h"
-#include "ns3/fatal-error.h"
-#include "ns3/log.h"
-#include "ns3/node-list.h"
-#include "ns3/ipv4.h"
-#include "ns3/ipv4-routing-protocol.h"
-#include "ns3/ipv4-list-routing.h"
+#include "dijkstra-algorithm.h"
 
-#include "dijkstra's-algorithm.h"
 #include "../romam-routing.h"
 #include "route-candidate-queue.h"
-#include <ctime>
+
+#include "ns3/assert.h"
+#include "ns3/fatal-error.h"
+#include "ns3/ipv4-list-routing.h"
+#include "ns3/ipv4-routing-protocol.h"
+#include "ns3/ipv4.h"
+#include "ns3/log.h"
+#include "ns3/node-list.h"
+
+#include <algorithm>
 #include <chrono>
+#include <ctime>
+#include <iostream>
+#include <queue>
+#include <utility>
+#include <vector>
 
-namespace ns3 {
+namespace ns3
+{
 
-NS_LOG_COMPONENT_DEFINE ("DijkstraAlgorithm");
+NS_LOG_COMPONENT_DEFINE("DijkstraAlgorithm");
 
 DijkstraAlgorithm::DijkstraAlgorithm()
     : m_spfroot(nullptr)
@@ -74,7 +77,7 @@ DijkstraAlgorithm::DeleteRoutes()
 }
 
 void
-DijkstraAlgorithm::InitializeRoutes (LSDB* lsdb)
+DijkstraAlgorithm::InitializeRoutes(LSDB* lsdb)
 {
     NS_LOG_FUNCTION(this);
     //
@@ -82,7 +85,7 @@ DijkstraAlgorithm::InitializeRoutes (LSDB* lsdb)
     //
     if (lsdb == nullptr)
     {
-        NS_LOG_LOGIC ("Empty LSDB!");
+        NS_LOG_LOGIC("Empty LSDB!");
         return;
     }
 
@@ -269,8 +272,7 @@ DijkstraAlgorithm::SPFNext(Vertex* v, RouteCandidateQueue& candidate)
             else
             {
                 NS_ASSERT_MSG(0,
-                              "SPFNexthopCalculation never "
-                                  << "return false, but it does now!");
+                              "SPFNexthopCalculation never " << "return false, but it does now!");
             }
         }
         else if (w_lsa->GetStatus() == LSA::LSA_SPF_CANDIDATE)
@@ -348,8 +350,8 @@ DijkstraAlgorithm::SPFNext(Vertex* v, RouteCandidateQueue& candidate)
                     candidate.Reorder();
                 }
             } // new lower cost path found
-        }     // end W is already on the candidate list
-    }         // end loop over the links in V's LSA
+        } // end W is already on the candidate list
+    } // end loop over the links in V's LSA
 }
 
 //
@@ -363,10 +365,7 @@ DijkstraAlgorithm::SPFNext(Vertex* v, RouteCandidateQueue& candidate)
 // For now, this is greatly simplified from the quagga code
 //
 int
-DijkstraAlgorithm::SPFNexthopCalculation(Vertex* v,
-                                         Vertex* w,
-                                         LinkRecord* l,
-                                         uint32_t distance)
+DijkstraAlgorithm::SPFNexthopCalculation(Vertex* v, Vertex* w, LinkRecord* l, uint32_t distance)
 {
     NS_LOG_FUNCTION(this << v << w << l << distance);
     //
@@ -547,9 +546,7 @@ DijkstraAlgorithm::SPFNexthopCalculation(Vertex* v,
 // representing a possible *second* link from <v> to <w>.
 //
 LinkRecord*
-DijkstraAlgorithm::SPFGetNextLink(Vertex* v,
-                                  Vertex* w,
-                                  LinkRecord* prev_link)
+DijkstraAlgorithm::SPFGetNextLink(Vertex* v, Vertex* w, LinkRecord* prev_link)
 {
     NS_LOG_FUNCTION(this << v << w << prev_link);
 
@@ -1026,7 +1023,7 @@ DijkstraAlgorithm::SPFAddASExternal(LSA* extlsa, Vertex* v)
             }
             return;
         } // if
-    }     // for
+    } // for
 }
 
 // Processing logic from RFC 2328, page 166 and quagga ospf_spf_process_stubs ()
@@ -1190,7 +1187,7 @@ DijkstraAlgorithm::SPFIntraAddStub(LinkRecord* l, Vertex* v)
             }
             return;
         } // if
-    }     // for
+    } // for
 }
 
 //

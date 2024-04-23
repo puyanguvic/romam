@@ -13,16 +13,19 @@ set (source_files
     
     # model/priority_manage/ddr-queue-disc.cc
     # model/routing_algorithm/ipv4-dgr-routing-table-entry.cc
-    model/routing_algorithm/ipv4-route-info-entry.cc
+    model/routing_algorithm/route-info-entry.cc
+    model/routing_algorithm/dijkstra-route-info-entry.cc
+    model/routing_algorithm/spf-route-info-entry.cc
+    # model/routing_algorithm/ipv4-route-info-entry.cc
     model/routing_algorithm/route-candidate-queue.cc
-    model/routing_algorithm/dijkstra's-algorithm.cc
+    model/routing_algorithm/dijkstra-algorithm.cc
     # model/routing_algorithm/route-manager-impl.cc    
     model/utility/romam-router.cc
     model/utility/router-manager.cc
     model/romam-routing.cc
-
-    helper/ospf-at-romam-helper.cc
-
+    # model/ospf-in-romam-routing.cc
+    # helper/ospf-in-romam-helper.cc
+    helper/romam-routing-helper.cc
 )
 set (header_files
     model/datapath/database.h
@@ -38,15 +41,19 @@ set (header_files
     model/datapath/tsdb.h
     # model/priority_manage/ddr-queue-disc.h
     # model/routing_algorithm/ipv4-dgr-routing-table-entry.h
-    model/routing_algorithm/ipv4-route-info-entry.h
+    model/routing_algorithm/route-info-entry.h
+    model/routing_algorithm/dijkstra-route-info-entry.cc
+    model/routing_algorithm/spf-route-info-entry.cc
+    # model/routing_algorithm/ipv4-route-info-entry.h
     model/routing_algorithm/route-candidate-queue.h
-    model/routing_algorithm/dijkstra's-algorithm.h
+    model/routing_algorithm/dijkstra-algorithm.h
     # model/routing_algorithm/route-manager-impl.h   
     model/utility/romam-router.h
     model/utility/router-manager.h
     model/romam-routing.h
-
-    helper/ospf-at-romam-helper.h
+    # model/ospf-in-romam-routing.h
+    # helper/ospf-in-romam-helper.h
+    helper/romam-routing-helper.h
 )
 
 build_lib(

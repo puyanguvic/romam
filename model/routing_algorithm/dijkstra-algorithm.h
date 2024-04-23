@@ -1,38 +1,39 @@
 /* -*- Mode:C++; c-file-style:"gnu"; indent-tabs-mode:nil; -*- */
 
-#ifndef DIJKSTRAS_ALGORITHM_H
-#define DIJKSTRAS_ALGORITHM_H
+#ifndef DIJKSTRA_ALGORITHM_H
+#define DIJKSTRA_ALGORITHM_H
 
-#include <stdint.h>
-#include <list>
-#include <queue>
-#include <map>
-#include <vector>
-#include "ns3/object.h"
-#include "ns3/ptr.h"
-#include "ns3/ipv4-address.h"
-
-#include "../utility/romam-router.h"
-#include "../datapath/lsdb.h"
 #include "route-candidate-queue.h"
 #include "routing-algorithm.h"
 
-namespace ns3 {
+#include "ns3/ipv4-address.h"
+#include "ns3/object.h"
+#include "ns3/ptr.h"
+
+#include <list>
+#include <map>
+#include <queue>
+#include <stdint.h>
+#include <vector>
+
+namespace ns3
+{
 
 // class RouteCandidateQueue;
 // class Ipv4DGRRouting;
+class LSDB;
+class RomamRouter;
 
-class DijkstraAlgorithm 
-// : public RoutingAlgorithm
+class DijkstraAlgorithm : public RoutingAlgorithm
 {
-public:
+  public:
     DijkstraAlgorithm();
     virtual ~DijkstraAlgorithm();
 
     // Delete copy constructor and assignment operator to avoid misuse
     DijkstraAlgorithm(const DijkstraAlgorithm&) = delete;
     DijkstraAlgorithm& operator=(const DijkstraAlgorithm&) = delete;
-    
+
     /**
      * @brief Delete all static routes on all nodes that have a
      * Romam Router Interface
@@ -40,17 +41,17 @@ public:
      * \todo  separate manually assigned static routes from static routes that
      * the global routing code injects, and only delete the latter
      */
-    void DeleteRoutes() ;
+    void DeleteRoutes();
 
     /**
      * @brief Compute routes using a dijkstra SPF computation and
      * populate per-node forwarding tables
      */
-    void InitializeRoutes (LSDB* lsdb) ;
+    void InitializeRoutes(LSDB* lsdb);
 
   private:
-    Vertex* m_spfroot;           //!< the root node
-    LSDB* m_lsdb; //!< the Link State DataBase (LSDB)
+    Vertex* m_spfroot; //!< the root node
+    LSDB* m_lsdb;      //!< the Link State DataBase (LSDB)
 
     /**
      * \brief Test if a node is a stub, from an OSPF sense.
@@ -127,10 +128,7 @@ public:
      * \param distance the target distance
      * \returns 1 on success
      */
-    int SPFNexthopCalculation(Vertex* v,
-                              Vertex* w,
-                              LinkRecord* l,
-                              uint32_t distance);
+    int SPFNexthopCalculation(Vertex* v, Vertex* w, LinkRecord* l, uint32_t distance);
 
     /**
      * \brief Adds a vertex to the list of children *in* each of its parents
@@ -167,9 +165,7 @@ public:
      * \param prev_link the previous link in the list
      * \returns the link's record
      */
-    LinkRecord* SPFGetNextLink(Vertex* v,
-                               Vertex* w,
-                               LinkRecord* prev_link);
+    LinkRecord* SPFGetNextLink(Vertex* v, Vertex* w, LinkRecord* prev_link);
 
     /**
      * \brief Add a host route to the routing tables
@@ -234,4 +230,4 @@ public:
 };
 
 } // namespace ns3
-#endif /* DIJKSTRAS_ALGORITHM_H */
+#endif /* DIJKSTRA_ALGORITHM_H */

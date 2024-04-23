@@ -9,7 +9,7 @@
 #include "ns3/ipv4-route.h"
 #include "ns3/ipv4-routing-table-entry.h"
 
-#include "romam-routing.h"
+#include "ospf-in-romam-routing.h"
 
 #include <iomanip>
 #include <vector>
@@ -17,12 +17,12 @@
 namespace ns3
 {
 
-NS_LOG_COMPONENT_DEFINE("RomamRouting");
+NS_LOG_COMPONENT_DEFINE("OSPFinRomamRouting");
 
-NS_OBJECT_ENSURE_REGISTERED(RomamRouting);
+NS_OBJECT_ENSURE_REGISTERED(OSPFinRomamRouting);
 
 TypeId
-RomamRouting::GetTypeId()
+OSPFinRomamRouting::GetTypeId()
 {
     static TypeId tid =
         TypeId("ns3::RomamRouting")
@@ -31,20 +31,20 @@ RomamRouting::GetTypeId()
     return tid;
 }
 
-RomamRouting::RomamRouting()
+OSPFinRomamRouting::OSPFinRomamRouting()
     : m_respondToInterfaceEvents(false)
 {
     NS_LOG_FUNCTION(this);
     m_rand = CreateObject<UniformRandomVariable>();
 }
 
-RomamRouting::~RomamRouting()
+OSPFinRomamRouting::~OSPFinRomamRouting()
 {
     NS_LOG_FUNCTION(this);
 }
 
 Ptr<Ipv4Route>
-RomamRouting::RouteOutput(Ptr<Packet> p,
+OSPFinRomamRouting::RouteOutput(Ptr<Packet> p,
                           const Ipv4Header& header,
                           Ptr<NetDevice> oif,
                           Socket::SocketErrno& sockerr)
@@ -60,7 +60,7 @@ RomamRouting::RouteOutput(Ptr<Packet> p,
 }
 
 bool
-RomamRouting::RouteInput(Ptr<const Packet> p,
+OSPFinRomamRouting::RouteInput(Ptr<const Packet> p,
                                const Ipv4Header& header,
                                Ptr<const NetDevice> idev,
                                const UnicastForwardCallback& ucb,
@@ -80,7 +80,7 @@ RomamRouting::RouteInput(Ptr<const Packet> p,
 }
 
 void
-RomamRouting::NotifyInterfaceUp(uint32_t i)
+OSPFinRomamRouting::NotifyInterfaceUp(uint32_t i)
 {
     NS_LOG_FUNCTION(this << i);
     if (m_respondToInterfaceEvents && Simulator::Now().GetSeconds() > 0) // avoid startup events
@@ -92,7 +92,7 @@ RomamRouting::NotifyInterfaceUp(uint32_t i)
 }
 
 void
-RomamRouting::NotifyInterfaceDown(uint32_t i)
+OSPFinRomamRouting::NotifyInterfaceDown(uint32_t i)
 {
     NS_LOG_FUNCTION(this << i);
     if (m_respondToInterfaceEvents && Simulator::Now().GetSeconds() > 0) // avoid startup events
@@ -104,7 +104,7 @@ RomamRouting::NotifyInterfaceDown(uint32_t i)
 }
 
 void
-RomamRouting::NotifyAddAddress(uint32_t interface, Ipv4InterfaceAddress address)
+OSPFinRomamRouting::NotifyAddAddress(uint32_t interface, Ipv4InterfaceAddress address)
 {
     NS_LOG_FUNCTION(this << interface << address);
     if (m_respondToInterfaceEvents && Simulator::Now().GetSeconds() > 0) // avoid startup events
@@ -116,7 +116,7 @@ RomamRouting::NotifyAddAddress(uint32_t interface, Ipv4InterfaceAddress address)
 }
 
 void
-RomamRouting::NotifyRemoveAddress(uint32_t interface, Ipv4InterfaceAddress address)
+OSPFinRomamRouting::NotifyRemoveAddress(uint32_t interface, Ipv4InterfaceAddress address)
 {
     NS_LOG_FUNCTION(this << interface << address);
     if (m_respondToInterfaceEvents && Simulator::Now().GetSeconds() > 0) // avoid startup events
@@ -128,7 +128,7 @@ RomamRouting::NotifyRemoveAddress(uint32_t interface, Ipv4InterfaceAddress addre
 }
 
 void
-RomamRouting::SetIpv4(Ptr<Ipv4> ipv4)
+OSPFinRomamRouting::SetIpv4(Ptr<Ipv4> ipv4)
 {
     NS_LOG_FUNCTION(this << ipv4);
     NS_ASSERT(!m_ipv4 && ipv4);
@@ -136,7 +136,7 @@ RomamRouting::SetIpv4(Ptr<Ipv4> ipv4)
 }
 
 void
-RomamRouting::PrintRoutingTable(Ptr<OutputStreamWrapper> stream, 
+OSPFinRomamRouting::PrintRoutingTable(Ptr<OutputStreamWrapper> stream, 
                                           Time::Unit unit) const
 {
 NS_LOG_FUNCTION(this << stream);
@@ -204,7 +204,7 @@ NS_LOG_FUNCTION(this << stream);
 }
 
 void
-RomamRouting::AddHostRouteTo(Ipv4Address dest, Ipv4Address nextHop, uint32_t interface)
+OSPFinRomamRouting::AddHostRouteTo(Ipv4Address dest, Ipv4Address nextHop, uint32_t interface)
 {
     NS_LOG_FUNCTION(this << dest << nextHop << interface);
     auto route = new Ipv4RouteInfoEntry();
@@ -213,7 +213,7 @@ RomamRouting::AddHostRouteTo(Ipv4Address dest, Ipv4Address nextHop, uint32_t int
 }
 
 void
-RomamRouting::AddHostRouteTo(Ipv4Address dest, uint32_t interface)
+OSPFinRomamRouting::AddHostRouteTo(Ipv4Address dest, uint32_t interface)
 {
     NS_LOG_FUNCTION(this << dest << interface);
     auto route = new Ipv4RouteInfoEntry();
@@ -222,7 +222,7 @@ RomamRouting::AddHostRouteTo(Ipv4Address dest, uint32_t interface)
 }
 
 void
-RomamRouting::AddNetworkRouteTo(Ipv4Address network,
+OSPFinRomamRouting::AddNetworkRouteTo(Ipv4Address network,
                                      Ipv4Mask networkMask,
                                      Ipv4Address nextHop,
                                      uint32_t interface)
@@ -234,7 +234,7 @@ RomamRouting::AddNetworkRouteTo(Ipv4Address network,
 }
 
 void
-RomamRouting::AddNetworkRouteTo(Ipv4Address network, Ipv4Mask networkMask, uint32_t interface)
+OSPFinRomamRouting::AddNetworkRouteTo(Ipv4Address network, Ipv4Mask networkMask, uint32_t interface)
 {
     NS_LOG_FUNCTION(this << network << networkMask << interface);
     auto route = new Ipv4RouteInfoEntry();
@@ -243,7 +243,7 @@ RomamRouting::AddNetworkRouteTo(Ipv4Address network, Ipv4Mask networkMask, uint3
 }
 
 void
-RomamRouting::AddASExternalRouteTo(Ipv4Address network,
+OSPFinRomamRouting::AddASExternalRouteTo(Ipv4Address network,
                                    Ipv4Mask networkMask,
                                    Ipv4Address nextHop,
                                    uint32_t interface)
@@ -255,7 +255,7 @@ RomamRouting::AddASExternalRouteTo(Ipv4Address network,
 }
 
 uint32_t
-RomamRouting::GetNRoutes() const
+OSPFinRomamRouting::GetNRoutes() const
 {
     NS_LOG_FUNCTION(this);
     uint32_t n = 0;
@@ -266,7 +266,7 @@ RomamRouting::GetNRoutes() const
 }
 
 Ipv4RouteInfoEntry*
-RomamRouting::GetRoute(uint32_t index) const
+OSPFinRomamRouting::GetRoute(uint32_t index) const
 {
     NS_LOG_FUNCTION(this << index);
     if (index < m_hostRoutes.size())
@@ -287,7 +287,7 @@ RomamRouting::GetRoute(uint32_t index) const
 }
 
 void
-RomamRouting::RemoveRoute(uint32_t index)
+OSPFinRomamRouting::RemoveRoute(uint32_t index)
 {
     NS_LOG_FUNCTION(this << index);
     if (index < m_hostRoutes.size())
@@ -311,7 +311,7 @@ RomamRouting::RemoveRoute(uint32_t index)
 }
 
 int64_t
-RomamRouting::AssignStreams(int64_t stream)
+OSPFinRomamRouting::AssignStreams(int64_t stream)
 {
     NS_LOG_FUNCTION(this << stream);
     m_rand->SetStream(stream);
@@ -329,7 +329,7 @@ RomamRouting::AssignStreams(int64_t stream)
 // }
 
 Ptr<Ipv4Route>
-RomamRouting::LookupRoute (Ipv4Address dest, Ptr<NetDevice> oif)
+OSPFinRomamRouting::LookupRoute (Ipv4Address dest, Ptr<NetDevice> oif)
 {
     NS_LOG_FUNCTION (this << dest << oif);
     NS_LOG_LOGIC ("Looking for route for destination " << dest);
@@ -340,7 +340,7 @@ RomamRouting::LookupRoute (Ipv4Address dest, Ptr<NetDevice> oif)
 
 
 void
-RomamRouting::DoInitialize (void)
+OSPFinRomamRouting::DoInitialize (void)
 {
     NS_LOG_FUNCTION (this);
     // Initialize the routing protocol
@@ -348,7 +348,7 @@ RomamRouting::DoInitialize (void)
 }
 
 void
-RomamRouting::DoDispose()
+OSPFinRomamRouting::DoDispose()
 {
     NS_LOG_FUNCTION(this);
     for (auto i = m_hostRoutes.begin(); i != m_hostRoutes.end(); i = m_hostRoutes.erase(i))

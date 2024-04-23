@@ -80,11 +80,12 @@ main(int argc, char* argv[])
     c.Create(4);
     NodeContainer n0n2 = NodeContainer(c.Get(0), c.Get(2));
     NodeContainer n1n2 = NodeContainer(c.Get(1), c.Get(2));
+
     NodeContainer n3n2 = NodeContainer(c.Get(3), c.Get(2));
 
-    RomamRoutingHelper romam;
+    // RomamRoutingHelper romam;
     Ipv4ListRoutingHelper list;
-    list.Add (romam, 10);
+    // list.Add (romam, 10);
     InternetStackHelper internet;
     internet.SetRoutingHelper (list);
     internet.Install(c);
@@ -149,13 +150,13 @@ main(int argc, char* argv[])
     // apps.Start(Seconds(1.1));
     // apps.Stop(Seconds(10.0));
 
-    // ------------------------------------------------------------
-    // -- Print routing table
-    // ---------------------------------------------
-    RomamRoutingHelper r;
-    Ptr<OutputStreamWrapper> routingStream = Create<OutputStreamWrapper>
-    ("RomamRouting.routes", std::ios::out);
-    r.PrintRoutingTableAllAt (Seconds (0), routingStream);
+    // // ------------------------------------------------------------
+    // // -- Print routing table
+    // // ---------------------------------------------
+    // RomamRoutingHelper r;
+    // Ptr<OutputStreamWrapper> routingStream = Create<OutputStreamWrapper>
+    // ("RomamRouting.routes", std::ios::out);
+    // r.PrintRoutingTableAllAt (Seconds (0), routingStream);
 
     NS_LOG_INFO("Run Simulation.");
     Simulator::Stop(Seconds(11));

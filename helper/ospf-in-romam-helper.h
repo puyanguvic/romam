@@ -1,7 +1,7 @@
 /* -*- Mode:C++; c-file-style:"gnu"; indent-tabs-mode:nil; -*- */
 
-#ifndef ROMAM_ROUTING_HELPER_H
-#define ROMAM_ROUTING_HELPER_H
+#ifndef OSPF_IN_ROMAM_HELPER_H
+#define OSPF_IN_ROMAM_HELPER_H
 
 #include "ns3/node-container.h"
 #include "ns3/ipv4-routing-helper.h"
@@ -18,20 +18,20 @@ namespace ns3 {
  *
  * \brief Helper class that adds ns3::RomamRouting objects
  */
-class RomamRoutingHelper  : public Ipv4RoutingHelper
+class OSPFinRomamHelper  : public Ipv4RoutingHelper
 {
 public:
   /**
    * \brief Construct a GlobalRoutingHelper to make life easier for managing
    * global routing tasks.
    */
-  RomamRoutingHelper ();
+  OSPFinRomamHelper ();
 
   /**
    * \brief Construct a GlobalRoutingHelper from another previously initialized
    * instance (Copy Constructor).
    */
-  RomamRoutingHelper (const RomamRoutingHelper &);
+  OSPFinRomamHelper (const OSPFinRomamHelper &);
 
   /**
    * \returns pointer to clone of this Ipv4GlobalRoutingHelper
@@ -39,7 +39,7 @@ public:
    * This method is mainly for internal use by the other helpers;
    * clients are expected to free the dynamic memory allocated by this method
    */
-  RomamRoutingHelper* Copy (void) const;
+  OSPFinRomamHelper* Copy (void) const;
 
   /**
    * \param node the node on which the routing protocol will run
@@ -79,7 +79,7 @@ private:
    * assignment and prevent the compiler from happily inserting its own.
    * \return
    */
-  RomamRoutingHelper &operator = (const RomamRoutingHelper &);
+  OSPFinRomamHelper &operator = (const OSPFinRomamHelper &);
 };
 
 } // namespace ns3

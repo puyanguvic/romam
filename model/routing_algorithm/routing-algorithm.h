@@ -11,6 +11,7 @@ class LSDB;
 class RoutingAlgorithm
 {
   public:
+    virtual ~RoutingAlgorithm();
     /**
      * @brief Delete all static routes on all nodes that have a
      * Romam Router Interface
@@ -24,7 +25,7 @@ class RoutingAlgorithm
      * @brief Compute routes using a dijkstra SPF computation and
      * populate per-node forwarding tables
      */
-    virtual void InitializeRoutes (LSDB* lsdb) = 0;
+    virtual void InitializeRoutes() = 0;
 };
 
 } // namespace ns3

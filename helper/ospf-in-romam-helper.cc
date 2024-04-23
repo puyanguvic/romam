@@ -1,6 +1,6 @@
 /* -*- Mode:C++; c-file-style:"gnu"; indent-tabs-mode:nil; -*- */
 
-#include "ospf-at-romam-helper.h"
+#include "ospf-in-romam-helper.h"
 #include "ns3/romam-module.h"
 #include "ns3/ipv4-list-routing.h"
 #include "ns3/traffic-control-layer.h"
@@ -8,24 +8,24 @@
 
 namespace ns3 {
 
-NS_LOG_COMPONENT_DEFINE ("RomamRoutingHelper");
+NS_LOG_COMPONENT_DEFINE ("OSPFinRomamHelper");
 
-RomamRoutingHelper::RomamRoutingHelper()
+OSPFinRomamHelper::OSPFinRomamHelper()
 {
 }
 
-RomamRoutingHelper::RomamRoutingHelper (const RomamRoutingHelper &o)
+OSPFinRomamHelper::OSPFinRomamHelper (const OSPFinRomamHelper &o)
 {
 }
 
-RomamRoutingHelper*
-RomamRoutingHelper::Copy (void) const
+OSPFinRomamHelper*
+OSPFinRomamHelper::Copy (void) const
 {
-  return new RomamRoutingHelper (*this);
+  return new OSPFinRomamHelper (*this);
 }
 
 Ptr<Ipv4RoutingProtocol>
-RomamRoutingHelper::Create (Ptr<Node> node) const
+OSPFinRomamHelper::Create (Ptr<Node> node) const
 {
   NS_LOG_LOGIC ("Adding DGRRouter interface to node " <<
                 node->GetId ());
@@ -43,7 +43,7 @@ RomamRoutingHelper::Create (Ptr<Node> node) const
 }
 
 void 
-RomamRoutingHelper::PopulateRoutingTables (void)
+OSPFinRomamHelper::PopulateRoutingTables (void)
 {
   std::clock_t t;
   t = clock();
@@ -55,7 +55,7 @@ RomamRoutingHelper::PopulateRoutingTables (void)
 }
 
 void 
-RomamRoutingHelper::RecomputeRoutingTables (void)
+OSPFinRomamHelper::RecomputeRoutingTables (void)
 {
   RouterManager::DeleteRoutes ();
   RouterManager::BuildLSDB ();
