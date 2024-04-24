@@ -51,7 +51,7 @@ void
 RouteManager::InitializeSPFRoutes(void)
 {
     NS_LOG_FUNCTION_NOARGS();
-    LSDB* lsdb = SimulationSingleton<GlobalLSDBManager>::Get()->GetLSDB();
+    // LSDB* lsdb = SimulationSingleton<GlobalLSDBManager>::Get()->GetLSDB();
     // TODO: Finish the spf init
 }
 

@@ -2,37 +2,39 @@
 #ifndef DDR_QUEUE_DISC_H
 #define DDR_QUEUE_DISC_H
 
-#include "ns3/queue-disc.h"
 #include "ns3/object.h"
 #include "ns3/packet-filter.h"
+#include "ns3/queue-disc.h"
 
-namespace ns3 {
+namespace ns3
+{
 
-class DDRQueueDisc : public QueueDisc {
+class DDRQueueDisc : public QueueDisc
+{
   public:
     /**
      * \brief Get the type ID.
      * \return the object TypeId
      */
-    static TypeId GetTypeId (void);
+    static TypeId GetTypeId(void);
     /**
      * \brief DDRQueueDisc constructor
      */
-    DDRQueueDisc ();
+    DDRQueueDisc();
     /**
      * \brief DDRQueueDisc Destructor
-    */
+     */
     ~DDRQueueDisc();
 
     // Reasons for dropping packets
-    static constexpr const char* LIMIT_EXCEEDED_DROP = "Queue disc limit exceeded";  //!< Packet dropped due to queue disc limit exceeded
+    static constexpr const char* LIMIT_EXCEEDED_DROP =
+        "Queue disc limit exceeded"; //!< Packet dropped due to queue disc limit exceeded
 
     // Get current queue state
-    uint32_t GetQueueStatus ();
-    uint32_t GetQueueDelay ();
-    bool CheckConfig (void) override;
+    uint32_t GetQueueStatus();
+    uint32_t GetQueueDelay();
+    bool CheckConfig(void) override;
 
-    
   private:
     uint32_t m_fastWeight;
     uint32_t m_normalWeight;
@@ -40,14 +42,14 @@ class DDRQueueDisc : public QueueDisc {
     uint32_t m_currentFastWeight;
     uint32_t m_currentNormalWeight;
     // uint32_t m_currentSlowWeight;
-    
-    bool DoEnqueue (Ptr<QueueDiscItem> item) override;
-    Ptr<QueueDiscItem> DoDequeue (void) override;
-    Ptr<const QueueDiscItem> DoPeek (void) override;
-    // bool CheckConfig (void) override;
-    void InitializeParams (void) override;
 
-    uint32_t EnqueueClassify (Ptr<QueueDiscItem> item);
+    bool DoEnqueue(Ptr<QueueDiscItem> item) override;
+    Ptr<QueueDiscItem> DoDequeue(void) override;
+    Ptr<const QueueDiscItem> DoPeek(void) override;
+    // bool CheckConfig (void) override;
+    void InitializeParams(void) override;
+
+    uint32_t EnqueueClassify(Ptr<QueueDiscItem> item);
 };
 
 class DGRv2PacketFilter : public PacketFilter
@@ -67,6 +69,6 @@ class DGRv2PacketFilter : public PacketFilter
     int32_t DoClassify(Ptr<QueueDiscItem> item) const override;
 };
 
-}
+} // namespace ns3
 
-#endif /* DGRv2_QUEUE_DISC_H */
+#endif /* DDR_QUEUE_DISC_H */

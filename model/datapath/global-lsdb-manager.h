@@ -24,18 +24,9 @@ class GlobalLSDBManager
     GlobalLSDBManager();
     virtual ~GlobalLSDBManager();
 
-    // /**
-    //  * @brief Delete all static routes on all nodes that have a
-    //  * DGRRouterInterface
-    //  *
-    //  * \todo  separate manually assigned static routes from static routes that
-    //  * the global routing code injects, and only delete the latter
-    //  */
-    // virtual void DeleteRoutes ();
-
     /**
      * @brief Build the Link State Database (LSDB) by gathering Link State Advertisements
-     * from each node exporting a DGRRouter interface.
+     * from each node exporting a Router interface.
      */
     virtual void BuildLinkStateDatabase();
 

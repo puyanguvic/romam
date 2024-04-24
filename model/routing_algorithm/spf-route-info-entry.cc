@@ -24,7 +24,9 @@ ShortestPathForestRIE::ShortestPathForestRIE(const ShortestPathForestRIE& route)
     : m_dest(route.m_dest),
       m_destNetworkMask(route.m_destNetworkMask),
       m_gateway(route.m_gateway),
-      m_interface(route.m_interface)
+      m_interface(route.m_interface),
+      m_nextIface(route.m_nextIface),
+      m_distance(route.m_distance)
 {
     NS_LOG_FUNCTION(this << route);
 }
@@ -33,7 +35,9 @@ ShortestPathForestRIE::ShortestPathForestRIE(const ShortestPathForestRIE* route)
     : m_dest(route->m_dest),
       m_destNetworkMask(route->m_destNetworkMask),
       m_gateway(route->m_gateway),
-      m_interface(route->m_interface)
+      m_interface(route->m_interface),
+      m_nextIface(route->m_nextIface),
+      m_distance(route->m_distance)
 {
     NS_LOG_FUNCTION(this << route);
 }
@@ -44,7 +48,9 @@ ShortestPathForestRIE::ShortestPathForestRIE(Ipv4Address dest,
     : m_dest(dest),
       m_destNetworkMask(Ipv4Mask::GetOnes()),
       m_gateway(gateway),
-      m_interface(interface)
+      m_interface(interface),
+      m_nextIface(MAX_UINT32),
+      m_distance(MAX_UINT32)
 {
 }
 
@@ -52,7 +58,9 @@ ShortestPathForestRIE::ShortestPathForestRIE(Ipv4Address dest, uint32_t interfac
     : m_dest(dest),
       m_destNetworkMask(Ipv4Mask::GetOnes()),
       m_gateway(Ipv4Address::GetZero()),
-      m_interface(interface)
+      m_interface(interface),
+      m_nextIface(MAX_UINT32),
+      m_distance(MAX_UINT32)
 {
 }
 
@@ -63,7 +71,9 @@ ShortestPathForestRIE::ShortestPathForestRIE(Ipv4Address network,
     : m_dest(network),
       m_destNetworkMask(networkMask),
       m_gateway(gateway),
-      m_interface(interface)
+      m_interface(interface),
+      m_nextIface(MAX_UINT32),
+      m_distance(MAX_UINT32)
 {
     NS_LOG_FUNCTION(this << network << networkMask << gateway << interface);
 }
@@ -74,7 +84,9 @@ ShortestPathForestRIE::ShortestPathForestRIE(Ipv4Address network,
     : m_dest(network),
       m_destNetworkMask(networkMask),
       m_gateway(Ipv4Address::GetZero()),
-      m_interface(interface)
+      m_interface(interface),
+      m_nextIface(MAX_UINT32),
+      m_distance(MAX_UINT32)
 {
     NS_LOG_FUNCTION(this << network << networkMask << interface);
 }

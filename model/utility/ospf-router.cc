@@ -2,7 +2,7 @@
 
 #include "ospf-router.h"
 
-#include "../ospf-in-romam-routing.h"
+#include "../ospf-routing.h"
 
 #include <vector>
 
@@ -29,13 +29,13 @@ OSPFRouter::~OSPFRouter()
 }
 
 void
-OSPFRouter::SetRoutingProtocol(Ptr<OSPFinRomamRouting> routing)
+OSPFRouter::SetRoutingProtocol(Ptr<RomamRouting> routing)
 {
     NS_LOG_FUNCTION(this << routing);
-    m_routingProtocol = routing;
+    m_routingProtocol = DynamicCast<OSPFRouting>(routing);
 }
 
-Ptr<OSPFinRomamRouting>
+Ptr<RomamRouting>
 OSPFRouter::GetRoutingProtocol(void)
 {
     NS_LOG_FUNCTION(this);

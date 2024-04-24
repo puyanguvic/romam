@@ -1,7 +1,7 @@
 /* -*- Mode:C++; c-file-style:"gnu"; indent-tabs-mode:nil; -*- */
 
-#ifndef OSPF_ROUTER_H
-#define OSPF_ROUTER_H
+#ifndef DGR_ROUTER_H
+#define DGR_ROUTER_H
 
 #include "romam-router.h"
 
@@ -10,7 +10,7 @@
 
 namespace ns3
 {
-class OSPFRouting;
+class DGRRouting;
 
 /**
  * @brief An interface aggregated to a node to provide global routing info
@@ -21,7 +21,7 @@ class OSPFRouting;
  * advertises its connections to neighboring routers.  We're basically
  * allowing the route manager to query for link state advertisements.
  */
-class OSPFRouter : public RomamRouter
+class DGRRouter : public RomamRouter
 {
   public:
     /**
@@ -33,15 +33,15 @@ class OSPFRouter : public RomamRouter
     /**
      * @brief Create a Global Router class
      */
-    OSPFRouter();
+    DGRRouter();
     // Inherate from RomamRouter
     void SetRoutingProtocol(Ptr<RomamRouting> routing) override;
     virtual Ptr<RomamRouting> GetRoutingProtocol() override;
 
   private:
-    ~OSPFRouter() override;
+    ~DGRRouter() override;
 
-    Ptr<OSPFRouting> m_routingProtocol; //!< the Ipv4GlobalRouting in use
+    Ptr<DGRRouting> m_routingProtocol; //!< the Ipv4GlobalRouting in use
 
     // inherited from Object
     void DoDispose(void) override;
@@ -50,16 +50,16 @@ class OSPFRouter : public RomamRouter
      * @brief Global Router copy construction is disallowed.
      * @param sr object to copy from.
      */
-    OSPFRouter(OSPFRouter& sr);
+    DGRRouter(DGRRouter& sr);
 
     /**
      * @brief Global Router assignment operator is disallowed.
      * @param sr object to copy from.
      * @returns The object copied.
      */
-    OSPFRouter& operator=(OSPFRouter& sr);
+    DGRRouter& operator=(DGRRouter& sr);
 };
 
 } // namespace ns3
 
-#endif /* ROMAM_ROUTER_H */
+#endif /* SPF_ROUTER_H */

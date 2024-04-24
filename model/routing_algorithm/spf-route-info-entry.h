@@ -70,9 +70,9 @@ class ShortestPathForestRIE : public RouteInfoEntry
      * \param nextHop Ipv4Address of the next hop
      * \param interface Outgoing interface
      */
-    ShortestPathForestRIE CreateHostRouteTo(Ipv4Address dest,
-                                            Ipv4Address nextHop,
-                                            uint32_t interface);
+    static ShortestPathForestRIE CreateHostRouteTo(Ipv4Address dest,
+                                                   Ipv4Address nextHop,
+                                                   uint32_t interface);
 
     /**
      * \return An ShortestPathForestRIE object corresponding to the input parameters.

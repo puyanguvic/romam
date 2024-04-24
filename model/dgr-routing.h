@@ -1,7 +1,7 @@
 /* -*- Mode:C++; c-file-style:"gnu"; indent-tabs-mode:nil; -*- */
 
-#ifndef OSPF_IN_ROMAM_ROUTING_H
-#define OSPF_IN_ROMAM_ROUTING_H
+#ifndef DGR_ROUTING_H
+#define DGR_ROUTING_H
 
 #include "datapath/tsdb.h"
 #include "romam-routing.h"
@@ -23,10 +23,10 @@ class NetDevice;
 class Ipv4Interface;
 class Ipv4Address;
 class Ipv4Header;
-class DijkstraRTE;
+class ShortestPathForestRIE;
 class Node;
 
-class OSPFinRomamRouting : public RomamRouting
+class DGRRouting : public RomamRouting
 {
   public:
     /**
@@ -42,8 +42,8 @@ class OSPFinRomamRouting : public RomamRouting
      *
      * \see Ipv4GlobalRouting
      */
-    OSPFinRomamRouting();
-    ~OSPFinRomamRouting() override;
+    DGRRouting();
+    ~DGRRouting() override;
 
     // These methods inherited from Ipv4RoutingProtocol class
     Ptr<Ipv4Route> RouteOutput(Ptr<Packet> p,
@@ -84,6 +84,21 @@ class OSPFinRomamRouting : public RomamRouting
     void RemoveRoute(uint32_t i) override;
 
     /**
+     * \brief Add a host route to the global routing table with the distance
+     * between root and destination
+     * \param dest The Ipv4Address destination for this route.
+     * \param nextHop The next hop Ipv4Address
+     * \param interface The network interface index used to send packets to the
+     *  destination
+     * \param distance The distance between root and destination
+     */
+    void AddHostRouteTo(Ipv4Address dest,
+                        Ipv4Address nextHop,
+                        uint32_t interface,
+                        uint32_t nextIface,
+                        uint32_t distance);
+
+    /**
      * Assign a fixed random variable stream number to the random variables
      * used by this model.  Return the number of streams (possibly zero) that
      * have been assigned.
@@ -93,7 +108,7 @@ class OSPFinRomamRouting : public RomamRouting
      */
     int64_t AssignStreams(int64_t stream);
 
-    DijkstraRTE* GetRoute(uint32_t i) const;
+    ShortestPathForestRIE* GetRoute(uint32_t i) const;
 
   protected:
     // These methods inherited from Objective class
@@ -110,25 +125,25 @@ class OSPFinRomamRouting : public RomamRouting
     Ptr<UniformRandomVariable> m_rand;
 
     /// container of Ipv4RoutingTableEntry (routes to hosts)
-    typedef std::list<DijkstraRTE*> HostRoutes;
+    typedef std::list<ShortestPathForestRIE*> HostRoutes;
     /// const iterator of container of Ipv4RoutingTableEntry (routes to hosts)
-    typedef std::list<DijkstraRTE*>::const_iterator HostRoutesCI;
+    typedef std::list<ShortestPathForestRIE*>::const_iterator HostRoutesCI;
     /// iterator of container of Ipv4RoutingTableEntry (routes to hosts)
-    typedef std::list<DijkstraRTE*>::iterator HostRoutesI;
+    typedef std::list<ShortestPathForestRIE*>::iterator HostRoutesI;
 
     /// container of Ipv4RoutingTableEntry (routes to networks)
-    typedef std::list<DijkstraRTE*> NetworkRoutes;
+    typedef std::list<ShortestPathForestRIE*> NetworkRoutes;
     /// const iterator of container of Ipv4RoutingTableEntry (routes to networks)
-    typedef std::list<DijkstraRTE*>::const_iterator NetworkRoutesCI;
+    typedef std::list<ShortestPathForestRIE*>::const_iterator NetworkRoutesCI;
     /// iterator of container of Ipv4RoutingTableEntry (routes to networks)
-    typedef std::list<DijkstraRTE*>::iterator NetworkRoutesI;
+    typedef std::list<ShortestPathForestRIE*>::iterator NetworkRoutesI;
 
     /// container of Ipv4RoutingTableEntry (routes to external AS)
-    typedef std::list<DijkstraRTE*> ASExternalRoutes;
+    typedef std::list<ShortestPathForestRIE*> ASExternalRoutes;
     /// const iterator of container of Ipv4RoutingTableEntry (routes to external AS)
-    typedef std::list<DijkstraRTE*>::const_iterator ASExternalRoutesCI;
+    typedef std::list<ShortestPathForestRIE*>::const_iterator ASExternalRoutesCI;
     /// iterator of container of Ipv4RoutingTableEntry (routes to external AS)
-    typedef std::list<DijkstraRTE*>::iterator ASExternalRoutesI;
+    typedef std::list<ShortestPathForestRIE*>::iterator ASExternalRoutesI;
 
     /**
      * \brief Lookup in the route infomation base (RIB) for destination.
@@ -146,4 +161,4 @@ class OSPFinRomamRouting : public RomamRouting
 
 } // namespace ns3
 
-#endif /* OSPF_IN_ROMAM_ROUTING_H */
+#endif /* DGR_ROUTING_H */

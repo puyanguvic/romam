@@ -1,4 +1,4 @@
-#include "ospf-in-romam-routing.h"
+#include "ospf-routing.h"
 
 #include "routing_algorithm/dijkstra-route-info-entry.h"
 #include "routing_algorithm/route-info-entry.h"
@@ -6,7 +6,6 @@
 
 #include "ns3/boolean.h"
 #include "ns3/ipv4-route.h"
-// #include "ns3/ipv4-routing-table-entry.h"
 #include "ns3/log.h"
 #include "ns3/names.h"
 #include "ns3/net-device.h"
@@ -21,33 +20,33 @@
 namespace ns3
 {
 
-NS_LOG_COMPONENT_DEFINE("OSPFinRomamRouting");
+NS_LOG_COMPONENT_DEFINE("OSPFRouting");
 
-NS_OBJECT_ENSURE_REGISTERED(OSPFinRomamRouting);
+NS_OBJECT_ENSURE_REGISTERED(OSPFRouting);
 
 TypeId
-OSPFinRomamRouting::GetTypeId()
+OSPFRouting::GetTypeId()
 {
     static TypeId tid =
-        TypeId("ns3::OSPFinRomamRouting")
+        TypeId("ns3::OSPFRouting")
             .SetParent<Object>()
             .SetGroupName("Romam")
             .AddAttribute("RandomEcmpRouting",
                           "Set to true if packets are randomly routed among ECMP; set to false for "
                           "using only one route consistently",
                           BooleanValue(false),
-                          MakeBooleanAccessor(&OSPFinRomamRouting::m_randomEcmpRouting),
+                          MakeBooleanAccessor(&OSPFRouting::m_randomEcmpRouting),
                           MakeBooleanChecker())
             .AddAttribute("RespondToInterfaceEvents",
                           "Set to true if you want to dynamically recompute the global routes upon "
                           "Interface notification events (up/down, or add/remove address)",
                           BooleanValue(false),
-                          MakeBooleanAccessor(&OSPFinRomamRouting::m_respondToInterfaceEvents),
+                          MakeBooleanAccessor(&OSPFRouting::m_respondToInterfaceEvents),
                           MakeBooleanChecker());
     return tid;
 }
 
-OSPFinRomamRouting::OSPFinRomamRouting()
+OSPFRouting::OSPFRouting()
     : m_randomEcmpRouting(false),
       m_respondToInterfaceEvents(false)
 {
@@ -56,16 +55,16 @@ OSPFinRomamRouting::OSPFinRomamRouting()
     m_rand = CreateObject<UniformRandomVariable>();
 }
 
-OSPFinRomamRouting::~OSPFinRomamRouting()
+OSPFRouting::~OSPFRouting()
 {
     NS_LOG_FUNCTION(this);
 }
 
 Ptr<Ipv4Route>
-OSPFinRomamRouting::RouteOutput(Ptr<Packet> p,
-                                const Ipv4Header& header,
-                                Ptr<NetDevice> oif,
-                                Socket::SocketErrno& sockerr)
+OSPFRouting::RouteOutput(Ptr<Packet> p,
+                         const Ipv4Header& header,
+                         Ptr<NetDevice> oif,
+                         Socket::SocketErrno& sockerr)
 {
     NS_LOG_FUNCTION(this << p << &header << oif << &sockerr);
     //
@@ -94,13 +93,13 @@ OSPFinRomamRouting::RouteOutput(Ptr<Packet> p,
 }
 
 bool
-OSPFinRomamRouting::RouteInput(Ptr<const Packet> p,
-                               const Ipv4Header& header,
-                               Ptr<const NetDevice> idev,
-                               const UnicastForwardCallback& ucb,
-                               const MulticastForwardCallback& mcb,
-                               const LocalDeliverCallback& lcb,
-                               const ErrorCallback& ecb)
+OSPFRouting::RouteInput(Ptr<const Packet> p,
+                        const Ipv4Header& header,
+                        Ptr<const NetDevice> idev,
+                        const UnicastForwardCallback& ucb,
+                        const MulticastForwardCallback& mcb,
+                        const LocalDeliverCallback& lcb,
+                        const ErrorCallback& ecb)
 {
     NS_LOG_FUNCTION(this << p << header << header.GetSource() << header.GetDestination() << idev
                          << &lcb << &ecb);
@@ -152,7 +151,7 @@ OSPFinRomamRouting::RouteInput(Ptr<const Packet> p,
 }
 
 void
-OSPFinRomamRouting::NotifyInterfaceUp(uint32_t i)
+OSPFRouting::NotifyInterfaceUp(uint32_t i)
 {
     NS_LOG_FUNCTION(this << i);
     if (m_respondToInterfaceEvents && Simulator::Now().GetSeconds() > 0) // avoid startup events
@@ -165,7 +164,7 @@ OSPFinRomamRouting::NotifyInterfaceUp(uint32_t i)
 }
 
 void
-OSPFinRomamRouting::NotifyInterfaceDown(uint32_t i)
+OSPFRouting::NotifyInterfaceDown(uint32_t i)
 {
     NS_LOG_FUNCTION(this << i);
     if (m_respondToInterfaceEvents && Simulator::Now().GetSeconds() > 0) // avoid startup events
@@ -178,7 +177,7 @@ OSPFinRomamRouting::NotifyInterfaceDown(uint32_t i)
 }
 
 void
-OSPFinRomamRouting::NotifyAddAddress(uint32_t interface, Ipv4InterfaceAddress address)
+OSPFRouting::NotifyAddAddress(uint32_t interface, Ipv4InterfaceAddress address)
 {
     NS_LOG_FUNCTION(this << interface << address);
     if (m_respondToInterfaceEvents && Simulator::Now().GetSeconds() > 0) // avoid startup events
@@ -191,7 +190,7 @@ OSPFinRomamRouting::NotifyAddAddress(uint32_t interface, Ipv4InterfaceAddress ad
 }
 
 void
-OSPFinRomamRouting::NotifyRemoveAddress(uint32_t interface, Ipv4InterfaceAddress address)
+OSPFRouting::NotifyRemoveAddress(uint32_t interface, Ipv4InterfaceAddress address)
 {
     NS_LOG_FUNCTION(this << interface << address);
     if (m_respondToInterfaceEvents && Simulator::Now().GetSeconds() > 0) // avoid startup events
@@ -204,7 +203,7 @@ OSPFinRomamRouting::NotifyRemoveAddress(uint32_t interface, Ipv4InterfaceAddress
 }
 
 void
-OSPFinRomamRouting::SetIpv4(Ptr<Ipv4> ipv4)
+OSPFRouting::SetIpv4(Ptr<Ipv4> ipv4)
 {
     NS_LOG_FUNCTION(this << ipv4);
     NS_ASSERT(!m_ipv4 && ipv4);
@@ -212,7 +211,7 @@ OSPFinRomamRouting::SetIpv4(Ptr<Ipv4> ipv4)
 }
 
 void
-OSPFinRomamRouting::PrintRoutingTable(Ptr<OutputStreamWrapper> stream, Time::Unit unit) const
+OSPFRouting::PrintRoutingTable(Ptr<OutputStreamWrapper> stream, Time::Unit unit) const
 {
     NS_LOG_FUNCTION(this << stream);
     std::ostream* os = stream->GetStream();
@@ -236,7 +235,7 @@ OSPFinRomamRouting::PrintRoutingTable(Ptr<OutputStreamWrapper> stream, Time::Uni
             std::ostringstream gw;
             std::ostringstream mask;
             std::ostringstream flags;
-            DijkstraRTE route = GetRoute(j);
+            DijkstraRIE route = GetRoute(j);
             dest << route.GetDest();
             *os << std::setw(16) << dest.str();
             gw << route.GetGateway();
@@ -276,58 +275,58 @@ OSPFinRomamRouting::PrintRoutingTable(Ptr<OutputStreamWrapper> stream, Time::Uni
 }
 
 void
-OSPFinRomamRouting::AddHostRouteTo(Ipv4Address dest, Ipv4Address nextHop, uint32_t interface)
+OSPFRouting::AddHostRouteTo(Ipv4Address dest, Ipv4Address nextHop, uint32_t interface)
 {
     NS_LOG_FUNCTION(this << dest << nextHop << interface);
-    auto route = new DijkstraRTE();
-    *route = DijkstraRTE::CreateHostRouteTo(dest, nextHop, interface);
+    auto route = new DijkstraRIE();
+    *route = DijkstraRIE::CreateHostRouteTo(dest, nextHop, interface);
     m_hostRoutes.push_back(route);
 }
 
 void
-OSPFinRomamRouting::AddHostRouteTo(Ipv4Address dest, uint32_t interface)
+OSPFRouting::AddHostRouteTo(Ipv4Address dest, uint32_t interface)
 {
     NS_LOG_FUNCTION(this << dest << interface);
-    auto route = new DijkstraRTE();
-    *route = DijkstraRTE::CreateHostRouteTo(dest, interface);
+    auto route = new DijkstraRIE();
+    *route = DijkstraRIE::CreateHostRouteTo(dest, interface);
     m_hostRoutes.push_back(route);
 }
 
 void
-OSPFinRomamRouting::AddNetworkRouteTo(Ipv4Address network,
-                                      Ipv4Mask networkMask,
-                                      Ipv4Address nextHop,
-                                      uint32_t interface)
+OSPFRouting::AddNetworkRouteTo(Ipv4Address network,
+                               Ipv4Mask networkMask,
+                               Ipv4Address nextHop,
+                               uint32_t interface)
 {
     NS_LOG_FUNCTION(this << network << networkMask << nextHop << interface);
-    auto route = new DijkstraRTE();
-    *route = DijkstraRTE::CreateNetworkRouteTo(network, networkMask, nextHop, interface);
+    auto route = new DijkstraRIE();
+    *route = DijkstraRIE::CreateNetworkRouteTo(network, networkMask, nextHop, interface);
     m_networkRoutes.push_back(route);
 }
 
 void
-OSPFinRomamRouting::AddNetworkRouteTo(Ipv4Address network, Ipv4Mask networkMask, uint32_t interface)
+OSPFRouting::AddNetworkRouteTo(Ipv4Address network, Ipv4Mask networkMask, uint32_t interface)
 {
     NS_LOG_FUNCTION(this << network << networkMask << interface);
-    auto route = new DijkstraRTE();
-    *route = DijkstraRTE::CreateNetworkRouteTo(network, networkMask, interface);
+    auto route = new DijkstraRIE();
+    *route = DijkstraRIE::CreateNetworkRouteTo(network, networkMask, interface);
     m_networkRoutes.push_back(route);
 }
 
 void
-OSPFinRomamRouting::AddASExternalRouteTo(Ipv4Address network,
-                                         Ipv4Mask networkMask,
-                                         Ipv4Address nextHop,
-                                         uint32_t interface)
+OSPFRouting::AddASExternalRouteTo(Ipv4Address network,
+                                  Ipv4Mask networkMask,
+                                  Ipv4Address nextHop,
+                                  uint32_t interface)
 {
     NS_LOG_FUNCTION(this << network << networkMask << nextHop << interface);
-    auto route = new DijkstraRTE();
-    *route = DijkstraRTE::CreateNetworkRouteTo(network, networkMask, nextHop, interface);
+    auto route = new DijkstraRIE();
+    *route = DijkstraRIE::CreateNetworkRouteTo(network, networkMask, nextHop, interface);
     m_ASexternalRoutes.push_back(route);
 }
 
 uint32_t
-OSPFinRomamRouting::GetNRoutes() const
+OSPFRouting::GetNRoutes() const
 {
     NS_LOG_FUNCTION(this);
     uint32_t n = 0;
@@ -337,8 +336,8 @@ OSPFinRomamRouting::GetNRoutes() const
     return n;
 }
 
-DijkstraRTE*
-OSPFinRomamRouting::GetRoute(uint32_t index) const
+DijkstraRIE*
+OSPFRouting::GetRoute(uint32_t index) const
 {
     NS_LOG_FUNCTION(this << index);
     if (index < m_hostRoutes.size())
@@ -382,7 +381,7 @@ OSPFinRomamRouting::GetRoute(uint32_t index) const
 }
 
 void
-OSPFinRomamRouting::RemoveRoute(uint32_t index)
+OSPFRouting::RemoveRoute(uint32_t index)
 {
     NS_LOG_FUNCTION(this << index);
     if (index < m_hostRoutes.size())
@@ -436,7 +435,7 @@ OSPFinRomamRouting::RemoveRoute(uint32_t index)
 }
 
 int64_t
-OSPFinRomamRouting::AssignStreams(int64_t stream)
+OSPFRouting::AssignStreams(int64_t stream)
 {
     NS_LOG_FUNCTION(this << stream);
     m_rand->SetStream(stream);
@@ -444,13 +443,13 @@ OSPFinRomamRouting::AssignStreams(int64_t stream)
 }
 
 Ptr<Ipv4Route>
-OSPFinRomamRouting::LookupRoute(Ipv4Address dest, Ptr<NetDevice> oif) const
+OSPFRouting::LookupRoute(Ipv4Address dest, Ptr<NetDevice> oif) const
 {
     NS_LOG_FUNCTION(this << dest << oif);
     NS_LOG_LOGIC("Looking for route for destination " << dest);
     Ptr<Ipv4Route> rtentry = nullptr;
     // store all available routes that bring packets to their destination
-    typedef std::vector<DijkstraRTE*> RouteVec_t;
+    typedef std::vector<DijkstraRIE*> RouteVec_t;
     RouteVec_t allRoutes;
 
     NS_LOG_LOGIC("Number of m_hostRoutes = " << m_hostRoutes.size());
@@ -529,7 +528,7 @@ OSPFinRomamRouting::LookupRoute(Ipv4Address dest, Ptr<NetDevice> oif) const
         {
             selectIndex = 0;
         }
-        DijkstraRTE* route = allRoutes.at(selectIndex);
+        DijkstraRIE* route = allRoutes.at(selectIndex);
         // create a Ipv4Route object from the selected routing table entry
         rtentry = Create<Ipv4Route>();
         rtentry->SetDestination(route->GetDest());
@@ -547,7 +546,7 @@ OSPFinRomamRouting::LookupRoute(Ipv4Address dest, Ptr<NetDevice> oif) const
 }
 
 void
-OSPFinRomamRouting::DoInitialize(void)
+OSPFRouting::DoInitialize(void)
 {
     NS_LOG_FUNCTION(this);
     // Initialize the routing protocol
@@ -555,7 +554,7 @@ OSPFinRomamRouting::DoInitialize(void)
 }
 
 void
-OSPFinRomamRouting::DoDispose()
+OSPFRouting::DoDispose()
 {
     NS_LOG_FUNCTION(this);
     for (auto i = m_hostRoutes.begin(); i != m_hostRoutes.end(); i = m_hostRoutes.erase(i))

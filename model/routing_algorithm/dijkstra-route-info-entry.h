@@ -1,7 +1,7 @@
 /* -*- Mode:C++; c-file-style:"gnu"; indent-tabs-mode:nil; -*- */
 
-#ifndef Dijkstra_ROUTING_TABLE_ENTRY_H
-#define Dijkstra_ROUTING_TABLE_ENTRY_H
+#ifndef DIJKSTRA_ROUTING_TABLE_ENTRY_H
+#define DIJKSTRA_ROUTING_TABLE_ENTRY_H
 
 #include "route-info-entry.h"
 
@@ -157,4 +157,4 @@ bool operator==(const DijkstraRIE a, const DijkstraRIE b);
 
 } // namespace ns3
 
-#endif /* Dijkstra_ROUTING_TABLE_ENTRY_H */
+#endif /* DIJKSTRA_ROUTING_TABLE_ENTRY_H */

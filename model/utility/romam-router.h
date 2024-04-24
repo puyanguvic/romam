@@ -19,6 +19,7 @@ namespace ns3
 
 class LSA;
 class DijkstraRIE;
+class RomamRouting;
 
 class RomamRouter : public Object
 {
@@ -152,6 +153,18 @@ class RomamRouter : public Object
      * @see RomamRouter::RemoveInjectedRoute ()
      */
     bool WithdrawRoute(Ipv4Address network, Ipv4Mask networkMask);
+
+    /**
+     * \brief Set the specific Global Routing Protocol to be used
+     * \param routing the routing protocol
+     */
+    virtual void SetRoutingProtocol(Ptr<RomamRouting> routing) = 0;
+
+    /**
+     * \brief Get the specific Global Routing Protocol used
+     * \returns the routing protocol
+     */
+    virtual Ptr<RomamRouting> GetRoutingProtocol() = 0;
 
   protected:
     virtual ~RomamRouter() override;

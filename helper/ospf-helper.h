@@ -1,15 +1,14 @@
 /* -*- Mode:C++; c-file-style:"gnu"; indent-tabs-mode:nil; -*- */
 
-#ifndef ROMAM_ROUTING_HELPER_H
-#define ROMAM_ROUTING_HELPER_H
+#ifndef OSPF_HELPER_H
+#define OSPF_HELPER_H
 
 #include "ns3/ipv4-routing-helper.h"
 #include "ns3/net-device-container.h"
 #include "ns3/node-container.h"
 #include "ns3/object-factory.h"
-#include "ns3/queue-disc-container.h"
-#include "ns3/queue.h"
-#include "ns3/romam-module.h"
+
+// #include "ns3/romam-module.h"
 
 namespace ns3
 {
@@ -19,16 +18,28 @@ namespace ns3
  *
  * \brief Helper class that adds ns3::RomamRouting objects
  */
-class RomamRoutingHelper : public Ipv4RoutingHelper
+class OSPFHelper : public Ipv4RoutingHelper
 {
   public:
+    /**
+     * \brief Construct a GlobalRoutingHelper to make life easier for managing
+     * global routing tasks.
+     */
+    OSPFHelper();
+
+    /**
+     * \brief Construct a GlobalRoutingHelper from another previously initialized
+     * instance (Copy Constructor).
+     */
+    OSPFHelper(const OSPFHelper&);
+
     /**
      * \returns pointer to clone of this Ipv4GlobalRoutingHelper
      *
      * This method is mainly for internal use by the other helpers;
      * clients are expected to free the dynamic memory allocated by this method
      */
-    virtual RomamRoutingHelper* Copy(void) const = 0;
+    OSPFHelper* Copy(void) const;
 
     /**
      * \param node the node on which the routing protocol will run
@@ -36,7 +47,7 @@ class RomamRoutingHelper : public Ipv4RoutingHelper
      *
      * This method will be called by ns3::InternetStackHelper::Install
      */
-    virtual Ptr<Ipv4RoutingProtocol> Create(Ptr<Node> node) const = 0;
+    virtual Ptr<Ipv4RoutingProtocol> Create(Ptr<Node> node) const;
 
     /**
      * \brief Build a routing database and initialize the routing tables of
@@ -47,8 +58,7 @@ class RomamRoutingHelper : public Ipv4RoutingHelper
      * BuildGlobalRoutingDatabase () and  InitializeRoutes ().
      *
      */
-    virtual void PopulateRoutingTables(void) = 0;
-
+    static void PopulateRoutingTables(void);
     /**
      * \brief Remove all routes that were previously installed in a prior call
      * to either PopulateRoutingTables() or RecomputeRoutingTables(), and
@@ -61,9 +71,17 @@ class RomamRoutingHelper : public Ipv4RoutingHelper
      * call RecomputeRoutingTables() at any later time in the simulation.
      *
      */
-    virtual void RecomputeRoutingTables(void) = 0;
+    static void RecomputeRoutingTables(void);
+
+  private:
+    /**
+     * \brief Assignment operator declared private and not implemented to disallow
+     * assignment and prevent the compiler from happily inserting its own.
+     * \return
+     */
+    OSPFHelper& operator=(const OSPFHelper&);
 };
 
 } // namespace ns3
 
-#endif /* ROMAM_ROUTING_HELPER_H */
+#endif /* OSPF_HELPER_H */

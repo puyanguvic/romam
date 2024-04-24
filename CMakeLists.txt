@@ -8,27 +8,35 @@ set (source_files
     # model/datapath/ospf-headers.cc
     # model/datapath/ospf-FSM.cc
     # model/datapath/ospf-headers.cc
-    # model/datapath/romam-tags.cc
+    model/datapath/romam-tags.cc
     # model/datapath/state-machine.cc
     
-    # model/priority_manage/ddr-queue-disc.cc
+    model/priority_manage/dgr-queue-disc.cc
+    model/priority_manage/ddr-queue-disc.cc
 
     model/routing_algorithm/routing-algorithm.cc
     model/routing_algorithm/route-info-entry.cc
     model/routing_algorithm/route-candidate-queue.cc
     model/routing_algorithm/dijkstra-route-info-entry.cc
     model/routing_algorithm/dijkstra-algorithm.cc
-    # model/routing_algorithm/spf-algorithm.cc
-    # model/routing_algorithm/spf-route-info-entry.cc
+    model/routing_algorithm/spf-algorithm.cc
+    model/routing_algorithm/spf-route-info-entry.cc
     
     model/utility/romam-router.cc
-    model/utility/ospf-router.cc
     model/utility/route-manager.cc
+    model/utility/ospf-router.cc
+    model/utility/dgr-router.cc
 
     model/romam-routing.cc
-    model/ospf-in-romam-routing.cc
-    helper/ospf-in-romam-helper.cc
+    model/ospf-routing.cc
+    model/dgr-routing.cc
+
+    model/applications/romam-tcp-application.cc
+    model/applications/romam-udp-application.cc
+    model/applications/romam-sink.cc
+
     helper/romam-routing-helper.cc
+    helper/ospf-helper.cc
 )
 set (header_files
     model/datapath/database.h
@@ -40,27 +48,36 @@ set (header_files
     # model/datapath/ospf-headers.h
     # model/datapath/ospf-FSM.h
     # model/datapath/ospf-headers.h
-    # model/datapath/romam-tags.h
+    model/datapath/romam-tags.h
     # model/datapath/state-machine.h
 
-    # model/priority_manage/ddr-queue-disc.h
+    model/priority_manage/dgr-queue-disc.h
+    model/priority_manage/ddr-queue-disc.h
 
     model/routing_algorithm/routing-algorithm.h
     model/routing_algorithm/route-info-entry.h
     model/routing_algorithm/route-candidate-queue.h
     model/routing_algorithm/dijkstra-route-info-entry.h
     model/routing_algorithm/dijkstra-algorithm.h
-    # model/routing_algorithm/spf-algorithm.h
-    # model/routing_algorithm/spf-route-info-entry.h
+    model/routing_algorithm/spf-algorithm.h
+    model/routing_algorithm/spf-route-info-entry.h
 
     model/utility/romam-router.h
-    model/utility/ospf-router.h
     model/utility/route-manager.h
+    model/utility/ospf-router.h
+    model/utility/dgr-router.h
 
     model/romam-routing.h
-    model/ospf-in-romam-routing.h
-    helper/ospf-in-romam-helper.h
+    model/ospf-routing.h
+    model/dgr-routing.h
+
+    model/applications/romam-tcp-application.h
+    model/applications/romam-udp-application.h
+    model/applications/romam-sink.h
+
     helper/romam-routing-helper.h
+    helper/ospf-helper.h
+    
 )
 
 build_lib(
