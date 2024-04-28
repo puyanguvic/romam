@@ -49,7 +49,7 @@ RomamUdpApplication::GetTypeId()
 {
     static TypeId tid = TypeId("ns3::RomamUdpApplication")
                             .SetParent<Application>()
-                            .SetGroupName("DGRv2")
+                            .SetGroupName("Romam")
                             .AddConstructor<RomamUdpApplication>()
         // .AddAttribute ("Variable_bitrate",
         //                "Enable the VBR",
@@ -148,6 +148,7 @@ RomamUdpApplication::SendPacket()
     txTimeTag.SetTimestamp(txTime);
     packet->AddPacketTag(txTimeTag);
     packet->AddPacketTag(flagTag);
+    // std::cout << "Send a packet\n";
     m_socket->Send(packet);
     if (++m_packetSent < m_nPackets)
     {

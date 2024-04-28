@@ -19,7 +19,9 @@ namespace ns3
 
 class LSA;
 class DijkstraRIE;
-class RomamRouting;
+class Ipv4RoutingProtocol;
+
+// class RomamRouting;
 
 class RomamRouter : public Object
 {
@@ -158,13 +160,13 @@ class RomamRouter : public Object
      * \brief Set the specific Global Routing Protocol to be used
      * \param routing the routing protocol
      */
-    virtual void SetRoutingProtocol(Ptr<RomamRouting> routing) = 0;
+    virtual void SetRoutingProtocol(Ptr<Ipv4RoutingProtocol> routing) = 0;
 
     /**
      * \brief Get the specific Global Routing Protocol used
      * \returns the routing protocol
      */
-    virtual Ptr<RomamRouting> GetRoutingProtocol() = 0;
+    virtual Ptr<Ipv4RoutingProtocol> GetRoutingProtocol() = 0;
 
   protected:
     virtual ~RomamRouter() override;

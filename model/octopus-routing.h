@@ -1,13 +1,13 @@
 /* -*- Mode:C++; c-file-style:"gnu"; indent-tabs-mode:nil; -*- */
 
-#ifndef OSPF_ROUTING_H
-#define OSPF_ROUTING_H
+#ifndef OCTOPUS_ROUTING_H
+#define OCTOPUS_ROUTING_H
 
 #include "datapath/tsdb.h"
-// #include "romam-routing.h"
+#include "romam-routing.h"
+
 #include "ns3/ipv4-address.h"
 #include "ns3/ipv4-header.h"
-#include "ns3/ipv4-routing-protocol.h"
 #include "ns3/ipv4.h"
 #include "ns3/ptr.h"
 #include "ns3/random-variable-stream.h"
@@ -26,7 +26,7 @@ class Ipv4Header;
 class DijkstraRIE;
 class Node;
 
-class OSPFRouting : public Ipv4RoutingProtocol
+class OctopusRouting : public RomamRouting
 {
   public:
     /**
@@ -42,8 +42,8 @@ class OSPFRouting : public Ipv4RoutingProtocol
      *
      * \see Ipv4GlobalRouting
      */
-    OSPFRouting();
-    ~OSPFRouting() override;
+    OctopusRouting();
+    ~OctopusRouting() override;
 
     // These methods inherited from Ipv4RoutingProtocol class
     Ptr<Ipv4Route> RouteOutput(Ptr<Packet> p,
@@ -69,19 +69,19 @@ class OSPFRouting : public Ipv4RoutingProtocol
     void DoInitialize(void) override;
 
     // These methods inherited from RomamRouting class
-    void AddHostRouteTo(Ipv4Address dest, Ipv4Address nextHop, uint32_t interface);
-    void AddHostRouteTo(Ipv4Address dest, uint32_t interface);
+    void AddHostRouteTo(Ipv4Address dest, Ipv4Address nextHop, uint32_t interface) override;
+    void AddHostRouteTo(Ipv4Address dest, uint32_t interface) override;
     void AddNetworkRouteTo(Ipv4Address network,
                            Ipv4Mask networkMask,
                            Ipv4Address nextHop,
-                           uint32_t interface);
-    void AddNetworkRouteTo(Ipv4Address network, Ipv4Mask networkMask, uint32_t interface);
+                           uint32_t interface) override;
+    void AddNetworkRouteTo(Ipv4Address network, Ipv4Mask networkMask, uint32_t interface) override;
     void AddASExternalRouteTo(Ipv4Address network,
                               Ipv4Mask networkMask,
                               Ipv4Address nextHop,
-                              uint32_t interface);
-    uint32_t GetNRoutes(void) const;
-    void RemoveRoute(uint32_t i);
+                              uint32_t interface) override;
+    uint32_t GetNRoutes(void) const override;
+    void RemoveRoute(uint32_t i) override;
 
     /**
      * Assign a fixed random variable stream number to the random variables
@@ -146,4 +146,4 @@ class OSPFRouting : public Ipv4RoutingProtocol
 
 } // namespace ns3
 
-#endif /* OSPF_ROUTING_H */
+#endif /* OCTOPUS_ROUTING_H */

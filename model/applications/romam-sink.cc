@@ -33,7 +33,7 @@ RomamSink::GetTypeId(void)
     static TypeId tid =
         TypeId("ns3::RomamSink")
             .SetParent<Application>()
-            .SetGroupName("Applications")
+            .SetGroupName("Romam")
             .AddConstructor<RomamSink>()
             .AddAttribute("Local",
                           "The Address on which to Bind the rx socket.",

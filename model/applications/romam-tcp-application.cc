@@ -31,7 +31,7 @@ RomamTcpApplication::GetTypeId(void)
     static TypeId tid =
         TypeId("ns3::RomamTcpApplication")
             .SetParent<Application>()
-            .SetGroupName("Applications")
+            .SetGroupName("Romam")
             .AddConstructor<RomamTcpApplication>()
             .AddAttribute("SendSize",
                           "The amount of data to send each time.",
