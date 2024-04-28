@@ -66,7 +66,6 @@ OSPFRouting::RouteOutput(Ptr<Packet> p,
                          Ptr<NetDevice> oif,
                          Socket::SocketErrno& sockerr)
 {
-    std::cout << "OSPF routing output recalled\n";
     NS_LOG_FUNCTION(this << p << &header << oif << &sockerr);
     //
     // First, see if this is a multicast packet we have a route for.  If we
@@ -102,7 +101,6 @@ OSPFRouting::RouteInput(Ptr<const Packet> p,
                         const LocalDeliverCallback& lcb,
                         const ErrorCallback& ecb)
 {
-    std::cout << "packet input\n";
     NS_LOG_FUNCTION(this << p << header << header.GetSource() << header.GetDestination() << idev
                          << &lcb << &ecb);
     // Check if input device supports IP

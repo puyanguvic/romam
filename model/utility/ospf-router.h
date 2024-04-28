@@ -35,8 +35,8 @@ class OSPFRouter : public RomamRouter
      */
     OSPFRouter();
     // Inherate from RomamRouter
-    void SetRoutingProtocol(Ptr<Ipv4RoutingProtocol> routing) override;
-    virtual Ptr<Ipv4RoutingProtocol> GetRoutingProtocol() override;
+    void SetRoutingProtocol(Ptr<RomamRouting> routing) override;
+    virtual Ptr<RomamRouting> GetRoutingProtocol() override;
 
   private:
     ~OSPFRouter() override;

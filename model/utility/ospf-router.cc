@@ -29,13 +29,13 @@ OSPFRouter::~OSPFRouter()
 }
 
 void
-OSPFRouter::SetRoutingProtocol(Ptr<Ipv4RoutingProtocol> routing)
+OSPFRouter::SetRoutingProtocol(Ptr<RomamRouting> routing)
 {
     NS_LOG_FUNCTION(this << routing);
     m_routingProtocol = DynamicCast<OSPFRouting>(routing);
 }
 
-Ptr<Ipv4RoutingProtocol>
+Ptr<RomamRouting>
 OSPFRouter::GetRoutingProtocol(void)
 {
     NS_LOG_FUNCTION(this);
