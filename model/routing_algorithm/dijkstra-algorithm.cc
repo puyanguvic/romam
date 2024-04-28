@@ -3,6 +3,7 @@
 #include "dijkstra-algorithm.h"
 
 #include "../romam-routing.h"
+#include "../utility/ospf-router.h"
 #include "../utility/romam-router.h"
 #include "route-candidate-queue.h"
 
@@ -50,9 +51,12 @@ DijkstraAlgorithm::DeleteRoutes()
     for (auto i = NodeList::Begin(); i != NodeList::End(); i++)
     {
         Ptr<Node> node = *i;
-        Ptr<RomamRouter> router = node->GetObject<RomamRouter>();
+        // Ptr<RomamRouter> router = node->GetObject<RomamRouter>();
+        Ptr<OSPFRouter> router = node->GetObject<OSPFRouter>();
+
         if (!router)
         {
+            std::cout << "No find OSPF Router\n";
             continue;
         }
         Ptr<RomamRouting> gr = router->GetRoutingProtocol();
@@ -81,6 +85,7 @@ void
 DijkstraAlgorithm::InsertLSDB(LSDB* lsdb)
 {
     m_lsdb = lsdb;
+    // lsdb->Print(std::cout);
 }
 
 void
@@ -104,8 +109,8 @@ DijkstraAlgorithm::InitializeRoutes()
         // Look for the GlobalRouter interface that indicates that the node is
         // participating in routing.
         //
-        Ptr<RomamRouter> rtr = node->GetObject<RomamRouter>();
-
+        // Ptr<RomamRouter> rtr = node->GetObject<RomamRouter>();
+        Ptr<OSPFRouter> rtr = node->GetObject<OSPFRouter>();
         uint32_t systemId = Simulator::GetSystemId();
         // Ignore nodes that are not assigned to our systemId (distributed sim)
         if (node->GetSystemId() != systemId)
@@ -1388,7 +1393,8 @@ DijkstraAlgorithm::SPFIntraAddRouter(Vertex* v)
                 // Similarly, the vertex <v> has an m_rootOif (outbound interface index) to
                 // which the packets should be send for forwarding.
                 //
-                Ptr<RomamRouter> router = node->GetObject<RomamRouter>();
+                // Ptr<RomamRouter> router = node->GetObject<RomamRouter>();
+                Ptr<OSPFRouter> router = node->GetObject<OSPFRouter>();
                 if (!router)
                 {
                     continue;
@@ -1405,6 +1411,7 @@ DijkstraAlgorithm::SPFIntraAddRouter(Vertex* v)
                     int32_t outIf = exit.second;
                     if (outIf >= 0)
                     {
+                        std::cout << "add host route to:\n";
                         gr->AddHostRouteTo(lr->GetLinkData(), nextHop, outIf);
                         NS_LOG_LOGIC("(Route " << i << ") Node " << node->GetId()
                                                << " adding host route to " << lr->GetLinkData()

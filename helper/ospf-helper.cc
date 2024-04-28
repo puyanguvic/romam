@@ -29,10 +29,8 @@ OSPFHelper::Copy(void) const
 Ptr<Ipv4RoutingProtocol>
 OSPFHelper::Create(Ptr<Node> node) const
 {
-    NS_LOG_LOGIC("Adding DGRRouter interface to node " << node->GetId());
-    // install DGRv2 Queue to netdevices
-
-    // install DGR router to node.
+    NS_LOG_LOGIC("Adding OSPFRouter interface to node " << node->GetId());
+    // install OSPFRouter to node.
     Ptr<OSPFRouter> router = CreateObject<OSPFRouter>();
     node->AggregateObject(router);
 

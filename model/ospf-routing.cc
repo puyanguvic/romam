@@ -223,7 +223,7 @@ OSPFRouting::PrintRoutingTable(Ptr<OutputStreamWrapper> stream, Time::Unit unit)
 
     *os << "Node: " << m_ipv4->GetObject<Node>()->GetId() << ", Time: " << Now().As(unit)
         << ", Local time: " << m_ipv4->GetObject<Node>()->GetLocalTime().As(unit)
-        << ", Ipv4GlobalRouting table" << std::endl;
+        << ", OSPFRouting table" << std::endl;
 
     if (GetNRoutes() > 0)
     {
