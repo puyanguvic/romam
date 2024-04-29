@@ -29,7 +29,7 @@ OSPFRouting::GetTypeId()
 {
     static TypeId tid =
         TypeId("ns3::OSPFRouting")
-            .SetParent<Object>()
+            .SetParent<RomamRouting>()
             .SetGroupName("Romam")
             .AddAttribute("RandomEcmpRouting",
                           "Set to true if packets are randomly routed among ECMP; set to false for "

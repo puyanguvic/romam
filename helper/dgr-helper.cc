@@ -21,6 +21,8 @@
 
 #include "ns3/ipv4-list-routing.h"
 #include "ns3/log.h"
+#include "ns3/romam-module.h"
+#include "ns3/traffic-control-helper.h"
 #include "ns3/traffic-control-layer.h"
 
 namespace ns3
@@ -46,16 +48,16 @@ Ptr<Ipv4RoutingProtocol>
 DGRHelper::Create(Ptr<Node> node) const
 {
     NS_LOG_LOGIC("Adding DGRRouter interface to node " << node->GetId());
-    // install DGRv2 Queue to netdevices
-
     // install DGR router to node.
     Ptr<DGRRouter> router = CreateObject<DGRRouter>();
     node->AggregateObject(router);
 
+    // // install DGRQueueDisc to netdevices
+    // QueueDiscContainer container = Install(node);
+
     NS_LOG_LOGIC("Adding DGRRouting Protocol to node " << node->GetId());
     Ptr<DGRRouting> routing = CreateObject<DGRRouting>();
     router->SetRoutingProtocol(routing);
-
     return routing;
 }
 
@@ -81,7 +83,7 @@ DGRHelper::RecomputeRoutingTables(void)
 }
 
 QueueDiscContainer
-DGRHelper::Install(Ptr<Node> node)
+DGRHelper::Install(Ptr<Node> node) const
 {
     NetDeviceContainer container;
     for (uint32_t i = 0; i < node->GetNDevices(); i++)
@@ -92,7 +94,7 @@ DGRHelper::Install(Ptr<Node> node)
 }
 
 QueueDiscContainer
-DGRHelper::Install(NetDeviceContainer c)
+DGRHelper::Install(NetDeviceContainer c) const
 {
     QueueDiscContainer container;
     for (auto i = c.Begin(); i != c.End(); ++i)
@@ -103,20 +105,32 @@ DGRHelper::Install(NetDeviceContainer c)
 }
 
 QueueDiscContainer
-DGRHelper::Install(Ptr<NetDevice> d)
+DGRHelper::Install(Ptr<NetDevice> d) const
 {
     QueueDiscContainer container;
     // A TrafficControlLayer object is aggregated by the InternetStackHelper, but check
     // anyway because a queue disc has no effect without a TrafficControlLayer object
     Ptr<TrafficControlLayer> tc = d->GetNode()->GetObject<TrafficControlLayer>();
-    NS_ASSERT(tc);
+    std::cout << "install queue disc\n";
+    if (tc == nullptr)
+    {
+        TrafficControlHelper tch;
+        tch.SetRootQueueDisc("ns3::RedQueueDisc");
+        container = tch.Install(d);
+    }
+    // else
+    // {
+    //     // NS_ASSERT(tc);
+    //     // Generate the DGRQeueuDisc Object
+    //     std::cout << "Install DGRQueueDisc\n";
+    //     NS_LOG_LOGIC("Install DGRQueueDisc to routers");
+    //     ObjectFactory queueFactory;
+    //     queueFactory.SetTypeId("DGRQueueDisc");
+    //     Ptr<DGRQueueDisc> qdisc = queueFactory.Create<DGRQueueDisc>();
+    //     tc->SetRootQueueDiscOnDevice(d, qdisc);
+    //     container.Add(qdisc);
+    // }
 
-    // Generate the DGRv2Qeueu Object
-    ObjectFactory queueFactory;
-    queueFactory.SetTypeId("ns3::DGRv2QueueDisc");
-    Ptr<DGRv2QueueDisc> qdisc = queueFactory.Create<DGRv2QueueDisc>();
-    tc->SetRootQueueDiscOnDevice(d, qdisc);
-    container.Add(qdisc);
     return container;
 }
 

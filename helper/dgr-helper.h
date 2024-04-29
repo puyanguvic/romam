@@ -83,7 +83,7 @@ class DGRHelper : public Ipv4RoutingHelper
      * on the given node. Additionally, if configured, a queue limits object is
      * installed on each transmission queue of the device.
      */
-    QueueDiscContainer Install(Ptr<Node> node);
+    QueueDiscContainer Install(Ptr<Node> node) const;
 
     /**
      * \param c netdevic container
@@ -94,12 +94,12 @@ class DGRHelper : public Ipv4RoutingHelper
      * on the given node. Additionally, if configured, a queue limits object is
      * installed on each transmission queue of the device.
      */
-    QueueDiscContainer Install(NetDeviceContainer c);
+    QueueDiscContainer Install(NetDeviceContainer c) const;
 
     /**
      * This method intall DGRv2Queue into NetDevice
      */
-    QueueDiscContainer Install(Ptr<NetDevice> d);
+    QueueDiscContainer Install(Ptr<NetDevice> d) const;
 
   private:
     /**

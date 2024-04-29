@@ -14,7 +14,7 @@ NS_LOG_COMPONENT_DEFINE("OSPFRouter");
 TypeId
 OSPFRouter::GetTypeId(void)
 {
-    static TypeId tid = TypeId("ns3::OSPFRouter").SetParent<Object>().SetGroupName("romam");
+    static TypeId tid = TypeId("ns3::OSPFRouter").SetParent<RomamRouter>().SetGroupName("romam");
     return tid;
 }
 

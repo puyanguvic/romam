@@ -14,7 +14,7 @@ NS_LOG_COMPONENT_DEFINE("DGRRouter");
 TypeId
 DGRRouter::GetTypeId(void)
 {
-    static TypeId tid = TypeId("ns3::DGRRouter").SetParent<Object>().SetGroupName("romam");
+    static TypeId tid = TypeId("ns3::DGRRouter").SetParent<RomamRouter>().SetGroupName("romam");
     return tid;
 }
 

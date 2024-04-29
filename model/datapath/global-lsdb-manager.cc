@@ -72,10 +72,10 @@ GlobalLSDBManager::BuildLinkStateDatabase()
     {
         Ptr<Node> node = *i;
 
-        Ptr<OSPFRouter> rtr = node->GetObject<OSPFRouter>();
+        Ptr<RomamRouter> rtr = node->GetObject<RomamRouter>();
         if (!rtr)
         {
-            std::cout << "No OSPFRouter\n";
+            std::cout << "No Router found\n";
             continue;
         }
 

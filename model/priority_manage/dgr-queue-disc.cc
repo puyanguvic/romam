@@ -1,14 +1,15 @@
-/* -*- Mode:C++; c-file-style:"gnu"; indent-tabs-mode:nil; -*- */
-
 #include "dgr-queue-disc.h"
 
 #include "../datapath/romam-tags.h"
 
+#include "ns3/attribute.h"
+#include "ns3/drop-tail-queue.h"
+#include "ns3/enum.h"
 #include "ns3/log.h"
+#include "ns3/net-device-queue-interface.h"
 #include "ns3/object-factory.h"
-#include "ns3/queue.h"
 #include "ns3/simulator.h"
-#include "ns3/socket.h"
+#include "ns3/uinteger.h"
 
 #define FAST_LANE 0
 #define SLOW_LANE 1
@@ -19,19 +20,22 @@ namespace ns3
 
 NS_LOG_COMPONENT_DEFINE("DGRQueueDisc");
 
+NS_OBJECT_ENSURE_REGISTERED(DGRQueueDisc);
+
 TypeId
-DGRQueueDisc::GetTypeId(void)
+DGRQueueDisc::GetTypeId()
 {
     static TypeId tid =
         TypeId("ns3::DGRQueueDisc")
             .SetParent<QueueDisc>()
-            .SetGroupName("Romam")
+            .SetGroupName("TrafficControl")
             .AddConstructor<DGRQueueDisc>()
             .AddAttribute("MaxSize",
                           "The maximum number of packets accepted by this queue disc.",
                           QueueSizeValue(QueueSize("1085p")),
                           MakeQueueSizeAccessor(&QueueDisc::SetMaxSize, &QueueDisc::GetMaxSize),
                           MakeQueueSizeChecker());
+
     return tid;
 }
 
@@ -46,18 +50,21 @@ DGRQueueDisc::~DGRQueueDisc()
     NS_LOG_FUNCTION(this);
 }
 
+void
+DGRQueueDisc::DoDispose()
+{
+    NS_LOG_FUNCTION(this);
+    QueueDisc::DoDispose();
+}
+
 bool
 DGRQueueDisc::DoEnqueue(Ptr<QueueDiscItem> item)
 {
     NS_LOG_FUNCTION(this << item);
     uint32_t lane = EnqueueClassify(item);
-    // if (lane == 1) std::cout << "lane: " << lane << std::endl;
-    // std::cout << "get current size : " << GetInternalQueue(lane)->GetCurrentSize ().GetValue() <<
-    // std::endl;
     if (lane == 0 && GetInternalQueue(lane)->GetCurrentSize().GetValue() >= LinesSize[lane])
     {
-        // std::cout << "fast lane full" << std::endl;
-        lane += 1; // when fast congestion, the arrival packe will be enqueue to slow lane
+        lane += 1;
     }
     bool retval = GetInternalQueue(lane)->Enqueue(item);
     if (!retval)
@@ -65,18 +72,15 @@ DGRQueueDisc::DoEnqueue(Ptr<QueueDiscItem> item)
         NS_LOG_WARN("Packet enqueue failed. Check the size of the internal queues");
     }
 
-    NS_LOG_LOGIC("Number packets lane " << lane << ": " << GetInternalQueue(lane)->GetNPackets());
-
+    NS_LOG_LOGIC("Number packets lane" << lane << ":" << GetInternalQueue(lane)->GetNPackets());
     return retval;
 }
 
 Ptr<QueueDiscItem>
-DGRQueueDisc::DoDequeue(void)
+DGRQueueDisc::DoDequeue()
 {
     NS_LOG_FUNCTION(this);
-
     Ptr<QueueDiscItem> item;
-
     for (uint32_t i = 0; i < GetNInternalQueues(); i++)
     {
         item = GetInternalQueue(i)->Dequeue();
@@ -84,7 +88,6 @@ DGRQueueDisc::DoDequeue(void)
         {
             NS_LOG_LOGIC("Popped from band " << i << ": " << item);
             NS_LOG_LOGIC("Number packets band " << i << ": " << GetInternalQueue(i)->GetNPackets());
-            // std::cout << item->GetSize () << std::endl;
             return item;
         }
     }
@@ -94,7 +97,7 @@ DGRQueueDisc::DoDequeue(void)
 }
 
 Ptr<const QueueDiscItem>
-DGRQueueDisc::DoPeek(void)
+DGRQueueDisc::DoPeek()
 {
     NS_LOG_FUNCTION(this);
 
@@ -116,7 +119,7 @@ DGRQueueDisc::DoPeek(void)
 }
 
 bool
-DGRQueueDisc::CheckConfig(void)
+DGRQueueDisc::CheckConfig()
 {
     NS_LOG_FUNCTION(this);
     if (GetNQueueDiscClasses() > 0)
@@ -162,7 +165,7 @@ DGRQueueDisc::CheckConfig(void)
 }
 
 void
-DGRQueueDisc::InitializeParams(void)
+DGRQueueDisc::InitializeParams()
 {
     NS_LOG_FUNCTION(this);
 }
@@ -189,4 +192,5 @@ DGRQueueDisc::EnqueueClassify(Ptr<QueueDiscItem> item)
         return NORMAL_LANE;
     }
 }
+
 } // namespace ns3

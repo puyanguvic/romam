@@ -13,19 +13,20 @@ set (source_files
     
     model/priority_manage/dgr-queue-disc.cc
     model/priority_manage/ddr-queue-disc.cc
+    model/priority_manage/test-queue-disc.cc
 
     model/routing_algorithm/routing-algorithm.cc
     model/routing_algorithm/route-info-entry.cc
     model/routing_algorithm/route-candidate-queue.cc
     model/routing_algorithm/dijkstra-route-info-entry.cc
     model/routing_algorithm/dijkstra-algorithm.cc
-    # model/routing_algorithm/spf-algorithm.cc
+    model/routing_algorithm/spf-algorithm.cc
     model/routing_algorithm/spf-route-info-entry.cc
     
     model/utility/romam-router.cc
     model/utility/route-manager.cc
     model/utility/ospf-router.cc
-    # model/utility/dgr-router.cc
+    model/utility/dgr-router.cc
     # model/utility/octopus-router.cc
 
     model/romam-routing.cc
@@ -42,6 +43,7 @@ set (source_files
     helper/romam-sink-helper.cc
     helper/romam-routing-helper.cc
     helper/ospf-helper.cc
+    helper/dgr-helper.cc
     # helper/octopus-helper.cc
 )
 set (header_files
@@ -59,19 +61,20 @@ set (header_files
 
     model/priority_manage/dgr-queue-disc.h
     model/priority_manage/ddr-queue-disc.h
+    model/priority_manage/test-queue-disc.h
 
     model/routing_algorithm/routing-algorithm.h
     model/routing_algorithm/route-info-entry.h
     model/routing_algorithm/route-candidate-queue.h
     model/routing_algorithm/dijkstra-route-info-entry.h
     model/routing_algorithm/dijkstra-algorithm.h
-    # model/routing_algorithm/spf-algorithm.h
+    model/routing_algorithm/spf-algorithm.h
     model/routing_algorithm/spf-route-info-entry.h
 
     model/utility/romam-router.h
     model/utility/route-manager.h
     model/utility/ospf-router.h
-    # model/utility/dgr-router.h
+    model/utility/dgr-router.h
     # model/utility/octopus-router.h
 
     model/romam-routing.h
@@ -88,6 +91,7 @@ set (header_files
     helper/romam-sink-helper.h
     helper/romam-routing-helper.h
     helper/ospf-helper.h
+    helper/dgr-helper.h
     # helper/octopus-helper.cc
 )
 

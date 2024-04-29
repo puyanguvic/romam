@@ -3,7 +3,6 @@
 #ifndef DGR_ROUTING_H
 #define DGR_ROUTING_H
 
-#include "datapath/tsdb.h"
 #include "romam-routing.h"
 
 #include "ns3/ipv4-address.h"
@@ -97,7 +96,6 @@ class DGRRouting : public RomamRouting
                         uint32_t interface,
                         uint32_t nextIface,
                         uint32_t distance);
-
     /**
      * Assign a fixed random variable stream number to the random variables
      * used by this model.  Return the number of streams (possibly zero) that
@@ -151,7 +149,9 @@ class DGRRouting : public RomamRouting
      * \param oif output interface if any (put 0 otherwise)
      * \return Ipv4Route to route the packet to reach dest address
      */
-    Ptr<Ipv4Route> LookupRoute(Ipv4Address dest, Ptr<NetDevice> oif = 0) const;
+    // Ptr<Ipv4Route> LookupRoute(Ipv4Address dest, Ptr<NetDevice> oif = 0) const;
+    Ptr<Ipv4Route> LookupShortestRoute(Ipv4Address dest, Ptr<NetDevice> oif = 0);
+    Ptr<Ipv4Route> LookupDGRRoute(Ipv4Address dest, Ptr<Packet> p, Ptr<const NetDevice> idev = 0);
 
     HostRoutes m_hostRoutes;             //!< Routes to hosts
     NetworkRoutes m_networkRoutes;       //!< Routes to networks

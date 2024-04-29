@@ -3,6 +3,7 @@
 #include "route-manager.h"
 
 #include "../routing_algorithm/dijkstra-algorithm.h"
+#include "../routing_algorithm/spf-algorithm.h"
 
 #include "ns3/assert.h"
 #include "ns3/log.h"
@@ -52,8 +53,10 @@ void
 RouteManager::InitializeSPFRoutes(void)
 {
     NS_LOG_FUNCTION_NOARGS();
-    // LSDB* lsdb = SimulationSingleton<GlobalLSDBManager>::Get()->GetLSDB();
-    // TODO: Finish the spf init
+    LSDB* lsdb = SimulationSingleton<GlobalLSDBManager>::Get()->GetLSDB();
+    SPFAlgorithm* spf = new SPFAlgorithm();
+    spf->InsertLSDB(lsdb);
+    spf->InitializeRoutes();
 }
 
 } // namespace ns3
