@@ -5,6 +5,7 @@ set (source_files
     model/datapath/lsa.cc
     model/datapath/lsdb.cc
     model/datapath/tsdb.cc
+    model/datapath/arm-value-db.cc
     # model/datapath/ospf-headers.cc
     # model/datapath/ospf-FSM.cc
     # model/datapath/ospf-headers.cc
@@ -55,6 +56,7 @@ set (header_files
     model/datapath/lsa.h
     model/datapath/lsdb.h
     model/datapath/tsdb.h
+    model/datapath/arm-value-db.h
     # model/datapath/ospf-headers.h
     # model/datapath/ospf-FSM.h
     # model/datapath/ospf-headers.h
