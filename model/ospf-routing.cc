@@ -305,6 +305,17 @@ OSPFRouting::AddNetworkRouteTo(Ipv4Address network,
 }
 
 void
+OSPFRouting::AddHostRouteTo(Ipv4Address dest,
+                            Ipv4Address nextHop,
+                            uint32_t interface,
+                            uint32_t nextIface,
+                            uint32_t distance)
+{
+    NS_LOG_FUNCTION(this << dest << nextHop << interface << nextIface << distance);
+    AddHostRouteTo(dest, interface);
+}
+
+void
 OSPFRouting::AddNetworkRouteTo(Ipv4Address network, Ipv4Mask networkMask, uint32_t interface)
 {
     NS_LOG_FUNCTION(this << network << networkMask << interface);

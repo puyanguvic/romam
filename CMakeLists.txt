@@ -1,6 +1,6 @@
 set (source_files
     model/datapath/database.cc
-    # model/datapath/dgr-headers.cc
+    model/datapath/dgr-headers.cc
     model/datapath/global-lsdb-manager.cc
     model/datapath/lsa.cc
     model/datapath/lsdb.cc
@@ -13,7 +13,6 @@ set (source_files
     
     model/priority_manage/dgr-queue-disc.cc
     model/priority_manage/ddr-queue-disc.cc
-    model/priority_manage/test-queue-disc.cc
 
     model/routing_algorithm/routing-algorithm.cc
     model/routing_algorithm/route-info-entry.cc
@@ -27,11 +26,13 @@ set (source_files
     model/utility/route-manager.cc
     model/utility/ospf-router.cc
     model/utility/dgr-router.cc
+    model/utility/ddr-router.cc
     # model/utility/octopus-router.cc
 
     model/romam-routing.cc
     model/ospf-routing.cc
     model/dgr-routing.cc
+    model/ddr-routing.cc
     model/octopus-routing.cc
 
     model/applications/romam-tcp-application.cc
@@ -44,11 +45,12 @@ set (source_files
     helper/romam-routing-helper.cc
     helper/ospf-helper.cc
     helper/dgr-helper.cc
+    helper/ddr-helper.cc
     # helper/octopus-helper.cc
 )
 set (header_files
     model/datapath/database.h
-    # model/datapath/dgr-headers.h
+    model/datapath/dgr-headers.h
     model/datapath/global-lsdb-manager.h
     model/datapath/lsa.h
     model/datapath/lsdb.h
@@ -61,8 +63,7 @@ set (header_files
 
     model/priority_manage/dgr-queue-disc.h
     model/priority_manage/ddr-queue-disc.h
-    model/priority_manage/test-queue-disc.h
-
+    
     model/routing_algorithm/routing-algorithm.h
     model/routing_algorithm/route-info-entry.h
     model/routing_algorithm/route-candidate-queue.h
@@ -75,11 +76,13 @@ set (header_files
     model/utility/route-manager.h
     model/utility/ospf-router.h
     model/utility/dgr-router.h
+    model/utility/ddr-router.h
     # model/utility/octopus-router.h
 
     model/romam-routing.h
     model/ospf-routing.h
     model/dgr-routing.h
+    model/ddr-routing.h
     model/octopus-routing.h
 
     model/applications/romam-tcp-application.h
@@ -92,6 +95,7 @@ set (header_files
     helper/romam-routing-helper.h
     helper/ospf-helper.h
     helper/dgr-helper.h
+    helper/ddr-helper.h
     # helper/octopus-helper.cc
 )
 

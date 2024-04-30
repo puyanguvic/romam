@@ -62,6 +62,21 @@ class RomamRouting : public Ipv4RoutingProtocol
     virtual void AddHostRouteTo(Ipv4Address dest, uint32_t interface) = 0;
 
     /**
+     * \brief Add a host route to the global routing table with the distance
+     * between root and destination
+     * \param dest The Ipv4Address destination for this route.
+     * \param nextHop The next hop Ipv4Address
+     * \param interface The network interface index used to send packets to the
+     *  destination
+     * \param distance The distance between root and destination
+     */
+    virtual void AddHostRouteTo(Ipv4Address dest,
+                                Ipv4Address nextHop,
+                                uint32_t interface,
+                                uint32_t nextIface,
+                                uint32_t distance) = 0;
+
+    /**
      * \brief Add a network route to the global routing table.
      *
      * \param network The Ipv4Address network for this route.

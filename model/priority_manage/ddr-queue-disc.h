@@ -1,58 +1,24 @@
-/* -*- Mode:C++; c-file-style:"gnu"; indent-tabs-mode:nil; -*- */
 #ifndef DDR_QUEUE_DISC_H
 #define DDR_QUEUE_DISC_H
 
-#include "ns3/object.h"
-#include "ns3/packet-filter.h"
+#include "ns3/boolean.h"
+#include "ns3/data-rate.h"
+#include "ns3/event-id.h"
+#include "ns3/nstime.h"
 #include "ns3/queue-disc.h"
+#include "ns3/random-variable-stream.h"
+#include "ns3/trace-source-accessor.h"
+#include "ns3/traced-value.h"
 
 namespace ns3
 {
 
+/**
+ * \ingroup traffic-control
+ *
+ * \brief A TBF packet queue disc
+ */
 class DDRQueueDisc : public QueueDisc
-{
-  public:
-    /**
-     * \brief Get the type ID.
-     * \return the object TypeId
-     */
-    static TypeId GetTypeId(void);
-    /**
-     * \brief DDRQueueDisc constructor
-     */
-    DDRQueueDisc();
-    /**
-     * \brief DDRQueueDisc Destructor
-     */
-    ~DDRQueueDisc();
-
-    // Reasons for dropping packets
-    static constexpr const char* LIMIT_EXCEEDED_DROP =
-        "Queue disc limit exceeded"; //!< Packet dropped due to queue disc limit exceeded
-
-    // Get current queue state
-    uint32_t GetQueueStatus();
-    uint32_t GetQueueDelay();
-    bool CheckConfig(void) override;
-
-  private:
-    uint32_t m_fastWeight;
-    uint32_t m_normalWeight;
-    // uint32_t m_slowWeight;
-    uint32_t m_currentFastWeight;
-    uint32_t m_currentNormalWeight;
-    // uint32_t m_currentSlowWeight;
-
-    bool DoEnqueue(Ptr<QueueDiscItem> item) override;
-    Ptr<QueueDiscItem> DoDequeue(void) override;
-    Ptr<const QueueDiscItem> DoPeek(void) override;
-    // bool CheckConfig (void) override;
-    void InitializeParams(void) override;
-
-    uint32_t EnqueueClassify(Ptr<QueueDiscItem> item);
-};
-
-class DGRv2PacketFilter : public PacketFilter
 {
   public:
     /**
@@ -61,12 +27,46 @@ class DGRv2PacketFilter : public PacketFilter
      */
     static TypeId GetTypeId();
 
-    DGRv2PacketFilter();
-    ~DGRv2PacketFilter() override;
+    /**
+     * \brief DDRQueueDisc Constructor
+     *
+     * Create a queue disc
+     */
+    DDRQueueDisc();
+
+    /**
+     * \brief Destructor
+     *
+     * Destructor
+     */
+    ~DDRQueueDisc() override;
+
+    // Reasons for dropping packets
+    static constexpr const char* LIMIT_EXCEEDED_DROP =
+        "Queue disc limit exceeded"; //!< Packet dropped due to queue disc limit exceeded
+
+    uint32_t GetQueueStatus();
+    uint32_t GetQueueDelay();
+
+  protected:
+    /**
+     * \brief Dispose of the object
+     */
+    void DoDispose() override;
 
   private:
-    bool CheckProtocol(Ptr<QueueDiscItem> item) const override;
-    int32_t DoClassify(Ptr<QueueDiscItem> item) const override;
+    uint32_t m_fastWeight;
+    uint32_t m_normalWeight;
+    uint32_t m_currentFastWeight;
+    uint32_t m_currentNormalWeight;
+
+    bool DoEnqueue(Ptr<QueueDiscItem> item) override;
+    Ptr<QueueDiscItem> DoDequeue() override;
+    Ptr<const QueueDiscItem> DoPeek() override;
+    bool CheckConfig() override;
+    void InitializeParams() override;
+
+    uint32_t EnqueueClassify(Ptr<QueueDiscItem> item);
 };
 
 } // namespace ns3

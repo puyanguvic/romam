@@ -2,7 +2,9 @@
 
 #include "spf-algorithm.h"
 
+#include "../ddr-routing.h"
 #include "../dgr-routing.h"
+#include "../utility/ddr-router.h"
 #include "../utility/dgr-router.h"
 #include "route-candidate-queue.h"
 
@@ -100,10 +102,10 @@ SPFAlgorithm::InitializeRoutes()
         Ptr<Node> node = *i;
 
         //
-        // Look for the DGRRouter interface that indicates that the node is
+        // Look for the RomamRouter interface that indicates that the node is
         // participating in routing.
         //
-        Ptr<DGRRouter> rtr = node->GetObject<DGRRouter>();
+        Ptr<RomamRouter> rtr = node->GetObject<RomamRouter>();
 
         uint32_t systemId = Simulator::GetSystemId();
         // Ignore nodes that are not assigned to our systemId (distributed sim)
@@ -169,14 +171,12 @@ SPFAlgorithm::InitializeRoutes()
                     NS_ASSERT(w_lsa);
                     NS_LOG_LOGIC("Found a P2P record from " << v->GetVertexId() << " to "
                                                             << w_lsa->GetLinkStateId());
-                    Ptr<DGRRouter> router = node->GetObject<DGRRouter>();
+                    Ptr<RomamRouter> router = node->GetObject<RomamRouter>();
                     if (!router)
                     {
                         continue;
                     }
-                    Ptr<RomamRouting> rr = router->GetRoutingProtocol();
-
-                    Ptr<DGRRouting> routing = DynamicCast<DGRRouting>(rr);
+                    Ptr<RomamRouting> routing = router->GetRoutingProtocol();
                     NS_ASSERT(routing);
                     LinkRecord* linkRemote = 0;
                     Vertex* w = new Vertex(w_lsa);
@@ -1442,8 +1442,7 @@ SPFAlgorithm::SPFIntraAddRouter(Vertex* v, Vertex* v_init, Ipv4Address nextHop, 
         // to GetObject for that interface.  If there's no GlobalRouter interface,
         // the node in question cannot be the router we want, so we continue.
         //
-        Ptr<DGRRouter> rtr = node->GetObject<DGRRouter>();
-
+        Ptr<RomamRouter> rtr = node->GetObject<RomamRouter>();
         if (!rtr)
         {
             NS_LOG_LOGIC("No SPFRouter interface on node " << node->GetId());
@@ -1477,7 +1476,7 @@ SPFAlgorithm::SPFIntraAddRouter(Vertex* v, Vertex* v_init, Ipv4Address nextHop, 
             //
             LSA* lsa = v->GetLSA();
             NS_ASSERT_MSG(lsa,
-                          "DGRRouteManagerImpl::SPFIntraAddRouter (): "
+                          "SPFAlgorithm::SPFIntraAddRouter (): "
                           "Expected valid LSA in DGRVertex* v");
 
             uint32_t nLinkRecords = lsa->GetNLinkRecords();
@@ -1502,13 +1501,12 @@ SPFAlgorithm::SPFIntraAddRouter(Vertex* v, Vertex* v_init, Ipv4Address nextHop, 
                 {
                     continue;
                 }
-                Ptr<DGRRouter> router = node->GetObject<DGRRouter>();
+                Ptr<RomamRouter> router = node->GetObject<RomamRouter>();
                 if (!router)
                 {
                     continue;
                 }
-                Ptr<RomamRouting> rr = router->GetRoutingProtocol();
-                Ptr<DGRRouting> routing = DynamicCast<DGRRouting>(rr);
+                Ptr<RomamRouting> routing = router->GetRoutingProtocol();
                 NS_ASSERT(routing);
                 uint32_t distance = v->GetDistanceFromRoot();
                 if (v->GetNRootExitDirections() >= 1)

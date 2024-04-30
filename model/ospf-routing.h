@@ -71,6 +71,11 @@ class OSPFRouting : public RomamRouting
     // These methods inherited from RomamRouting class
     void AddHostRouteTo(Ipv4Address dest, Ipv4Address nextHop, uint32_t interface) override;
     void AddHostRouteTo(Ipv4Address dest, uint32_t interface) override;
+    void AddHostRouteTo(Ipv4Address dest,
+                        Ipv4Address nextHop,
+                        uint32_t interface,
+                        uint32_t nextIface,
+                        uint32_t distance) override;
     void AddNetworkRouteTo(Ipv4Address network,
                            Ipv4Mask networkMask,
                            Ipv4Address nextHop,

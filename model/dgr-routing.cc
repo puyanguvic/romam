@@ -1,3 +1,5 @@
+// -*- Mode:C++; c-file-style:"gnu"; indent-tabs-mode:nil; -*-
+
 #include "dgr-routing.h"
 
 #include "datapath/romam-tags.h"
@@ -226,7 +228,7 @@ DGRRouting::NotifyRemoveAddress(uint32_t interface, Ipv4InterfaceAddress address
         NS_LOG_LOGIC("update routing table");
         RouteManager::DeleteRoutes();
         RouteManager::BuildLSDB();
-        RouteManager::InitializeDijkstraRoutes();
+        RouteManager::InitializeSPFRoutes();
     }
 }
 

@@ -1,238 +1,236 @@
 /* -*- Mode:C++; c-file-style:"gnu"; indent-tabs-mode:nil; -*- */
 
 #include "dgr-headers.h"
+
 #include "ns3/log.h"
 
-namespace ns3 {
+namespace ns3
+{
 
 //----------------------------------------------------------------------
 //-- DgrNse
 //------------------------------------------------------
-DgrNse::DgrNse ()
-    : m_iface (0),
-      m_state (0)
+DgrNse::DgrNse()
+    : m_iface(0),
+      m_state(0)
 {
 }
 
 TypeId
-DgrNse::GetTypeId ()
+DgrNse::GetTypeId()
 {
-  static TypeId tid = TypeId ("ns3::DgrNse")
-                          .SetParent<Header>()
-                          .SetGroupName ("dgr")
-                          .AddConstructor<DgrNse> ();
-  return tid;
+    static TypeId tid =
+        TypeId("ns3::DgrNse").SetParent<Header>().SetGroupName("dgr").AddConstructor<DgrNse>();
+    return tid;
 }
 
 TypeId
-DgrNse::GetInstanceTypeId () const
+DgrNse::GetInstanceTypeId() const
 {
-  return GetTypeId ();
+    return GetTypeId();
 }
 
 void
-DgrNse::Print (std::ostream& os) const
+DgrNse::Print(std::ostream& os) const
 {
-  os << "Iface: " << m_iface << ", State: " << m_state;
+    os << "Iface: " << m_iface << ", State: " << m_state;
 }
 
 uint32_t
-DgrNse::GetSerializedSize () const
+DgrNse::GetSerializedSize() const
 {
-  return 4 + 4;
+    return 4 + 4;
 }
 
 void
-DgrNse::Serialize (Buffer::Iterator start) const
+DgrNse::Serialize(Buffer::Iterator start) const
 {
-  Buffer::Iterator i = start;
-  i.WriteHtonU32 (m_iface);
-  i.WriteHtonU32 (m_state);
+    Buffer::Iterator i = start;
+    i.WriteHtonU32(m_iface);
+    i.WriteHtonU32(m_state);
 }
 
 uint32_t
-DgrNse::Deserialize (Buffer::Iterator start)
+DgrNse::Deserialize(Buffer::Iterator start)
 {
-  Buffer::Iterator i = start;
-  m_iface = i.ReadNtohU32 ();
-  m_state = i.ReadNtohU32 ();
-  return GetSerializedSize ();
+    Buffer::Iterator i = start;
+    m_iface = i.ReadNtohU32();
+    m_state = i.ReadNtohU32();
+    return GetSerializedSize();
 }
 
 void
-DgrNse::SetInterface (uint32_t iface)
+DgrNse::SetInterface(uint32_t iface)
 {
-  m_iface = iface;
+    m_iface = iface;
 }
 
 uint32_t
-DgrNse::GetInterface () const
+DgrNse::GetInterface() const
 {
-  return m_iface;
+    return m_iface;
 }
 
 void
-DgrNse::SetState (uint32_t state)
+DgrNse::SetState(uint32_t state)
 {
-  m_state = state;
+    m_state = state;
 }
 
 uint32_t
-DgrNse::GetState () const
+DgrNse::GetState() const
 {
-  return m_state;
+    return m_state;
 }
 
 std::ostream&
-operator<< (std::ostream& os, const DgrNse& h)
+operator<<(std::ostream& os, const DgrNse& h)
 {
-  h.Print (os);
-  return os;
+    h.Print(os);
+    return os;
 }
 
 //----------------------------------------------------------------------
 //-- DgrHeader
 //------------------------------------------------------
-DgrHeader::DgrHeader ()
-    : m_command (1)
+DgrHeader::DgrHeader()
+    : m_command(1)
 {
 }
 
 TypeId
-DgrHeader::GetTypeId ()
+DgrHeader::GetTypeId()
 {
-  static TypeId tid = TypeId ("ns3::DgrHeader")
-                          .SetParent<Header> ()
-                          .SetGroupName ("dgr")
-                          .AddConstructor<DgrHeader> ();
-  return tid;
+    static TypeId tid = TypeId("ns3::DgrHeader")
+                            .SetParent<Header>()
+                            .SetGroupName("dgr")
+                            .AddConstructor<DgrHeader>();
+    return tid;
 }
 
 TypeId
-DgrHeader::GetInstanceTypeId () const
+DgrHeader::GetInstanceTypeId() const
 {
-  return GetTypeId ();
+    return GetTypeId();
 }
 
 void
-DgrHeader::Print (std::ostream &os) const
+DgrHeader::Print(std::ostream& os) const
 {
-  os << "command " << int (m_command);
-  for (std::list<DgrNse>::const_iterator iter = m_nseList.begin ();
-       iter != m_nseList.end ();
-       iter ++)
+    os << "command " << int(m_command);
+    for (std::list<DgrNse>::const_iterator iter = m_nseList.begin(); iter != m_nseList.end();
+         iter++)
     {
-      os << " | ";
-      iter->Print (os);
+        os << " | ";
+        iter->Print(os);
     }
 }
 
 uint32_t
-DgrHeader::GetSerializedSize () const
+DgrHeader::GetSerializedSize() const
 {
-  DgrNse nse;
-  return 4 + m_nseList.size () * nse.GetSerializedSize ();
+    DgrNse nse;
+    return 4 + m_nseList.size() * nse.GetSerializedSize();
 }
 
 void
-DgrHeader::Serialize (Buffer::Iterator start) const
+DgrHeader::Serialize(Buffer::Iterator start) const
 {
-  Buffer::Iterator i = start;
-  i.WriteU8 (uint8_t(m_command)); // command : request and respond
-  i.WriteU8 (2);  // version 2
-  i.WriteU16 (0); // blank
+    Buffer::Iterator i = start;
+    i.WriteU8(uint8_t(m_command)); // command : request and respond
+    i.WriteU8(2);                  // version 2
+    i.WriteU16(0);                 // blank
 
-  for (std::list<DgrNse>::const_iterator iter = m_nseList.begin ();
-       iter != m_nseList.end ();
-       iter ++)
+    for (std::list<DgrNse>::const_iterator iter = m_nseList.begin(); iter != m_nseList.end();
+         iter++)
     {
-      iter->Serialize (i);
-      i.Next (iter->GetSerializedSize ());
+        iter->Serialize(i);
+        i.Next(iter->GetSerializedSize());
     }
 }
 
 uint32_t
-DgrHeader::Deserialize (Buffer::Iterator start)
+DgrHeader::Deserialize(Buffer::Iterator start)
 {
-  Buffer::Iterator i = start;
+    Buffer::Iterator i = start;
 
-  uint8_t temp;
-  temp = i.ReadU8 ();
-  if ((temp == REQUEST) || (temp == RESPONSE))
+    uint8_t temp;
+    temp = i.ReadU8();
+    if ((temp == REQUEST) || (temp == RESPONSE))
     {
-      m_command = temp;
+        m_command = temp;
     }
-  else
+    else
     {
-      return 0;
-    }
-
-  if (i.ReadU8 () != 2)
-    {
-      // std::cout << "DGR received a message with mismatch version, ignoring.\n";
-      return 0;
-    }
-  
-  if (i.ReadU16 () != 0)
-    {
-      // std::cout << "DGR received a message with invalid filled flags, ignoring.\n";
-      return 0;
-    }
-  
-  DgrNse nse;
-  uint32_t nseSize = nse.GetSerializedSize ();
-  uint8_t nseNumber = i.GetRemainingSize ()/ nseSize; // !!!!!!!!!!!!! the size should be the same with nse.
-  for (uint8_t n = 0; n < nseNumber; n ++)
-    {
-      i.Next (nse.Deserialize (i));
-      m_nseList.push_back (nse);
+        return 0;
     }
 
-    return GetSerializedSize ();
+    if (i.ReadU8() != 2)
+    {
+        // std::cout << "DGR received a message with mismatch version, ignoring.\n";
+        return 0;
+    }
+
+    if (i.ReadU16() != 0)
+    {
+        // std::cout << "DGR received a message with invalid filled flags, ignoring.\n";
+        return 0;
+    }
+
+    DgrNse nse;
+    uint32_t nseSize = nse.GetSerializedSize();
+    uint8_t nseNumber =
+        i.GetRemainingSize() / nseSize; // !!!!!!!!!!!!! the size should be the same with nse.
+    for (uint8_t n = 0; n < nseNumber; n++)
+    {
+        i.Next(nse.Deserialize(i));
+        m_nseList.push_back(nse);
+    }
+
+    return GetSerializedSize();
 }
 
 void
-DgrHeader::SetCommand (Command_e command)
+DgrHeader::SetCommand(Command_e command)
 {
-  m_command = command;
+    m_command = command;
 }
 
 DgrHeader::Command_e
-DgrHeader::GetCommand () const
+DgrHeader::GetCommand() const
 {
-  return Command_e (m_command);
+    return Command_e(m_command);
 }
 
 void
-DgrHeader::AddNse (DgrNse nse)
+DgrHeader::AddNse(DgrNse nse)
 {
-  m_nseList.push_back (nse);
+    m_nseList.push_back(nse);
 }
 
 void
-DgrHeader::ClearNses ()
+DgrHeader::ClearNses()
 {
-  m_nseList.clear ();
+    m_nseList.clear();
 }
 
 uint16_t
-DgrHeader::GetNseNumber () const
+DgrHeader::GetNseNumber() const
 {
-  return m_nseList.size ();
+    return m_nseList.size();
 }
 
 std::list<DgrNse>
-DgrHeader::GetNseList () const
+DgrHeader::GetNseList() const
 {
-  return m_nseList;
+    return m_nseList;
 }
 
 std::ostream&
-operator<< (std::ostream& os, const DgrHeader& h)
+operator<<(std::ostream& os, const DgrHeader& h)
 {
-  h.Print (os);
-  return os;
+    h.Print(os);
+    return os;
 }
 
 } // namespace ns3
-

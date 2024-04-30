@@ -1,14 +1,15 @@
-/* -*- Mode:C++; c-file-style:"gnu"; indent-tabs-mode:nil; -*- */
-
 #include "ddr-queue-disc.h"
 
 #include "../datapath/romam-tags.h"
 
+#include "ns3/attribute.h"
+#include "ns3/drop-tail-queue.h"
+#include "ns3/enum.h"
 #include "ns3/log.h"
+#include "ns3/net-device-queue-interface.h"
 #include "ns3/object-factory.h"
-#include "ns3/queue.h"
 #include "ns3/simulator.h"
-#include "ns3/socket.h"
+#include "ns3/uinteger.h"
 
 #define DELAY_SENSITIVE 0
 #define BEST_EFFORT 1
@@ -18,19 +19,22 @@ namespace ns3
 
 NS_LOG_COMPONENT_DEFINE("DDRQueueDisc");
 
+NS_OBJECT_ENSURE_REGISTERED(DDRQueueDisc);
+
 TypeId
-DDRQueueDisc::GetTypeId(void)
+DDRQueueDisc::GetTypeId()
 {
     static TypeId tid =
         TypeId("ns3::DDRQueueDisc")
             .SetParent<QueueDisc>()
-            .SetGroupName("romam")
+            .SetGroupName("TrafficControl")
             .AddConstructor<DDRQueueDisc>()
             .AddAttribute("MaxSize",
-                          "The maximum size accepted by this queue disc.",
+                          "The maximum number of packets accepted by this queue disc.",
                           QueueSizeValue(QueueSize("3MB")),
                           MakeQueueSizeAccessor(&QueueDisc::SetMaxSize, &QueueDisc::GetMaxSize),
                           MakeQueueSizeChecker());
+
     return tid;
 }
 
@@ -62,6 +66,13 @@ DDRQueueDisc::GetQueueDelay()
     return currentSize * 10 * 2000 / maxSize;
 }
 
+void
+DDRQueueDisc::DoDispose()
+{
+    NS_LOG_FUNCTION(this);
+    QueueDisc::DoDispose();
+}
+
 bool
 DDRQueueDisc::DoEnqueue(Ptr<QueueDiscItem> item)
 {
@@ -90,7 +101,7 @@ DDRQueueDisc::DoEnqueue(Ptr<QueueDiscItem> item)
 }
 
 Ptr<QueueDiscItem>
-DDRQueueDisc::DoDequeue(void)
+DDRQueueDisc::DoDequeue()
 {
     NS_LOG_FUNCTION(this);
 
@@ -113,7 +124,7 @@ DDRQueueDisc::DoDequeue(void)
 }
 
 Ptr<const QueueDiscItem>
-DDRQueueDisc::DoPeek(void)
+DDRQueueDisc::DoPeek()
 {
     NS_LOG_FUNCTION(this);
 
@@ -135,7 +146,7 @@ DDRQueueDisc::DoPeek(void)
 }
 
 bool
-DDRQueueDisc::CheckConfig(void)
+DDRQueueDisc::CheckConfig()
 {
     NS_LOG_FUNCTION(this);
     if (GetNQueueDiscClasses() > 0)
@@ -181,59 +192,17 @@ DDRQueueDisc::CheckConfig(void)
 }
 
 void
-DDRQueueDisc::InitializeParams(void)
+DDRQueueDisc::InitializeParams()
 {
+    NS_LOG_FUNCTION(this);
     m_fastWeight = 10;
     m_normalWeight = 1;
     m_currentFastWeight = m_fastWeight;
     m_currentNormalWeight = m_normalWeight;
-    NS_LOG_FUNCTION(this);
 }
 
 uint32_t
 DDRQueueDisc::EnqueueClassify(Ptr<QueueDiscItem> item)
-{
-    PriorityTag priorityTag;
-    if (item->GetPacket()->PeekPacketTag(priorityTag))
-    {
-        return DELAY_SENSITIVE;
-    }
-    else
-    {
-        return BEST_EFFORT;
-    }
-}
-
-// ------------------------------ QueuePacketFilter --------------------------------
-
-TypeId
-DGRv2PacketFilter::GetTypeId()
-{
-    static TypeId tid =
-        TypeId("ns3::DGRv2PacketFilter").SetParent<PacketFilter>().SetGroupName("DGRv2");
-    return tid;
-}
-
-DGRv2PacketFilter::DGRv2PacketFilter()
-{
-    NS_LOG_FUNCTION(this);
-}
-
-DGRv2PacketFilter::~DGRv2PacketFilter()
-{
-    NS_LOG_FUNCTION(this);
-}
-
-bool
-DGRv2PacketFilter::CheckProtocol(Ptr<QueueDiscItem> item) const
-{
-    NS_LOG_FUNCTION(this << item);
-    // Here we don't need check protocol
-    return true;
-}
-
-int32_t
-DGRv2PacketFilter::DoClassify(Ptr<QueueDiscItem> item) const
 {
     PriorityTag priorityTag;
     if (item->GetPacket()->PeekPacketTag(priorityTag))

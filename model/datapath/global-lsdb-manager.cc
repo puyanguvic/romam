@@ -116,7 +116,6 @@ GlobalLSDBManager::BuildLinkStateDatabase()
             m_lsdb->Insert(lsa->GetLinkStateId(), lsa);
         }
     }
-    std::cout << "---Finished build up LSDB---\n";
     // m_lsdb->Print(std::cout);
 }
 
