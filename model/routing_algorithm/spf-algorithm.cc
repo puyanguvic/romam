@@ -113,7 +113,6 @@ SPFAlgorithm::InitializeRoutes()
         {
             continue;
         }
-
         // -------- Initialize routing table --------------
         //
         // if the node has a DGR router interface, then run the DGR routing
@@ -235,6 +234,7 @@ SPFAlgorithm::InitializeRoutes()
     //            "new_1_runtime/result/dgr.txt",
     //            std::ios::app);
     // write << durTime << std::endl;
+    std::cout << "---Finished initialize routes with SPF algorithm---\n";
     NS_LOG_INFO("Finished Shortest Path Forest calculation");
 }
 

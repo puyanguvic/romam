@@ -14,7 +14,7 @@ NS_LOG_COMPONENT_DEFINE("OctopusRouter");
 TypeId
 OctopusRouter::GetTypeId(void)
 {
-    static TypeId tid = TypeId("ns3::OctopusRouter").SetParent<Object>().SetGroupName("romam");
+    static TypeId tid = TypeId("ns3::OctopusRouter").SetParent<RomamRouter>().SetGroupName("romam");
     return tid;
 }
 

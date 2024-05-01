@@ -44,9 +44,9 @@ RouteManager::InitializeDijkstraRoutes(void)
     NS_LOG_FUNCTION_NOARGS();
     LSDB* lsdb = SimulationSingleton<GlobalLSDBManager>::Get()->GetLSDB();
     // lsdb->Print(std::cout);
-    DijkstraAlgorithm* dijkstra = new DijkstraAlgorithm();
-    dijkstra->InsertLSDB(lsdb);
-    dijkstra->InitializeRoutes();
+    SPFAlgorithm* spf = new SPFAlgorithm();
+    spf->InsertLSDB(lsdb);
+    spf->InitializeRoutes();
 }
 
 void

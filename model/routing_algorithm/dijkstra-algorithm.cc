@@ -108,17 +108,12 @@ DijkstraAlgorithm::InitializeRoutes()
         // participating in routing.
         //
         Ptr<RomamRouter> rtr = node->GetObject<RomamRouter>();
-        if (rtr)
-        {
-            std::cout << "Get the Router\n";
-        }
         uint32_t systemId = Simulator::GetSystemId();
         // Ignore nodes that are not assigned to our systemId (distributed sim)
         if (node->GetSystemId() != systemId)
         {
             continue;
         }
-
         //
         // if the node has a global router interface, then run the global routing
         // algorithms.
@@ -128,7 +123,7 @@ DijkstraAlgorithm::InitializeRoutes()
             SPFCalculate(rtr->GetRouterId());
         }
     }
-    std::cout << "---Finished initialize routes---\n";
+    std::cout << "---Finished initialize routes with Dijkstra algorithm---\n";
     NS_LOG_INFO("Finished SPF calculation");
 }
 

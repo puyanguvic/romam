@@ -29,7 +29,7 @@ OctopusHelper::Copy(void) const
 Ptr<Ipv4RoutingProtocol>
 OctopusHelper::Create(Ptr<Node> node) const
 {
-    NS_LOG_LOGIC("Adding DGRRouter interface to node " << node->GetId());
+    NS_LOG_LOGIC("Adding Octopus Router interface to node " << node->GetId());
     // install DGRv2 Queue to netdevices
 
     // install DGR router to node.
