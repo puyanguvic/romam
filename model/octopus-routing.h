@@ -3,6 +3,7 @@
 #ifndef OCTOPUS_ROUTING_H
 #define OCTOPUS_ROUTING_H
 
+#include "datapath/arm-value-db.h"
 #include "romam-routing.h"
 
 #include "ns3/ipv4-address.h"
@@ -27,14 +28,6 @@ class Ipv4Header;
 class Node;
 class ShortestPathForestRIE;
 class ArmValueDB;
-
-typedef enum
-{
-    NONE,
-    KSHORT,
-    DGR,
-    DDR
-} RouteSelectMode_t;
 
 class OctopusRouting : public RomamRouting
 {
@@ -117,35 +110,17 @@ class OctopusRouting : public RomamRouting
     void DoDispose(void) override;
 
   private:
-    /// Set to true if packets are randomly routed among ECMP; set to false for using only one route
-    /// consistently
-    bool m_randomEcmpRouting;
-    /// Set to true if this interface should respond to interface events by globallly recomputing
-    /// routes
-    bool m_respondToInterfaceEvents;
     /// A uniform random number generator for randomly routing packets among ECMP
     Ptr<UniformRandomVariable> m_rand;
 
     /// container of Ipv4RoutingTableEntry (routes to hosts)
     typedef std::list<ShortestPathForestRIE*> HostRoutes;
-    /// const iterator of container of Ipv4RoutingTableEntry (routes to hosts)
-    typedef std::list<ShortestPathForestRIE*>::const_iterator HostRoutesCI;
-    /// iterator of container of Ipv4RoutingTableEntry (routes to hosts)
-    typedef std::list<ShortestPathForestRIE*>::iterator HostRoutesI;
 
     /// container of Ipv4RoutingTableEntry (routes to networks)
     typedef std::list<ShortestPathForestRIE*> NetworkRoutes;
-    /// const iterator of container of Ipv4RoutingTableEntry (routes to networks)
-    typedef std::list<ShortestPathForestRIE*>::const_iterator NetworkRoutesCI;
-    /// iterator of container of Ipv4RoutingTableEntry (routes to networks)
-    typedef std::list<ShortestPathForestRIE*>::iterator NetworkRoutesI;
 
     /// container of RoutingTableEntry (routes to external AS)
     typedef std::list<ShortestPathForestRIE*> ASExternalRoutes;
-    /// const iterator of container of Ipv4RoutingTableEntry (routes to external AS)
-    typedef std::list<ShortestPathForestRIE*>::const_iterator ASExternalRoutesCI;
-    /// iterator of container of Ipv4RoutingTableEntry (routes to external AS)
-    typedef std::list<ShortestPathForestRIE*>::iterator ASExternalRoutesI;
 
     /**
      * \brief Lookup in the forwarding table for destination.
@@ -153,20 +128,14 @@ class OctopusRouting : public RomamRouting
      * \param oif output interface if any (put 0 otherwise)
      * \return Ipv4Route to route the packet to reach dest address
      */
-    Ptr<Ipv4Route> LookupECMPRoute(Ipv4Address dest, Ptr<NetDevice> oif = 0);
-    Ptr<Ipv4Route> LookupKShortRoute(Ipv4Address dest,
-                                     Ptr<Packet> p,
-                                     Ptr<const NetDevice> idev = 0);
-    Ptr<Ipv4Route> LookupDGRRoute(Ipv4Address dest, Ptr<Packet> p, Ptr<const NetDevice> idev = 0);
-    Ptr<Ipv4Route> LookupDDRRoute(Ipv4Address dest, Ptr<Packet> p, Ptr<const NetDevice> idev = 0);
+    Ptr<Ipv4Route> LookupRoute(Ipv4Address dest, Ptr<const NetDevice> idev = 0);
 
     HostRoutes m_hostRoutes;             //!< Routes to hosts
     NetworkRoutes m_networkRoutes;       //!< Routes to networks
     ASExternalRoutes m_ASexternalRoutes; //!< External routes imported
     Ptr<Ipv4> m_ipv4;                    //!< associated IPv4 instance
 
-    RouteSelectMode_t m_routeSelectMode; //!< route select mode
-    ArmValueDB m_armDB;                  //!< the Neighbor State DataBase (NSDB) of the DGR Rout
+    ArmValueDB m_armDatabase; //!< arm cumulative loss database
 
     // use a socket list neighbors
     /// One socket per interface, each bound to that interface's address
@@ -182,17 +151,6 @@ class OctopusRouting : public RomamRouting
         m_unicastSocketList; //!< list of sockets for unicast messages (socket, interface index)
     Ptr<Socket> m_multicastRecvSocket; //!< multicast receive socket
 
-    EventId m_nextUnsolicitedUpdate; //!< Next Unsolicited Update event
-    EventId m_nextTriggeredUpdate;   //!< Next Triggered Update event
-
-    Time m_unsolicitedUpdate; //!< Time between two Unsolicited Neighbor State Updates.
-
-    // Time m_startupDelay;            //!< Random delay before protocol startup
-    // Time m_minTriggeredUpdateDelay; //!< Min cooldown delay after a Triggered Update.
-    // Time m_maxTriggeredUpdateDelay; //!< Max cooldown delay after a Triggered Update.
-    // Time m_unsolicitedUpdate;       //!< time between two Unsolicited Routing Updates.
-    // Time m_timeoutDelay;            //!< Delay before invalidating a status
-
     std::set<uint32_t> m_interfaceExclusions; //!< Set of excluded interfaces
 
     /**
@@ -201,55 +159,8 @@ class OctopusRouting : public RomamRouting
      * \param socket the socket the packet was received from.
      */
     void Receive(Ptr<Socket> socket);
-
-    /**
-     * \brief Sending Neighbor Status Updates on all interfaces.
-     * \param periodic true for periodic update, else triggered.
-     */
-    void DoSendNeighborStatusUpdate(bool periodic);
-
-    // /**
-    //  * \brief Send Neighbor Status Request on all interfaces
-    // */
-    // void SendNeighborStatusRequest ();
-
-    /**
-     * \brief Send Triggered Routing Updates on all interfaces.
-     */
-    void SendTriggeredNeighborStatusUpdate();
-
-    /**
-     * \brief Send Unsolicited neighbor status information Updates on all interfaces.
-     */
-    void SendUnsolicitedUpdate();
-
-    // /**
-    //  * \brief Handle DGR requests.
-    //  *
-    //  * \param hdr message header (Including NSEs)
-    //  * \param senderAddress sender address
-    //  * \param senderPort sender port
-    //  * \param incomingInterface incoming interface
-    //  * \param hopLimit packet's hop limit
-    // */
-    // void HandleRequests (DgrHeader hdr,
-    //                     Ipv4Address senderAddress,
-    //                     uint16_t senderPort,
-    //                     uint32_t incomingInterface,
-    //                     uint8_t hopLimit);
-
-    /**
-     * \brief Handle DGR responses.
-     *
-     * \param hdr message header (including NSEs)
-     * \param senderAddress sender address
-     * \param incomingInterface incoming interface
-     * \param hopLimit packet's hop limit
-     */
-    void HandleResponses(DgrHeader hdr,
-                         Ipv4Address senderAddress,
-                         uint32_t incomingInterface,
-                         uint8_t hopLimit);
+    void HandleUpdate(uint32_t interface, uint32_t nextIface, double delay);
+    void SendOneHopAck(uint32_t iif, uint32_t oif);
 
     // Ptr<OutputStreamWrapper> m_outStream = Create<OutputStreamWrapper>
     // ("queueStatusErr.txt", std::ios::out);

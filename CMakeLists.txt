@@ -1,6 +1,7 @@
 set (source_files
     model/datapath/database.cc
     model/datapath/dgr-headers.cc
+    model/datapath/octopus-headers.cc
     model/datapath/global-lsdb-manager.cc
     model/datapath/lsa.cc
     model/datapath/lsdb.cc
@@ -52,6 +53,7 @@ set (source_files
 set (header_files
     model/datapath/database.h
     model/datapath/dgr-headers.h
+    model/datapath/octopus-headers.h
     model/datapath/global-lsdb-manager.h
     model/datapath/lsa.h
     model/datapath/lsdb.h

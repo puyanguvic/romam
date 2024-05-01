@@ -56,7 +56,7 @@ NeighborArms::~NeighborArms()
 {
     for (auto it = m_arms.begin(); it != m_arms.end(); it++)
     {
-        NS_LOG_LOGIC("Free database entries");
+        // NS_LOG_LOGIC("Free database entries");
         ValueUnit* temp = it->second;
         delete temp;
     }
@@ -121,7 +121,7 @@ ArmValueDB::~ArmValueDB()
     // NS_LOG_LOGIC ("Clear map");
     for (auto it = m_database.begin(); it != m_database.end(); it++)
     {
-        NS_LOG_LOGIC("Free database entries");
+        // NS_LOG_LOGIC("Free database entries");
         NeighborArms* temp = it->second;
         delete temp;
     }

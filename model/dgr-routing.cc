@@ -584,7 +584,6 @@ DGRRouting::LookupDGRRoute(Ipv4Address dest, Ptr<Packet> p, Ptr<const NetDevice>
     Ptr<Ipv4Route> rtentry = 0;
     // store all available routes that bring packets to their destination
     typedef std::vector<ShortestPathForestRIE*> RouteVec_t;
-    // typedef std::vector<ShortestPathForestRIE *>::const_iterator RouteVecCI_t;
     RouteVec_t allRoutes;
 
     NS_LOG_LOGIC("Number of m_hostRoutes = " << m_hostRoutes.size());

@@ -3,16 +3,17 @@
 #include "octopus-routing.h"
 
 #include "datapath/dgr-headers.h"
+#include "datapath/octopus-headers.h"
 #include "datapath/romam-tags.h"
 #include "priority_manage/ddr-queue-disc.h"
 #include "routing_algorithm/spf-route-info-entry.h"
 #include "utility/route-manager.h"
 
 #include "ns3/boolean.h"
+#include "ns3/fifo-queue-disc.h"
 #include "ns3/ipv4-list-routing.h"
 #include "ns3/ipv4-packet-info-tag.h"
 #include "ns3/ipv4-route.h"
-#include "ns3/ipv4-routing-table-entry.h"
 #include "ns3/log.h"
 #include "ns3/loopback-net-device.h"
 #include "ns3/names.h"
@@ -32,7 +33,7 @@
 #include <vector>
 
 #define DDR_PORT 666
-#define DDR_BROAD_CAST "224.0.0.13"
+#define DDR_BROAD_CAST "224.0.0.17"
 
 namespace ns3
 {
@@ -44,40 +45,15 @@ NS_OBJECT_ENSURE_REGISTERED(OctopusRouting);
 TypeId
 OctopusRouting::GetTypeId(void)
 {
-    static TypeId tid =
-        TypeId("ns3::OctopusRouting")
-            .SetParent<RomamRouting>()
-            .SetGroupName("romam")
-            .AddConstructor<OctopusRouting>()
-            .AddAttribute("RandomEcmpRouting",
-                          "Set to true if packets are randomly routed among ECMP; set to false for "
-                          "using only one route consistently",
-                          BooleanValue(false),
-                          MakeBooleanAccessor(&OctopusRouting::m_randomEcmpRouting),
-                          MakeBooleanChecker())
-            .AddAttribute("RespondToInterfaceEvents",
-                          "Set to true if you want to dynamically recompute the global routes upon "
-                          "Interface notification events (up/down, or add/remove address)",
-                          BooleanValue(false),
-                          MakeBooleanAccessor(&OctopusRouting::m_respondToInterfaceEvents),
-                          MakeBooleanChecker())
-            .AddAttribute("SamplePeriod",
-                          "Time between two Unsolicited Neighbor State Updates.",
-                          TimeValue(MilliSeconds(10)),
-                          MakeTimeAccessor(&OctopusRouting::m_unsolicitedUpdate),
-                          MakeTimeChecker())
-            .AddAttribute("RouteSelectMode",
-                          "Routing Select Mode",
-                          EnumValue(NONE),
-                          MakeEnumAccessor(&OctopusRouting::m_routeSelectMode),
-                          MakeEnumChecker(NONE, "ECMP", KSHORT, "KSHORT", DGR, "DGR", DDR, "DDR"));
+    static TypeId tid = TypeId("ns3::OctopusRouting")
+                            .SetParent<RomamRouting>()
+                            .SetGroupName("romam")
+                            .AddConstructor<OctopusRouting>();
     return tid;
 }
 
 OctopusRouting::OctopusRouting()
-    : m_randomEcmpRouting(false),
-      m_respondToInterfaceEvents(false),
-      m_tsdb()
+    : m_armDatabase()
 {
     NS_LOG_FUNCTION(this);
     m_rand = CreateObject<UniformRandomVariable>();
@@ -94,8 +70,6 @@ OctopusRouting::RouteOutput(Ptr<Packet> p,
                             Ptr<NetDevice> oif,
                             Socket::SocketErrno& sockerr)
 {
-    // std::cout << "at Node: " << m_ipv4->GetNetDevice (0)->GetNode ()->GetId () << "RouteOutput"
-    // << std::endl;
     NS_LOG_FUNCTION(this << p << &header << oif << &sockerr);
     //
     // First, see if this is a multicast packet we have a route for.  If we
@@ -174,7 +148,6 @@ OctopusRouting::RouteInput(Ptr<const Packet> p,
         if (!lcb.IsNull())
         {
             NS_LOG_LOGIC("Local delivery to " << header.GetDestination());
-            // std::cout << "Local delivery to " << header.GetDestination () << std::endl;
             lcb(p, header, iif);
             return true;
         }
@@ -193,50 +166,18 @@ OctopusRouting::RouteInput(Ptr<const Packet> p,
     if (m_ipv4->IsForwarding(iif) == false)
     {
         NS_LOG_LOGIC("Forwarding disabled for this interface");
-        // std::cout << "RI: Forwarding disabled for this interface" << std::endl;
         ecb(p, header, Socket::ERROR_NOROUTETOHOST);
         return true;
     }
     // Next, try to find a route
     NS_LOG_LOGIC("Unicast destination- looking up global route");
-    Ptr<Ipv4Route> rtentry;
-    BudgetTag budgetTag;
-    Ptr<Packet> p_copy;
-    if (p->PeekPacketTag(budgetTag))
-    {
-        p_copy = p->Copy();
-        switch (m_routeSelectMode)
-        {
-        case NONE:
-            rtentry = LookupECMPRoute(header.GetDestination());
-            break;
-        case KSHORT:
-            rtentry = LookupKShortRoute(header.GetDestination(), p_copy, idev);
-            break;
-        case DGR:
-            rtentry = LookupDGRRoute(header.GetDestination(), p_copy, idev);
-            break;
-        case DDR:
-            rtentry = LookupDDRRoute(header.GetDestination(), p_copy, idev);
-            break;
-        default:
-            rtentry = LookupECMPRoute(header.GetDestination());
-        }
-        // rtentry = LookupDGRRoute (header.GetDestination (), p_copy, idev);
-    }
-    else
-    {
-        rtentry = LookupECMPRoute(header.GetDestination());
-    }
+    Ptr<Ipv4Route> rtentry = LookupRoute(header.GetDestination(), idev);
     if (rtentry)
     {
-        // std::cout << "find a way" << std::endl;
-        if (p_copy)
-        {
-            p = p_copy->Copy();
-        }
+        uint32_t oif = rtentry->GetOutputDevice()->GetIfIndex();
         NS_LOG_LOGIC("Found unicast destination- calling unicast callback");
         ucb(rtentry, p, header);
+        SendOneHopAck(iff, oif);
         return true;
     }
     else
@@ -317,9 +258,9 @@ OctopusRouting::PrintRoutingTable(Ptr<OutputStreamWrapper> stream, Time::Unit un
     std::ios oldState(nullptr);
     oldState.copyfmt(*os);
 
-    *os << "Node: " << m_ipv4->GetObject<Node>()->GetId() << ", Time: " << Now().As(unit)
-        << ", Local time: " << m_ipv4->GetObject<Node>()->GetLocalTime().As(unit)
-        << ", OctopusRouting table" << std::endl;
+    // *os << "Node: " << m_ipv4->GetObject<Node>()->GetId() << ", Time: " << Now().As(unit)
+    //     << ", Local time: " << m_ipv4->GetObject<Node>()->GetLocalTime().As(unit)
+    //     << ", OctopusRouting table" << std::endl;
 
     if (GetNRoutes() > 0)
     {
@@ -622,7 +563,6 @@ OctopusRouting::LookupECMPRoute(Ipv4Address dest, Ptr<NetDevice> oif)
 Ptr<Ipv4Route>
 OctopusRouting::LookupDDRRoute(Ipv4Address dest, Ptr<Packet> p, Ptr<const NetDevice> idev)
 {
-    // std::cout <<"DGR routing" << std::endl;
     BudgetTag bgtTag;
     TimestampTag timeTag;
     p->PeekPacketTag(bgtTag);
@@ -786,7 +726,6 @@ OctopusRouting::LookupDGRRoute(Ipv4Address dest, Ptr<Packet> p, Ptr<const NetDev
     Ptr<Ipv4Route> rtentry = 0;
     // store all available routes that bring packets to their destination
     typedef std::vector<ShortestPathForestRIE*> RouteVec_t;
-    // typedef std::vector<ShortestPathForestRIE *>::const_iterator RouteVecCI_t;
     RouteVec_t allRoutes;
 
     NS_LOG_LOGIC("Number of m_hostRoutes = " << m_hostRoutes.size());
@@ -1166,19 +1105,6 @@ OctopusRouting::DoInitialize()
         m_multicastRecvSocket->SetIpRecvTtl(true);
         m_multicastRecvSocket->SetRecvPktInfo(true);
     }
-
-    // if (addedGlobal)
-    //   {
-    //     Time delay = Seconds (m_rand->GetValue (m_minTriggeredUpdateDelay.GetSeconds (),
-    //                                             m_maxTriggeredUpdateDelay.GetSeconds ()));
-    //     m_nextTriggeredUpdate = Simulator::Schedule (delay,
-    //     &OctopusRouting::DoSendNeighborStatusUpdate, this, false);
-    //   }
-
-    // delay = Seconds (m_rand->GetValue (0.01, m_startupDelay.GetSeconds ()));
-    // m_nextTriggeredUpdate = Simulator::Schedule (delay,
-    // &OctopusRouting::SendNeighborStatusRequest, this);
-
     Ipv4RoutingProtocol::DoInitialize();
 }
 
@@ -1237,13 +1163,6 @@ OctopusRouting::Receive(Ptr<Socket> socket)
     Ptr<NetDevice> dev = node->GetDevice(incomingIf);
     uint32_t ipInterfaceIndex = m_ipv4->GetInterfaceForDevice(dev);
 
-    SocketIpTtlTag hoplimitTag;
-    if (!packet->RemovePacketTag(hoplimitTag))
-    {
-        NS_ABORT_MSG("No incoming Hop count on message, aborting");
-    }
-    uint8_t hopLimit = hoplimitTag.GetTtl();
-
     int32_t interfaceForAddress = m_ipv4->GetInterfaceForAddress(senderAddress);
     if (interfaceForAddress != -1)
     {
@@ -1251,41 +1170,52 @@ OctopusRouting::Receive(Ptr<Socket> socket)
         return;
     }
 
-    DgrHeader hdr;
+    OctopusHeader hdr;
     packet->RemoveHeader(hdr);
-
-    if (hdr.GetCommand() == DgrHeader::RESPONSE)
+    if (hdr.GetCommand() == OctopusHeader::ACK)
     {
-        NS_LOG_LOGIC("The message is a Response from " << senderAddr.GetIpv4() << ":"
-                                                       << senderAddr.GetPort());
-        HandleResponses(hdr, senderAddress, ipInterfaceIndex, hopLimit);
+        NS_LOG_LOGIC("Update the cumulative loss with" << hdr.GetInterface() << ", "
+                                                       << hdr.GetDelay());
+        HandleUpdate(incomingIf, hdr.GetInterface(), hdr.GetDelay());
     }
-    // else if (hdr.GetCommand () == DgrHeader::REQUEST)
-    //   {
-    //     Todo: Handle request in the future
-    //     NS_LOG_LOGIC ("This message is a Request from " << senderAddr.GetIpv4 () << ":"
-    //                                                     << senderAddr.GetPort ());
-    //     HandleRequests (hdr, senderAddress, senderPort, ipInterfaceIndex, hopLimit);
-    //   }
     else
     {
+        // Leave for future use
         NS_LOG_LOGIC("Ignoring message with unknown command: " << int(hdr.GetCommand()));
     }
 }
 
 void
-OctopusRouting::SendUnsolicitedUpdate()
+OctopusRouting::SendOneHopAck(uint32_t iif, uint32_t oif)
 {
     NS_LOG_FUNCTION(this);
-    if (m_nextTriggeredUpdate.IsRunning())
+    SocketListI it = m_unicastSocketList.begin();
+    while (it != m_unicastSocketList.end())
     {
-        m_nextTriggeredUpdate.Cancel();
+        if (it->second == iif)
+            break;
     }
-    DoSendNeighborStatusUpdate(true);
-    // todo : update the delay, do we need some random in the delay
-    Time delay = m_unsolicitedUpdate;
-    m_nextUnsolicitedUpdate =
-        Simulator::Schedule(delay, &OctopusRouting::SendUnsolicitedUpdate, this);
+    if (it != m_unicastSocketList.end())
+    {
+        Ptr<NetDevice> odev = m_ipv4->GetNetDevice(oif);
+        Ptr<QueueDisc> disc =
+            m_ipv4->GetObject<Node>()->GetObject<TrafficControlLayer>()->GetRootQueueDiscOnDevice(
+                odev);
+        uint32_t length = disc->GetNBytes();
+        double delay = length / 100.0; // delay in milliseconds
+
+        Ptr<Packet> p = Create<Packet>();
+        SocketIpTtlTag ttlTag;
+        p->RemovePacketTag(ttlTag);
+        ttlTag.SetTtl(1);
+        p->AddPacketTag(ttlTag);
+        OctopusHeader hdr;
+        hdr.SetCommand(OctopusHeader::ACK);
+        hdr.SetInterface(oif);
+        hdr.SetDelay(delay);
+        p->AddHeader(hdr);
+        it->first->SendTo(p, 0, InetSocketAddress(DDR_BROAD_CAST, DDR_PORT));
+    }
 }
 
 void
@@ -1348,10 +1278,10 @@ OctopusRouting::DoSendNeighborStatusUpdate(bool periodic)
             {
                 p->AddHeader(hdr);
                 NS_LOG_DEBUG("SendTo: " << *p);
-                iter->first->SendTo(
-                    p,
-                    0,
-                    InetSocketAddress(DDR_BROAD_CAST, DDR_PORT)); // Todo: Defined the DGR port
+                iter->first->SendTo(p,
+                                    0,
+                                    InetSocketAddress(DDR_BROAD_CAST,
+                                                      DDR_PORT)); // Todo: Defined the DGR port
             }
         }
     }
@@ -1395,7 +1325,8 @@ OctopusRouting::HandleResponses(DgrHeader hdr,
         }
         su->Update(n_state);
         // std::ostream* os = m_outStream->GetStream ();
-        // *os << "Iface: " << n_iface << " Predict Err: " << abs(n_state - su->GetCurrentState ())
+        // *os << "Iface: " << n_iface << " Predict Err: " << abs(n_state -
+        // su->GetCurrentState ())
         // << std::endl; Print the su su->Print (std::cout);
     }
 }
@@ -1432,7 +1363,8 @@ OctopusRouting::HandleResponses(DgrHeader hdr,
 
 //       uint16_t mtu = m_ipv4->GetMtu (incomingInterface);
 //       uint16_t maxNse = (mtu - Ipv4Header().GetSerializedSize () -
-//                           UdpHeader ().GetSerializedSize () - DgrHeader ().GetSerializedSize
+//                           UdpHeader ().GetSerializedSize () - DgrHeader
+//                           ().GetSerializedSize
 //                           ())/DgrNse ().GetSerializedSize ();
 
 //       Ptr<Packet> p = Create<Packet> ();
@@ -1476,16 +1408,16 @@ OctopusRouting::HandleResponses(DgrHeader hdr,
 //             {
 //               p->AddHeader (hdr);
 //               NS_LOG_DEBUG ("SendTo: " << *p);
-//               sendingSocket->SendTo (p, 0, InetSocketAddress (senderAddress, DDR_PORT)); // to
-//               neighbor p->RemoveHeader (hdr); hdr.ClearNses ();
+//               sendingSocket->SendTo (p, 0, InetSocketAddress (senderAddress, DDR_PORT));
+//               // to neighbor p->RemoveHeader (hdr); hdr.ClearNses ();
 //             }
 //         }
 //         if (hdr.GetNseNumber () > 0)
 //           {
 //             p->AddHeader (hdr);
 //             NS_LOG_DEBUG ("SendTo: " << *p);
-//             sendingSocket->SendTo(p, 0, InetSocketAddress (senderAddress, DDR_PORT)); // Todo:
-//             Defined the RIP port
+//             sendingSocket->SendTo(p, 0, InetSocketAddress (senderAddress, DDR_PORT)); //
+//             Todo: Defined the RIP port
 //           }
 //     }
 // }
