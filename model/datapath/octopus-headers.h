@@ -60,14 +60,15 @@ class OctopusHeader : public Header
         REQUEST = 0x2
     };
 
-    void SetCommand(Command_e command);
     Command_e GetCommand() const;
+    void SetCommand(Command_e command);
     uint32_t GetInterface() const;
     void SetInterface(uint32_t interface);
     double GetDelay() const;
     void SetDelay(double delay);
 
   private:
+    uint8_t m_command;
     uint32_t m_interface;
     double m_delay; //!< command type
 };

@@ -46,16 +46,16 @@ void
 DgrNse::Serialize(Buffer::Iterator start) const
 {
     Buffer::Iterator i = start;
-    i.WriteHtonU32(m_iface);
-    i.WriteHtonU32(m_state);
+    i.WriteU32(m_iface);
+    i.WriteU32(m_state);
 }
 
 uint32_t
 DgrNse::Deserialize(Buffer::Iterator start)
 {
     Buffer::Iterator i = start;
-    m_iface = i.ReadNtohU32();
-    m_state = i.ReadNtohU32();
+    m_iface = i.ReadU32();
+    m_state = i.ReadU32();
     return GetSerializedSize();
 }
 

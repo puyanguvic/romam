@@ -82,40 +82,10 @@ OctopusRouting::RouteOutput(Ptr<Packet> p,
     }
 
     //
-    // See if this is a Delay-Guarenteed packet we have a route for.
+    // See if this is a unicast packet we have a route for.
     //
-    NS_LOG_LOGIC("Delay-Guarenteed destination- looking up");
-    Ptr<Ipv4Route> rtentry;
-    BudgetTag budgetTag;
-    if (!p)
-    {
-        rtentry = LookupECMPRoute(header.GetDestination(), oif);
-    }
-    else if (p->PeekPacketTag(budgetTag))
-    {
-        switch (m_routeSelectMode)
-        {
-        case NONE:
-            rtentry = LookupECMPRoute(header.GetDestination(), oif);
-            break;
-        case KSHORT:
-            rtentry = LookupKShortRoute(header.GetDestination(), p, oif);
-            break;
-        case DGR:
-            rtentry = LookupDGRRoute(header.GetDestination(), p, oif);
-            break;
-        case DDR:
-            rtentry = LookupDDRRoute(header.GetDestination(), p, oif);
-            break;
-        default:
-            rtentry = LookupECMPRoute(header.GetDestination(), oif);
-        }
-        // rtentry = LookupDGRRoute (header.GetDestination (), p, oif);
-    }
-    else
-    {
-        rtentry = LookupECMPRoute(header.GetDestination(), oif);
-    }
+    NS_LOG_LOGIC("Looking up route");
+    Ptr<Ipv4Route> rtentry = LookupRoute(header.GetDestination());
 
     if (rtentry)
     {
@@ -171,13 +141,13 @@ OctopusRouting::RouteInput(Ptr<const Packet> p,
     }
     // Next, try to find a route
     NS_LOG_LOGIC("Unicast destination- looking up global route");
-    Ptr<Ipv4Route> rtentry = LookupRoute(header.GetDestination(), idev);
+    Ptr<Ipv4Route> rtentry = LookupRoute(header.GetDestination());
     if (rtentry)
     {
         uint32_t oif = rtentry->GetOutputDevice()->GetIfIndex();
         NS_LOG_LOGIC("Found unicast destination- calling unicast callback");
         ucb(rtentry, p, header);
-        SendOneHopAck(iff, oif);
+        SendOneHopAck(iif, oif);
         return true;
     }
     else
@@ -399,7 +369,8 @@ OctopusRouting::GetRoute(uint32_t index) const
     if (index < m_hostRoutes.size())
     {
         uint32_t tmp = 0;
-        for (HostRoutesCI i = m_hostRoutes.begin(); i != m_hostRoutes.end(); i++)
+        HostRoutes::const_iterator i = m_hostRoutes.begin();
+        for (; i != m_hostRoutes.end(); i++)
         {
             if (tmp == index)
             {
@@ -412,7 +383,8 @@ OctopusRouting::GetRoute(uint32_t index) const
     uint32_t tmp = 0;
     if (index < m_networkRoutes.size())
     {
-        for (NetworkRoutesCI j = m_networkRoutes.begin(); j != m_networkRoutes.end(); j++)
+        NetworkRoutes::const_iterator j = m_networkRoutes.begin();
+        for (; j != m_networkRoutes.end(); j++)
         {
             if (tmp == index)
             {
@@ -423,7 +395,8 @@ OctopusRouting::GetRoute(uint32_t index) const
     }
     index -= m_networkRoutes.size();
     tmp = 0;
-    for (ASExternalRoutesCI k = m_ASexternalRoutes.begin(); k != m_ASexternalRoutes.end(); k++)
+    ASExternalRoutes::const_iterator k = m_ASexternalRoutes.begin();
+    for (; k != m_ASexternalRoutes.end(); k++)
     {
         if (tmp == index)
         {
@@ -443,7 +416,7 @@ OctopusRouting::RemoveRoute(uint32_t index)
     if (index < m_hostRoutes.size())
     {
         uint32_t tmp = 0;
-        for (HostRoutesI i = m_hostRoutes.begin(); i != m_hostRoutes.end(); i++)
+        for (auto i = m_hostRoutes.begin(); i != m_hostRoutes.end(); i++)
         {
             if (tmp == index)
             {
@@ -459,7 +432,7 @@ OctopusRouting::RemoveRoute(uint32_t index)
     }
     index -= m_hostRoutes.size();
     uint32_t tmp = 0;
-    for (NetworkRoutesI j = m_networkRoutes.begin(); j != m_networkRoutes.end(); j++)
+    for (auto j = m_networkRoutes.begin(); j != m_networkRoutes.end(); j++)
     {
         if (tmp == index)
         {
@@ -474,7 +447,7 @@ OctopusRouting::RemoveRoute(uint32_t index)
     }
     index -= m_networkRoutes.size();
     tmp = 0;
-    for (ASExternalRoutesI k = m_ASexternalRoutes.begin(); k != m_ASexternalRoutes.end(); k++)
+    for (auto k = m_ASexternalRoutes.begin(); k != m_ASexternalRoutes.end(); k++)
     {
         if (tmp == index)
         {
@@ -499,21 +472,17 @@ OctopusRouting::AssignStreams(int64_t stream)
 }
 
 Ptr<Ipv4Route>
-OctopusRouting::LookupECMPRoute(Ipv4Address dest, Ptr<NetDevice> oif)
+OctopusRouting::LookupRoute(Ipv4Address dest, Ptr<NetDevice> oif)
 {
-    /**
-     * Get the shortest path in the routing table
-     */
     NS_LOG_FUNCTION(this << dest << oif);
     NS_LOG_LOGIC("Looking for route for destination " << dest);
-
-    Ptr<Ipv4Route> rtentry = 0;
+    Ptr<Ipv4Route> rtentry = nullptr;
     // store all available routes that bring packets to their destination
     typedef std::vector<ShortestPathForestRIE*> RouteVec_t;
     RouteVec_t allRoutes;
 
     NS_LOG_LOGIC("Number of m_hostRoutes = " << m_hostRoutes.size());
-    for (HostRoutesCI i = m_hostRoutes.begin(); i != m_hostRoutes.end(); i++)
+    for (auto i = m_hostRoutes.begin(); i != m_hostRoutes.end(); i++)
     {
         NS_ASSERT((*i)->IsHost());
         if ((*i)->GetDest() == dest)
@@ -527,23 +496,68 @@ OctopusRouting::LookupECMPRoute(Ipv4Address dest, Ptr<NetDevice> oif)
                 }
             }
             allRoutes.push_back(*i);
-            NS_LOG_LOGIC(allRoutes.size() << "Found DGR host route" << *i);
+            NS_LOG_LOGIC(allRoutes.size() << "Found global host route" << *i);
         }
     }
-    if (allRoutes.size() > 0) // if route(s) is found
+    if (allRoutes.empty()) // if no host route is found
     {
-        uint32_t routRef = 0;
-        uint32_t shortestDist = allRoutes.at(0)->GetDistance();
-        for (uint32_t i = 0; i < allRoutes.size(); i++)
+        NS_LOG_LOGIC("Number of m_networkRoutes" << m_networkRoutes.size());
+        for (auto j = m_networkRoutes.begin(); j != m_networkRoutes.end(); j++)
         {
-            if (allRoutes.at(i)->GetDistance() < shortestDist)
+            Ipv4Mask mask = (*j)->GetDestNetworkMask();
+            Ipv4Address entry = (*j)->GetDestNetwork();
+            if (mask.IsMatch(dest, entry))
             {
-                routRef = i;
-                shortestDist = allRoutes.at(i)->GetDistance();
+                if (oif)
+                {
+                    if (oif != m_ipv4->GetNetDevice((*j)->GetInterface()))
+                    {
+                        NS_LOG_LOGIC("Not on requested interface, skipping");
+                        continue;
+                    }
+                }
+                allRoutes.push_back(*j);
+                NS_LOG_LOGIC(allRoutes.size() << "Found global network route" << *j);
             }
         }
-        ShortestPathForestRIE* route = allRoutes.at(routRef);
-
+    }
+    if (allRoutes.empty()) // consider external if no host/network found
+    {
+        for (auto k = m_ASexternalRoutes.begin(); k != m_ASexternalRoutes.end(); k++)
+        {
+            Ipv4Mask mask = (*k)->GetDestNetworkMask();
+            Ipv4Address entry = (*k)->GetDestNetwork();
+            if (mask.IsMatch(dest, entry))
+            {
+                NS_LOG_LOGIC("Found external route" << *k);
+                if (oif)
+                {
+                    if (oif != m_ipv4->GetNetDevice((*k)->GetInterface()))
+                    {
+                        NS_LOG_LOGIC("Not on requested interface, skipping");
+                        continue;
+                    }
+                }
+                allRoutes.push_back(*k);
+                break;
+            }
+        }
+    }
+    if (!allRoutes.empty()) // if route(s) is found
+    {
+        // pick up one of the routes uniformly at random if random
+        // ECMP routing is enabled, or always select the first route
+        // consistently if random ECMP routing is disabled
+        uint32_t selectIndex;
+        if (m_randomEcmpRouting)
+        {
+            selectIndex = m_rand->GetInteger(0, allRoutes.size() - 1);
+        }
+        else
+        {
+            selectIndex = 0;
+        }
+        ShortestPathForestRIE* route = allRoutes.at(selectIndex);
         // create a Ipv4Route object from the selected routing table entry
         rtentry = Create<Ipv4Route>();
         rtentry->SetDestination(route->GetDest());
@@ -556,475 +570,9 @@ OctopusRouting::LookupECMPRoute(Ipv4Address dest, Ptr<NetDevice> oif)
     }
     else
     {
-        return 0;
+        return nullptr;
     }
 }
-
-Ptr<Ipv4Route>
-OctopusRouting::LookupDDRRoute(Ipv4Address dest, Ptr<Packet> p, Ptr<const NetDevice> idev)
-{
-    BudgetTag bgtTag;
-    TimestampTag timeTag;
-    p->PeekPacketTag(bgtTag);
-    p->PeekPacketTag(timeTag);
-    // avoid loop
-    DistTag distTag;
-    uint32_t dist = UINT32_MAX;
-    dist -= 1;
-    if (p->PeekPacketTag(distTag))
-    {
-        dist = distTag.GetDistance();
-    }
-
-    // budget in microseconds
-    uint32_t bgt;
-    if (bgtTag.GetBudget() + timeTag.GetTimestamp().GetMicroSeconds() <
-        Simulator::Now().GetMicroSeconds())
-    {
-        bgt = 0;
-    }
-    else
-    {
-        bgt = (bgtTag.GetBudget() + timeTag.GetTimestamp().GetMicroSeconds() -
-               Simulator::Now().GetMicroSeconds());
-    }
-    NS_LOG_FUNCTION(this << dest << idev);
-    NS_LOG_LOGIC("Looking for route for destination " << dest);
-    Ptr<Ipv4Route> rtentry = 0;
-    // store all available routes that bring packets to their destination
-    typedef std::vector<ShortestPathForestRIE*> RouteVec_t;
-    // typedef std::vector<ShortestPathForestRIE *>::const_iterator RouteVecCI_t;
-    RouteVec_t allRoutes;
-
-    NS_LOG_LOGIC("Number of m_hostRoutes = " << m_hostRoutes.size());
-    for (HostRoutesCI i = m_hostRoutes.begin(); i != m_hostRoutes.end(); i++)
-    {
-        NS_ASSERT((*i)->IsHost());
-        if ((*i)->GetDest() == dest)
-        {
-            if (idev)
-            {
-                if (idev == m_ipv4->GetNetDevice((*i)->GetInterface()))
-                {
-                    NS_LOG_LOGIC("Not on requested interface, skipping");
-                    continue;
-                }
-            }
-
-            // if interface is down, continue
-            if (!m_ipv4->IsUp((*i)->GetInterface()))
-                continue;
-
-            // get the local queue delay in microsecond
-            Ptr<NetDevice> dev_local = m_ipv4->GetNetDevice((*i)->GetInterface());
-            // get the queue disc on the device
-            Ptr<QueueDisc> disc = m_ipv4->GetObject<Node>()
-                                      ->GetObject<TrafficControlLayer>()
-                                      ->GetRootQueueDiscOnDevice(dev_local);
-            Ptr<DDRQueueDisc> dvq = DynamicCast<DDRQueueDisc>(disc);
-            // uint32_t status_local = dvq->GetQueueStatus ();
-            // uint32_t delay_local = status_local * 2000;
-            uint32_t delay_local = dvq->GetQueueDelay();
-
-            // Get the neighbor queue status in microsecond
-            uint32_t delay_neighbor = 0;
-            if ((*i)->GetNextIface() != 0xffffffff)
-            {
-                uint32_t iface = (*i)->GetInterface();
-                uint32_t niface = (*i)->GetNextIface();
-                NeighborStatusEntry* entry = m_tsdb.GetNeighborStatusEntry(iface);
-                StatusUnit* su = entry->GetStatusUnit(niface);
-                delay_neighbor = su->GetEstimateDelayDDR();
-                // std::cout << "Neighbor delay: " << delay_neighbor << std::endl;
-            }
-            // in microsecond
-            uint32_t estimate_delay =
-                ((*i)->GetDistance() + 1) * 1000 + delay_local + delay_neighbor;
-
-            if (estimate_delay > bgt)
-            {
-                NS_LOG_LOGIC("Too far to the destination, skipping");
-                continue;
-            }
-
-            if ((*i)->GetDistance() > dist)
-            {
-                NS_LOG_LOGIC("Loop avoidance, skipping");
-                continue;
-            }
-
-            allRoutes.push_back(*i);
-            NS_LOG_LOGIC(allRoutes.size()
-                         << "Found DGR host route" << *i << " with Cost: " << (*i)->GetDistance());
-        }
-    }
-    if (allRoutes.size() > 0) // if route(s) is found
-    {
-        // random select
-        uint32_t selectIndex = 0;
-        uint32_t shortestDist = allRoutes.at(0)->GetDistance();
-        for (uint32_t i = 0; i < allRoutes.size(); i++)
-        {
-            if (allRoutes.at(i)->GetDistance() < shortestDist)
-            {
-                selectIndex = i;
-                shortestDist = allRoutes.at(i)->GetDistance();
-            }
-        }
-
-        ShortestPathForestRIE* route = allRoutes.at(selectIndex);
-        uint32_t interfaceIdx = route->GetInterface();
-
-        rtentry = Create<Ipv4Route>();
-        rtentry->SetDestination(route->GetDest());
-        /// \todo handle multi-address case
-        rtentry->SetSource(m_ipv4->GetAddress(interfaceIdx, 0).GetLocal());
-        rtentry->SetGateway(route->GetGateway());
-        rtentry->SetOutputDevice(m_ipv4->GetNetDevice(interfaceIdx));
-
-        distTag.SetDistance(route->GetDistance());
-        p->ReplacePacketTag(distTag);
-        return rtentry;
-    }
-    else
-    {
-        return LookupECMPRoute(dest);
-    }
-}
-
-Ptr<Ipv4Route>
-OctopusRouting::LookupDGRRoute(Ipv4Address dest, Ptr<Packet> p, Ptr<const NetDevice> idev)
-{
-    // std::cout <<"DGR routing" << std::endl;
-    BudgetTag bgtTag;
-    TimestampTag timeTag;
-    p->PeekPacketTag(bgtTag);
-    p->PeekPacketTag(timeTag);
-    // avoid loop
-    DistTag distTag;
-    uint32_t dist = UINT32_MAX;
-    dist -= 1;
-    if (p->PeekPacketTag(distTag))
-    {
-        dist = distTag.GetDistance();
-    }
-
-    // budget in microseconds
-    uint32_t bgt;
-    if (bgtTag.GetBudget() + timeTag.GetTimestamp().GetMicroSeconds() <
-        Simulator::Now().GetMicroSeconds())
-    {
-        bgt = 0;
-    }
-    else
-    {
-        bgt = (bgtTag.GetBudget() + timeTag.GetTimestamp().GetMicroSeconds() -
-               Simulator::Now().GetMicroSeconds());
-    }
-    NS_LOG_FUNCTION(this << dest << idev);
-    NS_LOG_LOGIC("Looking for route for destination " << dest);
-    Ptr<Ipv4Route> rtentry = 0;
-    // store all available routes that bring packets to their destination
-    typedef std::vector<ShortestPathForestRIE*> RouteVec_t;
-    RouteVec_t allRoutes;
-
-    NS_LOG_LOGIC("Number of m_hostRoutes = " << m_hostRoutes.size());
-    for (HostRoutesCI i = m_hostRoutes.begin(); i != m_hostRoutes.end(); i++)
-    {
-        NS_ASSERT((*i)->IsHost());
-        if ((*i)->GetDest() == dest)
-        {
-            if (idev)
-            {
-                if (idev == m_ipv4->GetNetDevice((*i)->GetInterface()))
-                {
-                    NS_LOG_LOGIC("Not on requested interface, skipping");
-                    continue;
-                }
-            }
-
-            // if interface is down, continue
-            if (!m_ipv4->IsUp((*i)->GetInterface()))
-                continue;
-
-            // get the local queue delay in microsecond
-            Ptr<NetDevice> dev_local = m_ipv4->GetNetDevice((*i)->GetInterface());
-            // get the queue disc on the device
-            Ptr<QueueDisc> disc = m_ipv4->GetObject<Node>()
-                                      ->GetObject<TrafficControlLayer>()
-                                      ->GetRootQueueDiscOnDevice(dev_local);
-            Ptr<DDRQueueDisc> dvq = DynamicCast<DDRQueueDisc>(disc);
-            // uint32_t status_local = dvq->GetQueueStatus ();
-            // uint32_t delay_local = status_local * 2000;
-            uint32_t delay_local = dvq->GetQueueDelay();
-
-            // Get the neighbor queue status in microsecond
-            uint32_t delay_neighbor = 0;
-            if ((*i)->GetNextIface() != 0xffffffff)
-            {
-                uint32_t iface = (*i)->GetInterface();
-                uint32_t niface = (*i)->GetNextIface();
-                NeighborStatusEntry* entry = m_tsdb.GetNeighborStatusEntry(iface);
-                StatusUnit* su = entry->GetStatusUnit(niface);
-                delay_neighbor = su->GetEstimateDelayDGR();
-            }
-            // in microsecond
-            uint32_t estimate_delay = (*i)->GetDistance() * 1000 + delay_local + delay_neighbor;
-
-            if (estimate_delay > bgt)
-            {
-                NS_LOG_LOGIC("Too far to the destination, skipping");
-                continue;
-            }
-
-            if ((*i)->GetDistance() > dist)
-            {
-                NS_LOG_LOGIC("Loop avoidance, skipping");
-                continue;
-            }
-
-            allRoutes.push_back(*i);
-            NS_LOG_LOGIC(allRoutes.size()
-                         << "Found DGR host route" << *i << " with Cost: " << (*i)->GetDistance());
-        }
-    }
-    if (allRoutes.size() > 0) // if route(s) is found
-    {
-        // random select
-        uint32_t selectIndex = m_rand->GetInteger(0, allRoutes.size() - 1);
-
-        ShortestPathForestRIE* route = allRoutes.at(selectIndex);
-        uint32_t interfaceIdx = route->GetInterface();
-
-        rtentry = Create<Ipv4Route>();
-        rtentry->SetDestination(route->GetDest());
-        /// \todo handle multi-address case
-        rtentry->SetSource(m_ipv4->GetAddress(interfaceIdx, 0).GetLocal());
-        rtentry->SetGateway(route->GetGateway());
-        rtentry->SetOutputDevice(m_ipv4->GetNetDevice(interfaceIdx));
-
-        distTag.SetDistance(route->GetDistance());
-        p->ReplacePacketTag(distTag);
-        return rtentry;
-    }
-    else
-    {
-        return 0;
-    }
-}
-
-Ptr<Ipv4Route>
-OctopusRouting::LookupKShortRoute(Ipv4Address dest, Ptr<Packet> p, Ptr<const NetDevice> idev)
-{
-    // avoid loop
-    DistTag distTag;
-    uint32_t dist = UINT32_MAX;
-    dist -= 1;
-    if (p->PeekPacketTag(distTag))
-    {
-        dist = distTag.GetDistance();
-    }
-
-    NS_LOG_FUNCTION(this << dest << idev);
-    NS_LOG_LOGIC("Looking for route for destination " << dest);
-    Ptr<Ipv4Route> rtentry = 0;
-    // store all available routes that bring packets to their destination
-    typedef std::vector<ShortestPathForestRIE*> RouteVec_t;
-    // typedef std::vector<ShortestPathForestRIE *>::const_iterator RouteVecCI_t;
-    RouteVec_t allRoutes;
-
-    NS_LOG_LOGIC("Number of m_hostRoutes = " << m_hostRoutes.size());
-    for (HostRoutesCI i = m_hostRoutes.begin(); i != m_hostRoutes.end(); i++)
-    {
-        NS_ASSERT((*i)->IsHost());
-        if ((*i)->GetDest() == dest)
-        {
-            if (idev)
-            {
-                if (idev == m_ipv4->GetNetDevice((*i)->GetInterface()))
-                {
-                    NS_LOG_LOGIC("Not on requested interface, skipping");
-                    continue;
-                }
-            }
-            if ((*i)->GetDistance() > dist)
-            {
-                NS_LOG_LOGIC("Loop avoidance, skipping");
-                continue;
-            }
-
-            allRoutes.push_back(*i);
-            NS_LOG_LOGIC(allRoutes.size()
-                         << "Found route" << *i << " with Cost: " << (*i)->GetDistance());
-        }
-    }
-    if (allRoutes.size() > 0) // if route(s) is found
-    {
-        // random select
-        uint32_t selectIndex = m_rand->GetInteger(0, allRoutes.size() - 1);
-        ShortestPathForestRIE* route = allRoutes.at(selectIndex);
-        uint32_t interfaceIdx = route->GetInterface();
-
-        rtentry = Create<Ipv4Route>();
-        rtentry->SetDestination(route->GetDest());
-        /// \todo handle multi-address case
-        rtentry->SetSource(m_ipv4->GetAddress(interfaceIdx, 0).GetLocal());
-        rtentry->SetGateway(route->GetGateway());
-        rtentry->SetOutputDevice(m_ipv4->GetNetDevice(interfaceIdx));
-
-        distTag.SetDistance(route->GetDistance());
-        p->ReplacePacketTag(distTag);
-        return rtentry;
-    }
-    else
-    {
-        return 0;
-    }
-}
-
-// Ptr<Ipv4Route>
-// OctopusRouting::LookupDDRRoute (Ipv4Address dest, Ptr<Packet> p, Ptr<const NetDevice> idev)
-// {
-//   // std::cout << "DDR routing" << std::endl;
-//   BudgetTag bgtTag;
-//   TimestampTag timeTag;
-//   p->PeekPacketTag (bgtTag);
-//   p->PeekPacketTag (timeTag);
-//   // avoid loop
-//   DistTag distTag;
-//   uint32_t dist = UINT32_MAX;
-//   dist -= 1;
-//   if (p->PeekPacketTag (distTag))
-//     {
-//       dist = distTag.GetDistance ();
-//     }
-
-//   // budget in microseconds
-//   uint32_t bgt;
-//   if (bgtTag.GetBudget ()*1000 + timeTag.GetTimestamp ().GetMicroSeconds () < Simulator::Now
-//   ().GetMicroSeconds ())
-//     {
-//       bgt = 0;
-//     }
-//   else
-//     bgt = (bgtTag.GetBudget ()*1000 + timeTag.GetTimestamp ().GetMicroSeconds () - Simulator::Now
-//     ().GetMicroSeconds ());
-
-//   NS_LOG_FUNCTION (this << dest << idev);
-//   NS_LOG_LOGIC ("Looking for route for destination " << dest);
-//   Ptr<Ipv4Route> rtentry = 0;
-//   // store all available routes that bring packets to their destination
-//   typedef std::vector<OctopusRoutingTableEntry*> RouteVec_t;
-//   // typedef std::vector<OctopusRoutingTableEntry *>::const_iterator RouteVecCI_t;
-//   RouteVec_t allRoutes;
-
-//   NS_LOG_LOGIC ("Number of m_hostRoutes = " << m_hostRoutes.size ());
-//   for (HostRoutesCI i = m_hostRoutes.begin ();
-//        i != m_hostRoutes.end ();
-//        i++)
-//     {
-//       NS_ASSERT ((*i)->IsHost ());
-//       if ((*i)->GetDest () == dest)
-//         {
-//           if (idev)
-//             {
-//               if (idev == m_ipv4->GetNetDevice ((*i)->GetInterface ()))
-//                 {
-//                   NS_LOG_LOGIC ("Not on requested interface, skipping");
-//                   continue;
-//                 }
-//             }
-
-//           // if interface is down, continue
-//           if (!m_ipv4->IsUp ((*i)->GetInterface ())) continue;
-
-//           // // get the local queue delay in microsecond
-//           // Ptr <NetDevice> dev_local = m_ipv4->GetNetDevice ((*i)->GetInterface ());
-//           // //get the queue disc on the device
-//           // Ptr<QueueDisc> disc = m_ipv4->GetObject<Node> ()->GetObject<TrafficControlLayer>
-//           ()->GetRootQueueDiscOnDevice (dev_local);
-//           // Ptr<DGRv2QueueDisc> dvq = DynamicCast <DGRv2QueueDisc> (disc);
-//           // uint32_t status_local = dvq->GetQueueStatus ();
-//           // uint32_t delay_local = dvq->GetQueueDelay ();
-
-//           // // Get the neighbor queue status in microsecond
-//           // uint32_t delay_neighbor = 0;
-//           // if ((*i)->GetNextInterface () != 0xffffffff)
-//           //   {
-//           //     uint32_t iface = (*i)->GetInterface ();
-//           //     uint32_t niface = (*i)->GetNextInterface ();
-//           //     NeighborStatusEntry *entry = m_nsdb.GetNeighborStatusEntry (iface);
-//           //     StatusUnit *su = entry->GetStatusUnit (niface);
-//           //     delay_neighbor = su->GetEstimateDelayDDR ();
-//           //   }
-//           // // in microsecond
-//           // uint32_t estimate_delay = ((*i)->GetDistance () + 1) * 1000 + delay_local +
-//           delay_neighbor;
-
-//           // get the local queue delay in microsecond
-//           Ptr <NetDevice> dev_local = m_ipv4->GetNetDevice ((*i)->GetInterface ());
-//           //get the queue disc on the device
-//           Ptr<QueueDisc> disc = m_ipv4->GetObject<Node> ()->GetObject<TrafficControlLayer>
-//           ()->GetRootQueueDiscOnDevice (dev_local); Ptr<DGRv2QueueDisc> dvq = DynamicCast
-//           <DGRv2QueueDisc> (disc); uint32_t status_local = dvq->GetQueueStatus (); uint32_t
-//           delay_local = status_local * 2000;
-
-//           // Get the neighbor queue status in microsecond
-//           uint32_t delay_neighbor = 0;
-//           if ((*i)->GetNextInterface () != 0xffffffff)
-//             {
-//               uint32_t iface = (*i)->GetInterface ();
-//               uint32_t niface = (*i)->GetNextInterface ();
-//               NeighborStatusEntry *entry = m_nsdb.GetNeighborStatusEntry (iface);
-//               StatusUnit *su = entry->GetStatusUnit (niface);
-//               delay_neighbor = su->GetEstimateDelayDGR ();
-//             }
-//           // in microsecond
-//           uint32_t estimate_delay = ((*i)->GetDistance () + 1) * 1000 + delay_local +
-//           delay_neighbor;
-
-//           if (estimate_delay > bgt)
-//             {
-//               NS_LOG_LOGIC ("Too far to the destination, skipping");
-//               continue;
-//             }
-
-//           if ((*i)->GetDistance () > dist)
-//             {
-//               NS_LOG_LOGIC ("Loop avoidance, skipping");
-//               continue;
-//             }
-
-//           allRoutes.push_back (*i);
-//           NS_LOG_LOGIC (allRoutes.size () << "Found DGR host route" << *i << " with Cost: " <<
-//           (*i)->GetDistance ());
-//         }
-//     }
-//   if (allRoutes.size () > 0 ) // if route(s) is found
-//     {
-//       // random select
-//       uint32_t selectIndex = m_rand->GetInteger (0, allRoutes.size ()-1);
-
-//       OctopusRoutingTableEntry* route = allRoutes.at (selectIndex);
-//       uint32_t interfaceIdx = route->GetInterface ();
-
-//       rtentry = Create<Ipv4Route> ();
-//       rtentry->SetDestination (route->GetDest ());
-//       /// \todo handle multi-address case
-//       rtentry->SetSource (m_ipv4->GetAddress (interfaceIdx, 0).GetLocal ());
-//       rtentry->SetGateway (route->GetGateway ());
-//       rtentry->SetOutputDevice (m_ipv4->GetNetDevice (interfaceIdx));
-
-//       distTag.SetDistance (route->GetDistance ());
-//       p->ReplacePacketTag (distTag);
-//       return rtentry;
-//     }
-//   else
-//     {
-//       return 0;
-//       // return LookupECMPRoute (dest);
-//     }
-// }
 
 void
 OctopusRouting::DoInitialize()
@@ -1032,23 +580,6 @@ OctopusRouting::DoInitialize()
     NS_LOG_FUNCTION(this);
     // bool addedGlobal = false;
     m_initialized = true;
-
-    // To Check: An random value is needed to initialize the protocol?
-    Time delay = m_unsolicitedUpdate;
-    m_nextUnsolicitedUpdate =
-        Simulator::Schedule(delay, &OctopusRouting::SendUnsolicitedUpdate, this);
-
-    uint32_t nodeId = m_ipv4->GetNetDevice(1)->GetNode()->GetId();
-    std::stringstream ss;
-    ss << nodeId;
-    std::string strNodeId = ss.str();
-
-    // // std::string node = "Node " + (std::string)nodeId;
-    // m_outStream = Create<OutputStreamWrapper> ("Node" + strNodeId + "queueStatusErr.txt",
-    // std::ios::out);
-
-    m_nextUnsolicitedUpdate =
-        Simulator::Schedule(delay, &OctopusRouting::SendUnsolicitedUpdate, this);
 
     // Initialize the sockets for every netdevice
     for (uint32_t i = 0; i < m_ipv4->GetNInterfaces(); i++)
@@ -1070,11 +601,10 @@ OctopusRouting::DoInitialize()
         {
             Ipv4InterfaceAddress address = m_ipv4->GetAddress(i, j);
             NS_LOG_LOGIC("For interface: " << i << "the " << j << "st Address is " << address);
-            // std::cout << "For interface: " << i << " the " << j << "st Address is ";
 
             if (address.GetScope() != Ipv4InterfaceAddress::HOST && activeInterface == true)
             {
-                NS_LOG_LOGIC("DGR: add socket to " << address.GetLocal());
+                NS_LOG_LOGIC("Octopus: add socket to " << address.GetLocal());
                 TypeId tid = TypeId::LookupByName("ns3::UdpSocketFactory");
                 Ptr<Node> theNode = m_ipv4->GetObject<Node>();
                 Ptr<Socket> socket = Socket::CreateSocket(theNode, tid);
@@ -1113,16 +643,15 @@ OctopusRouting::DoDispose(void)
 {
     NS_LOG_FUNCTION(this);
     // TODO: Realise memorys
-    for (HostRoutesI i = m_hostRoutes.begin(); i != m_hostRoutes.end(); i = m_hostRoutes.erase(i))
+    for (auto i = m_hostRoutes.begin(); i != m_hostRoutes.end(); i = m_hostRoutes.erase(i))
     {
         delete (*i);
     }
-    for (NetworkRoutesI j = m_networkRoutes.begin(); j != m_networkRoutes.end();
-         j = m_networkRoutes.erase(j))
+    for (auto j = m_networkRoutes.begin(); j != m_networkRoutes.end(); j = m_networkRoutes.erase(j))
     {
         delete (*j);
     }
-    for (ASExternalRoutesI l = m_ASexternalRoutes.begin(); l != m_ASexternalRoutes.end();
+    for (auto l = m_ASexternalRoutes.begin(); l != m_ASexternalRoutes.end();
          l = m_ASexternalRoutes.erase(l))
     {
         delete (*l);
@@ -1161,7 +690,7 @@ OctopusRouting::Receive(Ptr<Socket> socket)
     uint32_t incomingIf = interfaceInfo.GetRecvIf();
     Ptr<Node> node = m_ipv4->GetObject<Node>();
     Ptr<NetDevice> dev = node->GetDevice(incomingIf);
-    uint32_t ipInterfaceIndex = m_ipv4->GetInterfaceForDevice(dev);
+    // uint32_t ipInterfaceIndex = m_ipv4->GetInterfaceForDevice(dev);
 
     int32_t interfaceForAddress = m_ipv4->GetInterfaceForAddress(senderAddress);
     if (interfaceForAddress != -1)
@@ -1183,6 +712,12 @@ OctopusRouting::Receive(Ptr<Socket> socket)
         // Leave for future use
         NS_LOG_LOGIC("Ignoring message with unknown command: " << int(hdr.GetCommand()));
     }
+}
+
+void
+OctopusRouting::HandleUpdate(uint32_t interface, uint32_t nextIface, double delay)
+{
+    // Todo: handle routing
 }
 
 void
@@ -1217,209 +752,4 @@ OctopusRouting::SendOneHopAck(uint32_t iif, uint32_t oif)
         it->first->SendTo(p, 0, InetSocketAddress(DDR_BROAD_CAST, DDR_PORT));
     }
 }
-
-void
-OctopusRouting::DoSendNeighborStatusUpdate(bool periodic)
-{
-    NS_LOG_FUNCTION(this << (periodic ? " periodic" : " triggered"));
-    for (SocketListI iter = m_unicastSocketList.begin(); iter != m_unicastSocketList.end(); iter++)
-    {
-        uint32_t interface = iter->second;
-        if (m_interfaceExclusions.find(interface) == m_interfaceExclusions.end())
-        {
-            uint16_t mtu = m_ipv4->GetMtu(interface);
-            uint16_t maxNse = (mtu - Ipv4Header().GetSerializedSize() -
-                               UdpHeader().GetSerializedSize() - DgrHeader().GetSerializedSize()) /
-                              DgrNse().GetSerializedSize();
-            Ptr<Packet> p = Create<Packet>();
-            SocketIpTtlTag ttlTag;
-            ttlTag.SetTtl(1);
-            p->AddPacketTag(ttlTag);
-
-            DgrHeader hdr;
-            hdr.SetCommand(DgrHeader::RESPONSE);
-            // Find the Status of every netdevice and put it in
-            // TODO: Finish this function when finish the NSE definiation
-            for (uint32_t i = 0; i < m_ipv4->GetNInterfaces(); i++)
-            {
-                if (!m_ipv4->IsUp(i))
-                    continue;
-                Ptr<LoopbackNetDevice> check =
-                    DynamicCast<LoopbackNetDevice>(m_ipv4->GetNetDevice(i));
-                if (check)
-                {
-                    continue;
-                }
-                // get the device
-                Ptr<NetDevice> dev = m_ipv4->GetNetDevice(i);
-                // get the queue disc on devic
-                Ptr<QueueDisc> disc = m_ipv4->GetObject<Node>()
-                                          ->GetObject<TrafficControlLayer>()
-                                          ->GetRootQueueDiscOnDevice(dev);
-                Ptr<DDRQueueDisc> qdisc = DynamicCast<DDRQueueDisc>(disc);
-                DgrNse nse;
-                nse.SetInterface(i);
-                nse.SetState(qdisc->GetQueueStatus());
-                hdr.AddNse(nse);
-                if (hdr.GetNseNumber() == maxNse)
-                {
-                    p->AddHeader(hdr);
-                    NS_LOG_DEBUG("SendTo: " << *p);
-                    iter->first->SendTo(
-                        p,
-                        0,
-                        InetSocketAddress(DDR_BROAD_CAST,
-                                          DDR_PORT)); // Todo : defind the port for DGR routing
-                    p->RemoveHeader(hdr);
-                    hdr.ClearNses();
-                }
-            }
-            if (hdr.GetNseNumber() > 0)
-            {
-                p->AddHeader(hdr);
-                NS_LOG_DEBUG("SendTo: " << *p);
-                iter->first->SendTo(p,
-                                    0,
-                                    InetSocketAddress(DDR_BROAD_CAST,
-                                                      DDR_PORT)); // Todo: Defined the DGR port
-            }
-        }
-    }
-}
-
-void
-OctopusRouting::HandleResponses(DgrHeader hdr,
-                                Ipv4Address senderAddress,
-                                uint32_t incomingInterface,
-                                uint8_t hopLimit)
-{
-    NS_LOG_FUNCTION(this << senderAddress << incomingInterface << int(hopLimit) << hdr);
-    if (m_interfaceExclusions.find(incomingInterface) != m_interfaceExclusions.end())
-    {
-        NS_LOG_LOGIC(
-            "Ignoring an update message from an excluded interface: " << incomingInterface);
-        return;
-    }
-    if (hdr.GetSerializedSize() == 4)
-    {
-        NS_LOG_LOGIC("Ignoring an update message without neighbor state entries!");
-    }
-
-    NeighborStatusEntry* entry = m_tsdb.HandleNeighborStatusEntry(incomingInterface);
-    if (entry == nullptr)
-    {
-        entry = new NeighborStatusEntry();
-        m_tsdb.Insert(incomingInterface, entry);
-    }
-
-    std::list<DgrNse> nses = hdr.GetNseList();
-    for (std::list<DgrNse>::iterator iter = nses.begin(); iter != nses.end(); iter++)
-    {
-        uint32_t n_iface = (*iter).GetInterface();
-        int n_state = (*iter).GetState();
-        StatusUnit* su = entry->GetStatusUnit(n_iface);
-        if (su == nullptr)
-        {
-            su = new StatusUnit();
-            entry->Insert(n_iface, su);
-        }
-        su->Update(n_state);
-        // std::ostream* os = m_outStream->GetStream ();
-        // *os << "Iface: " << n_iface << " Predict Err: " << abs(n_state -
-        // su->GetCurrentState ())
-        // << std::endl; Print the su su->Print (std::cout);
-    }
-}
-
-// void
-// OctopusRouting::HandleRequests (DgrHeader hdr,
-//                                 Ipv4Address senderAddress,
-//                                 uint16_t senderPort,
-//                                 uint32_t incomingInterface,
-//                                 uint8_t hopLimit)
-// {
-//   NS_LOG_FUNCTION (this << senderAddress << senderPort
-//                         << incomingInterface << hopLimit << hdr);
-//   std::cout << ">> Handle requests of Address: ";
-//   senderAddress.Print (std::cout);
-//   std::cout << " hopLimit: " << hopLimit << std::endl;
-
-//   if (m_interfaceExclusions.find (incomingInterface) == m_interfaceExclusions.end ())
-//     {
-//       // We use one of the sending sockets, as they're bound to the right interface
-//       // and the local address might be used on different interfaces.
-//       Ptr<Socket> sendingSocket;
-//       for (SocketListI iter = m_unicastSocketList.begin ();
-//             iter != m_unicastSocketList.end ();
-//             iter ++)
-//         {
-//           if (iter->second == incomingInterface)
-//             {
-//               sendingSocket = iter->first;
-//             }
-//         }
-//       NS_ASSERT_MSG (sendingSocket,
-//                       "HandleRequest - Impossible to find a socket to send the reply");
-
-//       uint16_t mtu = m_ipv4->GetMtu (incomingInterface);
-//       uint16_t maxNse = (mtu - Ipv4Header().GetSerializedSize () -
-//                           UdpHeader ().GetSerializedSize () - DgrHeader
-//                           ().GetSerializedSize
-//                           ())/DgrNse ().GetSerializedSize ();
-
-//       Ptr<Packet> p = Create<Packet> ();
-//       SocketIpTtlTag ttlTag;
-//       ttlTag.SetTtl (1);
-//       p->AddPacketTag (ttlTag);
-
-//       // Serialize the current Device Status
-//       DgrHeader hdr;
-//       hdr.SetCommand (DgrHeader::RESPONSE);
-
-//       for (uint32_t i = 0; i < m_ipv4->GetNInterfaces (); i ++)
-//         {
-//           if (!m_ipv4->IsUp (i)) continue;
-
-//           // get the device
-//           Ptr<NetDevice> dev = m_ipv4->GetNetDevice (i);
-
-//           // get the queue disc on devic
-//           Ptr<QueueDisc> disc = m_ipv4->GetObject<Node> ()->
-//                                 GetObject<TrafficControlLayer> ()->
-//                                 GetRootQueueDiscOnDevice (dev);
-//           if (disc == nullptr)
-//             {
-//               NS_LOG_LOGIC ("loopback devices don't have queue disc!");
-//               continue;
-//             }
-
-//           Ptr<DGRv2QueueDisc> dgr_disc = DynamicCast <DGRv2QueueDisc> (disc);
-
-//           if (dgr_disc == nullptr)
-//             {
-//               NS_LOG_LOGIC ("No DGRv2QueueDisc find!");
-//               continue;
-//             }
-
-//           DgrNse nse;
-//           nse.SetInterface (i);
-//           hdr.AddNse (nse);
-//           if (hdr.GetNseNumber () == maxNse)
-//             {
-//               p->AddHeader (hdr);
-//               NS_LOG_DEBUG ("SendTo: " << *p);
-//               sendingSocket->SendTo (p, 0, InetSocketAddress (senderAddress, DDR_PORT));
-//               // to neighbor p->RemoveHeader (hdr); hdr.ClearNses ();
-//             }
-//         }
-//         if (hdr.GetNseNumber () > 0)
-//           {
-//             p->AddHeader (hdr);
-//             NS_LOG_DEBUG ("SendTo: " << *p);
-//             sendingSocket->SendTo(p, 0, InetSocketAddress (senderAddress, DDR_PORT)); //
-//             Todo: Defined the RIP port
-//           }
-//     }
-// }
-
 } // namespace ns3

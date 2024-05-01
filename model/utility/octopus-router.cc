@@ -46,7 +46,7 @@ void
 OctopusRouter::DoDispose()
 {
     NS_LOG_FUNCTION(this);
-    m_routingProtocol = 0;
+    m_routingProtocol = nullptr;
     RomamRouter::DoDispose();
 }
 

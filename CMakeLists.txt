@@ -29,7 +29,7 @@ set (source_files
     model/utility/ospf-router.cc
     model/utility/dgr-router.cc
     model/utility/ddr-router.cc
-    # model/utility/octopus-router.cc
+    model/utility/octopus-router.cc
 
     model/romam-routing.cc
     model/ospf-routing.cc
@@ -48,7 +48,7 @@ set (source_files
     helper/ospf-helper.cc
     helper/dgr-helper.cc
     helper/ddr-helper.cc
-    # helper/octopus-helper.cc
+    helper/octopus-helper.cc
 )
 set (header_files
     model/datapath/database.h
@@ -81,7 +81,7 @@ set (header_files
     model/utility/ospf-router.h
     model/utility/dgr-router.h
     model/utility/ddr-router.h
-    # model/utility/octopus-router.h
+    model/utility/octopus-router.h
 
     model/romam-routing.h
     model/ospf-routing.h
@@ -100,7 +100,7 @@ set (header_files
     helper/ospf-helper.h
     helper/dgr-helper.h
     helper/ddr-helper.h
-    # helper/octopus-helper.cc
+    helper/octopus-helper.h
 )
 
 build_lib(

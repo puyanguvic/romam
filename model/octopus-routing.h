@@ -110,6 +110,9 @@ class OctopusRouting : public RomamRouting
     void DoDispose(void) override;
 
   private:
+    bool m_randomEcmpRouting;
+
+    bool m_respondToInterfaceEvents;
     /// A uniform random number generator for randomly routing packets among ECMP
     Ptr<UniformRandomVariable> m_rand;
 
@@ -128,7 +131,7 @@ class OctopusRouting : public RomamRouting
      * \param oif output interface if any (put 0 otherwise)
      * \return Ipv4Route to route the packet to reach dest address
      */
-    Ptr<Ipv4Route> LookupRoute(Ipv4Address dest, Ptr<const NetDevice> idev = 0);
+    Ptr<Ipv4Route> LookupRoute(Ipv4Address dest, Ptr<NetDevice> oif = nullptr);
 
     HostRoutes m_hostRoutes;             //!< Routes to hosts
     NetworkRoutes m_networkRoutes;       //!< Routes to networks

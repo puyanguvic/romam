@@ -38,24 +38,38 @@ OctopusHeader::Print(std::ostream& os) const
 uint32_t
 OctopusHeader::GetSerializedSize() const
 {
-    return 12;
+    return 13;
 }
 
 void
 OctopusHeader::Serialize(Buffer::Iterator start) const
 {
     Buffer::Iterator i = start;
-    i.WriteHtolsbU32(m_interface);
-    i.WriteHtolsbU64(m_delay);
+    i.WriteU8(uint8_t(m_command));
+    i.WriteU32(m_interface);
+    i.WriteU64(m_delay);
 }
 
 uint32_t
 OctopusHeader::Deserialize(Buffer::Iterator start)
 {
     Buffer::Iterator i = start;
+    m_command = i.ReadU8();
     m_interface = i.ReadU32();
     m_delay = i.ReadU64();
     return GetSerializedSize();
+}
+
+OctopusHeader::Command_e
+OctopusHeader::GetCommand() const
+{
+    return Command_e(m_command);
+}
+
+void
+OctopusHeader::SetCommand(Command_e command)
+{
+    m_command = command;
 }
 
 uint32_t

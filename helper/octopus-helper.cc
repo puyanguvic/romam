@@ -33,11 +33,11 @@ OctopusHelper::Create(Ptr<Node> node) const
     // install DGRv2 Queue to netdevices
 
     // install DGR router to node.
-    Ptr<Octpus> router = CreateObject<OSPFRouter>();
+    Ptr<OctopusRouter> router = CreateObject<OctopusRouter>();
     node->AggregateObject(router);
 
     NS_LOG_LOGIC("Adding RomamRouting Protocol to node " << node->GetId());
-    Ptr<OSPFRouting> routing = CreateObject<OSPFRouting>();
+    Ptr<OctopusRouting> routing = CreateObject<OctopusRouting>();
     router->SetRoutingProtocol(routing);
 
     return routing;
