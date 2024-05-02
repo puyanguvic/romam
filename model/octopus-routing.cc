@@ -559,7 +559,7 @@ OctopusRouting::LookupRoute(Ipv4Address dest, Ptr<NetDevice> oif)
 void
 OctopusRouting::InitializeSocketList()
 {
-    std::cout << "Initialize the socket for every netdevic.\n";
+    // std::cout << "Initialize the socket for every netdevic.\n";
     // Initialize the sockets for every netdevice
     for (uint32_t i = 0; i < m_ipv4->GetNInterfaces(); i++)
     {

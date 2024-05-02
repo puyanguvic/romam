@@ -49,7 +49,7 @@ OctopusHelper::PopulateRoutingTables(void)
     std::clock_t t;
     t = clock();
     RouteManager::BuildLSDB();
-    RouteManager::InitializeDijkstraRoutes();
+    RouteManager::InitializeSPFRoutes();
     // Initialize Sockets
     for (auto i = NodeList::Begin(); i != NodeList::End(); i++)
     {
@@ -74,7 +74,7 @@ OctopusHelper::RecomputeRoutingTables(void)
 {
     RouteManager::DeleteRoutes();
     RouteManager::BuildLSDB();
-    RouteManager::InitializeDijkstraRoutes();
+    RouteManager::InitializeSPFRoutes();
 }
 
 } // namespace ns3

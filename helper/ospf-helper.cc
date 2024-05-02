@@ -50,7 +50,7 @@ OSPFHelper::PopulateRoutingTables(void)
     RouteManager::InitializeDijkstraRoutes();
     t = clock() - t;
     uint32_t time_init_ms = 1000000.0 * t / CLOCKS_PER_SEC;
-    std::cout << "CPU time used for Romam Routing Protocol Init: " << time_init_ms << " ms\n";
+    std::cout << "CPU time used for OSPF Routing Protocol Init: " << time_init_ms << "\n";
 }
 
 void
