@@ -1,12 +1,11 @@
 // -*- Mode:C++; c-file-style:"gnu"; indent-tabs-mode:nil; -*-
-
 #include "octopus-routing.h"
 
 #include "datapath/dgr-headers.h"
 #include "datapath/octopus-headers.h"
 #include "datapath/romam-tags.h"
 #include "priority_manage/ddr-queue-disc.h"
-#include "routing_algorithm/spf-route-info-entry.h"
+#include "routing_algorithm/armed-spf-rie.h"
 #include "utility/route-manager.h"
 
 #include "ns3/boolean.h"
@@ -29,6 +28,7 @@
 #include "ns3/udp-socket-factory.h"
 
 #include <iomanip>
+#include <random>
 #include <string>
 #include <vector>
 
@@ -53,7 +53,8 @@ OctopusRouting::GetTypeId(void)
 }
 
 OctopusRouting::OctopusRouting()
-    : m_armDatabase()
+    : m_armDatabase(),
+      m_initialized(false)
 {
     NS_LOG_FUNCTION(this);
     m_rand = CreateObject<UniformRandomVariable>();
@@ -86,7 +87,7 @@ OctopusRouting::RouteOutput(Ptr<Packet> p,
     //
     NS_LOG_LOGIC("Looking up route");
     Ptr<Ipv4Route> rtentry = LookupRoute(header.GetDestination());
-
+    // std::cout << "Output oif: " << rtentry->GetOutputDevice()->GetIfIndex() << std::endl;
     if (rtentry)
     {
         sockerr = Socket::ERROR_NOTERROR;
@@ -144,10 +145,12 @@ OctopusRouting::RouteInput(Ptr<const Packet> p,
     Ptr<Ipv4Route> rtentry = LookupRoute(header.GetDestination());
     if (rtentry)
     {
+        // std::cout << "Find the path for Input packet\n";
         uint32_t oif = rtentry->GetOutputDevice()->GetIfIndex();
         NS_LOG_LOGIC("Found unicast destination- calling unicast callback");
         ucb(rtentry, p, header);
-        SendOneHopAck(iif, oif);
+        std::cout << "Route Input iif: " << iif << ", oif: " << oif << std::endl;
+        SendOneHopAck(header.GetDestination(), iif, oif);
         return true;
     }
     else
@@ -234,11 +237,12 @@ OctopusRouting::PrintRoutingTable(Ptr<OutputStreamWrapper> stream, Time::Unit un
 
     if (GetNRoutes() > 0)
     {
-        *os << "  Destination     Gateway    Flags   Metric  Iface   NextIface" << std::endl;
+        *os << "  Destination     Gateway    Flags   Metric  Iface   NextIface   Loss   Pulls"
+            << std::endl;
         for (uint32_t j = 0; j < GetNRoutes(); j++)
         {
             std::ostringstream dest, gw, mask, flags, metric;
-            ShortestPathForestRIE route = GetRoute(j);
+            ArmedSpfRIE route = GetRoute(j);
             dest << route.GetDest();
             *os << std::setw(13) << dest.str();
             gw << route.GetGateway();
@@ -279,6 +283,8 @@ OctopusRouting::PrintRoutingTable(Ptr<OutputStreamWrapper> stream, Time::Unit un
                     *os << std::setw(8) << "-";
                 }
             }
+            *os << std::setw(18) << route.GetCumulativeLoss();
+            *os << std::setw(8) << route.GetNumPulls();
             *os << std::endl;
         }
     }
@@ -290,8 +296,8 @@ void
 OctopusRouting::AddHostRouteTo(Ipv4Address dest, Ipv4Address nextHop, uint32_t interface)
 {
     NS_LOG_FUNCTION(this << dest << nextHop << interface);
-    ShortestPathForestRIE* route = new ShortestPathForestRIE();
-    *route = ShortestPathForestRIE::CreateHostRouteTo(dest, nextHop, interface);
+    ArmedSpfRIE* route = new ArmedSpfRIE();
+    *route = ArmedSpfRIE::CreateHostRouteTo(dest, nextHop, interface);
     m_hostRoutes.push_back(route);
 }
 
@@ -299,8 +305,8 @@ void
 OctopusRouting::AddHostRouteTo(Ipv4Address dest, uint32_t interface)
 {
     NS_LOG_FUNCTION(this << dest << interface);
-    ShortestPathForestRIE* route = new ShortestPathForestRIE();
-    *route = ShortestPathForestRIE::CreateHostRouteTo(dest, interface);
+    ArmedSpfRIE* route = new ArmedSpfRIE();
+    *route = ArmedSpfRIE::CreateHostRouteTo(dest, interface);
     m_hostRoutes.push_back(route);
 }
 
@@ -312,9 +318,8 @@ OctopusRouting::AddHostRouteTo(Ipv4Address dest,
                                uint32_t distance)
 {
     NS_LOG_FUNCTION(this << dest << nextHop << interface << nextInterface << distance);
-    ShortestPathForestRIE* route = new ShortestPathForestRIE();
-    *route =
-        ShortestPathForestRIE::CreateHostRouteTo(dest, nextHop, interface, nextInterface, distance);
+    ArmedSpfRIE* route = new ArmedSpfRIE();
+    *route = ArmedSpfRIE::CreateHostRouteTo(dest, nextHop, interface, nextInterface, distance);
     m_hostRoutes.push_back(route);
 }
 
@@ -325,8 +330,8 @@ OctopusRouting::AddNetworkRouteTo(Ipv4Address network,
                                   uint32_t interface)
 {
     NS_LOG_FUNCTION(this << network << networkMask << nextHop << interface);
-    ShortestPathForestRIE* route = new ShortestPathForestRIE();
-    *route = ShortestPathForestRIE::CreateNetworkRouteTo(network, networkMask, nextHop, interface);
+    ArmedSpfRIE* route = new ArmedSpfRIE();
+    *route = ArmedSpfRIE::CreateNetworkRouteTo(network, networkMask, nextHop, interface);
     m_networkRoutes.push_back(route);
 }
 
@@ -334,8 +339,8 @@ void
 OctopusRouting::AddNetworkRouteTo(Ipv4Address network, Ipv4Mask networkMask, uint32_t interface)
 {
     NS_LOG_FUNCTION(this << network << networkMask << interface);
-    ShortestPathForestRIE* route = new ShortestPathForestRIE();
-    *route = ShortestPathForestRIE::CreateNetworkRouteTo(network, networkMask, interface);
+    ArmedSpfRIE* route = new ArmedSpfRIE();
+    *route = ArmedSpfRIE::CreateNetworkRouteTo(network, networkMask, interface);
     m_networkRoutes.push_back(route);
 }
 
@@ -346,8 +351,8 @@ OctopusRouting::AddASExternalRouteTo(Ipv4Address network,
                                      uint32_t interface)
 {
     NS_LOG_FUNCTION(this << network << networkMask << nextHop << interface);
-    ShortestPathForestRIE* route = new ShortestPathForestRIE();
-    *route = ShortestPathForestRIE::CreateNetworkRouteTo(network, networkMask, nextHop, interface);
+    ArmedSpfRIE* route = new ArmedSpfRIE();
+    *route = ArmedSpfRIE::CreateNetworkRouteTo(network, networkMask, nextHop, interface);
     m_ASexternalRoutes.push_back(route);
 }
 
@@ -362,7 +367,7 @@ OctopusRouting::GetNRoutes(void) const
     return n;
 }
 
-ShortestPathForestRIE*
+ArmedSpfRIE*
 OctopusRouting::GetRoute(uint32_t index) const
 {
     NS_LOG_FUNCTION(this << index);
@@ -478,7 +483,7 @@ OctopusRouting::LookupRoute(Ipv4Address dest, Ptr<NetDevice> oif)
     NS_LOG_LOGIC("Looking for route for destination " << dest);
     Ptr<Ipv4Route> rtentry = nullptr;
     // store all available routes that bring packets to their destination
-    typedef std::vector<ShortestPathForestRIE*> RouteVec_t;
+    typedef std::vector<ArmedSpfRIE*> RouteVec_t;
     RouteVec_t allRoutes;
 
     NS_LOG_LOGIC("Number of m_hostRoutes = " << m_hostRoutes.size());
@@ -495,69 +500,46 @@ OctopusRouting::LookupRoute(Ipv4Address dest, Ptr<NetDevice> oif)
                     continue;
                 }
             }
+            (*i)->PullArm();
             allRoutes.push_back(*i);
             NS_LOG_LOGIC(allRoutes.size() << "Found global host route" << *i);
         }
     }
-    if (allRoutes.empty()) // if no host route is found
-    {
-        NS_LOG_LOGIC("Number of m_networkRoutes" << m_networkRoutes.size());
-        for (auto j = m_networkRoutes.begin(); j != m_networkRoutes.end(); j++)
-        {
-            Ipv4Mask mask = (*j)->GetDestNetworkMask();
-            Ipv4Address entry = (*j)->GetDestNetwork();
-            if (mask.IsMatch(dest, entry))
-            {
-                if (oif)
-                {
-                    if (oif != m_ipv4->GetNetDevice((*j)->GetInterface()))
-                    {
-                        NS_LOG_LOGIC("Not on requested interface, skipping");
-                        continue;
-                    }
-                }
-                allRoutes.push_back(*j);
-                NS_LOG_LOGIC(allRoutes.size() << "Found global network route" << *j);
-            }
-        }
-    }
-    if (allRoutes.empty()) // consider external if no host/network found
-    {
-        for (auto k = m_ASexternalRoutes.begin(); k != m_ASexternalRoutes.end(); k++)
-        {
-            Ipv4Mask mask = (*k)->GetDestNetworkMask();
-            Ipv4Address entry = (*k)->GetDestNetwork();
-            if (mask.IsMatch(dest, entry))
-            {
-                NS_LOG_LOGIC("Found external route" << *k);
-                if (oif)
-                {
-                    if (oif != m_ipv4->GetNetDevice((*k)->GetInterface()))
-                    {
-                        NS_LOG_LOGIC("Not on requested interface, skipping");
-                        continue;
-                    }
-                }
-                allRoutes.push_back(*k);
-                break;
-            }
-        }
-    }
+
     if (!allRoutes.empty()) // if route(s) is found
     {
-        // pick up one of the routes uniformly at random if random
-        // ECMP routing is enabled, or always select the first route
-        // consistently if random ECMP routing is disabled
-        uint32_t selectIndex;
-        if (m_randomEcmpRouting)
+        int nRoutes = (int)allRoutes.size();
+        double p[nRoutes];
+        int ref = 0;
+        double p_total = 0.0;
+        double chances = nRoutes * log(nRoutes);
+        for (auto i = allRoutes.begin(); i != allRoutes.end(); i++)
         {
-            selectIndex = m_rand->GetInteger(0, allRoutes.size() - 1);
+            // Get the number of pulls
+            uint32_t nPulls = (*i)->GetNumPulls();
+            double loss = (*i)->GetCumulativeLoss();
+            double eta = sqrt(chances / (double)nPulls);
+            p[ref] = exp(-eta * loss);
+            p_total += p[ref];
+            ref += 1;
         }
-        else
+        // form the probabilities
+        p[0] = p[0] / p_total;
+        for (int j = 1; j < nRoutes; j++)
         {
-            selectIndex = 0;
+            p[j] = p[j] / p_total + p[j - 1];
         }
-        ShortestPathForestRIE* route = allRoutes.at(selectIndex);
+        double random = m_rand->GetValue(0, 1);
+        int j = 0;
+        while (p[j] < random)
+            j++;
+        if (j >= nRoutes)
+        {
+            j = nRoutes - 1;
+        }
+        uint32_t selectIndex = j;
+        // std::cout << "Forwarding Index: " << selectIndex << std::endl;
+        ArmedSpfRIE* route = allRoutes.at(selectIndex);
         // create a Ipv4Route object from the selected routing table entry
         rtentry = Create<Ipv4Route>();
         rtentry->SetDestination(route->GetDest());
@@ -575,12 +557,9 @@ OctopusRouting::LookupRoute(Ipv4Address dest, Ptr<NetDevice> oif)
 }
 
 void
-OctopusRouting::DoInitialize()
+OctopusRouting::InitializeSocketList()
 {
-    NS_LOG_FUNCTION(this);
-    // bool addedGlobal = false;
-    m_initialized = true;
-
+    std::cout << "Initialize the socket for every netdevic.\n";
     // Initialize the sockets for every netdevice
     for (uint32_t i = 0; i < m_ipv4->GetNInterfaces(); i++)
     {
@@ -635,7 +614,15 @@ OctopusRouting::DoInitialize()
         m_multicastRecvSocket->SetIpRecvTtl(true);
         m_multicastRecvSocket->SetRecvPktInfo(true);
     }
-    Ipv4RoutingProtocol::DoInitialize();
+}
+
+void
+OctopusRouting::DoInitialize()
+{
+    NS_LOG_FUNCTION(this);
+    std::cout << "DoInit\n";
+    m_initialized = true;
+    RomamRouting::DoInitialize();
 }
 
 void
@@ -703,9 +690,11 @@ OctopusRouting::Receive(Ptr<Socket> socket)
     packet->RemoveHeader(hdr);
     if (hdr.GetCommand() == OctopusHeader::ACK)
     {
-        NS_LOG_LOGIC("Update the cumulative loss with" << hdr.GetInterface() << ", "
-                                                       << hdr.GetDelay());
-        HandleUpdate(incomingIf, hdr.GetInterface(), hdr.GetDelay());
+        NS_LOG_LOGIC("Update the cumulative loss with" << hdr.GetDestination() << ", "
+                                                       << hdr.GetReward());
+        Ipv4Address dest = hdr.GetDestination();
+        double reward = hdr.GetReward();
+        HandleUpdate(dest, incomingIf, reward);
     }
     else
     {
@@ -715,23 +704,96 @@ OctopusRouting::Receive(Ptr<Socket> socket)
 }
 
 void
-OctopusRouting::HandleUpdate(uint32_t interface, uint32_t nextIface, double delay)
+OctopusRouting::HandleUpdate(Ipv4Address dest, uint32_t interface, double reward)
 {
-    // Todo: handle routing
+    std::cout << "Handle Update\n";
+    NS_LOG_FUNCTION(this << dest << interface << reward);
+
+    NS_LOG_LOGIC("Looking for route for destination " << dest);
+
+    // store all available routes that bring packets to their destination
+    typedef std::vector<ArmedSpfRIE*> RouteVec_t;
+    RouteVec_t allRoutes;
+
+    NS_LOG_LOGIC("Number of m_hostRoutes = " << m_hostRoutes.size());
+    for (auto i = m_hostRoutes.begin(); i != m_hostRoutes.end(); i++)
+    {
+        NS_ASSERT((*i)->IsHost());
+        if ((*i)->GetDest() == dest)
+        {
+            allRoutes.push_back(*i);
+            NS_LOG_LOGIC(allRoutes.size() << "Found global host route" << *i);
+        }
+    }
+
+    if (!allRoutes.empty()) // if route(s) is found
+    {
+        int nRoutes = (int)allRoutes.size();
+        double p[nRoutes];
+        int ref = 0;
+        double p_total = 0.0;
+        double chances = nRoutes * log(nRoutes);
+        ArmedSpfRIE* route;
+        int route_ref = 0;
+        for (auto i = allRoutes.begin(); i != allRoutes.end(); i++)
+        {
+            // record the right route we are finding
+            if ((*i)->GetInterface() == interface)
+            {
+                route = *i;
+                route_ref = ref;
+            }
+            // Get the number of pulls
+            uint32_t nPulls = (*i)->GetNumPulls();
+            double loss = (*i)->GetCumulativeLoss();
+            double eta = sqrt(chances / (double)nPulls);
+            p[ref] = exp(-eta * loss);
+            p_total += p[ref];
+            ref += 1;
+        }
+        // norm the probabilities
+        for (int j = 0; j < nRoutes; j++)
+        {
+            p[j] = p[j] / p_total;
+        }
+        // update arm's cumulative loss
+        double delta = (1 - exp(-(route->GetDistance() + reward))) / p[route_ref];
+        route->UpdateArm(delta);
+    }
+
+    // Find the route and upate arm
+    NS_LOG_FUNCTION(this << dest << interface << reward);
+    NS_LOG_LOGIC("Looking for this route");
+    for (auto i = m_hostRoutes.begin(); i != m_hostRoutes.end(); i++)
+    {
+        NS_ASSERT((*i)->IsHost());
+        if ((*i)->GetDest() == dest)
+        {
+            if ((*i)->GetInterface() == interface)
+            {
+                (*i)->UpdateArm(reward);
+                return;
+            }
+        }
+    }
 }
 
 void
-OctopusRouting::SendOneHopAck(uint32_t iif, uint32_t oif)
+OctopusRouting::SendOneHopAck(Ipv4Address dest, uint32_t iif, uint32_t oif)
 {
     NS_LOG_FUNCTION(this);
-    SocketListI it = m_unicastSocketList.begin();
-    while (it != m_unicastSocketList.end())
+    auto iter = m_unicastSocketList.begin();
+    for (; iter != m_unicastSocketList.end(); iter++)
     {
-        if (it->second == iif)
+        if (iter->second == iif)
+        {
             break;
+        }
     }
-    if (it != m_unicastSocketList.end())
+
+    if (iter != m_unicastSocketList.end())
     {
+        std::cout << "Find the right socket\n";
         Ptr<NetDevice> odev = m_ipv4->GetNetDevice(oif);
         Ptr<QueueDisc> disc =
             m_ipv4->GetObject<Node>()->GetObject<TrafficControlLayer>()->GetRootQueueDiscOnDevice(
@@ -746,10 +808,11 @@ OctopusRouting::SendOneHopAck(uint32_t iif, uint32_t oif)
         p->AddPacketTag(ttlTag);
         OctopusHeader hdr;
         hdr.SetCommand(OctopusHeader::ACK);
-        hdr.SetInterface(oif);
-        hdr.SetDelay(delay);
+        hdr.SetDestination(dest);
+        hdr.SetReward(delay);
         p->AddHeader(hdr);
-        it->first->SendTo(p, 0, InetSocketAddress(DDR_BROAD_CAST, DDR_PORT));
+        iter->first->SendTo(p, 0, InetSocketAddress(DDR_BROAD_CAST, DDR_PORT));
+        std::cout << "Send ACK\n";
     }
 }
 } // namespace ns3

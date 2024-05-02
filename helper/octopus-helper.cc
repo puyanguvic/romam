@@ -50,6 +50,20 @@ OctopusHelper::PopulateRoutingTables(void)
     t = clock();
     RouteManager::BuildLSDB();
     RouteManager::InitializeDijkstraRoutes();
+    // Initialize Sockets
+    for (auto i = NodeList::Begin(); i != NodeList::End(); i++)
+    {
+        Ptr<Node> node = *i;
+        Ptr<OctopusRouter> router = node->GetObject<OctopusRouter>();
+        if (!router)
+        {
+            continue;
+        }
+        Ptr<RomamRouting> routing = router->GetRoutingProtocol();
+        Ptr<OctopusRouting> octopus = DynamicCast<OctopusRouting>(routing);
+        octopus->InitializeSocketList();
+    }
+
     t = clock() - t;
     uint32_t time_init_ms = 1000000.0 * t / CLOCKS_PER_SEC;
     std::cout << "CPU time used for Romam Routing Protocol Init: " << time_init_ms << " ms\n";

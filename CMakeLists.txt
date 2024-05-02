@@ -23,6 +23,7 @@ set (source_files
     model/routing_algorithm/dijkstra-algorithm.cc
     model/routing_algorithm/spf-algorithm.cc
     model/routing_algorithm/spf-route-info-entry.cc
+    model/routing_algorithm/armed-spf-rie.cc
     
     model/utility/romam-router.cc
     model/utility/route-manager.cc
@@ -75,6 +76,7 @@ set (header_files
     model/routing_algorithm/dijkstra-algorithm.h
     model/routing_algorithm/spf-algorithm.h
     model/routing_algorithm/spf-route-info-entry.h
+    model/routing_algorithm/armed-spf-rie.h
 
     model/utility/romam-router.h
     model/utility/route-manager.h

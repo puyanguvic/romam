@@ -62,15 +62,15 @@ class OctopusHeader : public Header
 
     Command_e GetCommand() const;
     void SetCommand(Command_e command);
-    uint32_t GetInterface() const;
-    void SetInterface(uint32_t interface);
-    double GetDelay() const;
-    void SetDelay(double delay);
+    Ipv4Address GetDestination() const;
+    void SetDestination(Ipv4Address destination);
+    double GetReward() const;
+    void SetReward(double reward);
 
   private:
     uint8_t m_command;
-    uint32_t m_interface;
-    double m_delay; //!< command type
+    Ipv4Address m_destination;
+    double m_reward; //!< command type
 };
 
 /**

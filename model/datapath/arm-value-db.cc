@@ -7,30 +7,30 @@
 namespace ns3
 {
 
-ValueUnit::ValueUnit()
+ArmValue::ArmValue()
     : m_cumulative(0.0),
       m_num_pulls(0)
 {
 }
 
-ValueUnit::~ValueUnit()
+ArmValue::~ArmValue()
 {
 }
 
 double
-ValueUnit::GetCumulativeLoss() const
+ArmValue::GetCumulativeLoss() const
 {
     return m_cumulative;
 }
 
 uint32_t
-ValueUnit::GetNumPulls() const
+ArmValue::GetNumPulls() const
 {
     return m_num_pulls;
 }
 
 void
-ValueUnit::UpdateArm(double reward)
+ArmValue::UpdateArm(double reward)
 {
     // Todo: Update values;
     m_num_pulls += 1;
@@ -38,7 +38,7 @@ ValueUnit::UpdateArm(double reward)
 }
 
 void
-ValueUnit::Print(std::ostream& os) const
+ArmValue::Print(std::ostream& os) const
 {
     os << "Cumulative loss = " << GetCumulativeLoss() << ", Number of Pulls = " << GetNumPulls()
        << std::endl;
@@ -57,14 +57,14 @@ NeighborArms::~NeighborArms()
     for (auto it = m_arms.begin(); it != m_arms.end(); it++)
     {
         // NS_LOG_LOGIC("Free database entries");
-        ValueUnit* temp = it->second;
+        ArmValue* temp = it->second;
         delete temp;
     }
     m_arms.clear();
 }
 
-ValueUnit*
-NeighborArms::GetValueUnit(uint32_t nIface) const
+ArmValue*
+NeighborArms::GetArmValue(uint32_t nIface) const
 {
     NAMap_t::const_iterator ci = m_arms.find(nIface);
     if (ci != m_arms.end())
@@ -86,7 +86,7 @@ NeighborArms::UpdateArm(uint32_t nIface, double reward)
     auto it = m_arms.find(nIface);
     if (it == m_arms.end())
     {
-        ValueUnit* vu = new ValueUnit();
+        ArmValue* vu = new ArmValue();
         m_arms.insert(NAPair_t(nIface, vu));
         vu->UpdateArm(reward);
     }
@@ -96,7 +96,7 @@ NeighborArms::UpdateArm(uint32_t nIface, double reward)
 void
 NeighborArms::Print(std::ostream& os) const
 {
-    os << "Next_Iface    ValueUnit" << std::endl;
+    os << "Next_Iface    ArmValue" << std::endl;
     NAMap_t::const_iterator ci;
     for (ci = m_arms.begin(); ci != m_arms.end(); ci++)
     {
@@ -141,8 +141,8 @@ ArmValueDB::GetNeighborArms(uint32_t iface) const
     return nullptr;
 }
 
-ValueUnit*
-ArmValueDB::GetValueUnit(uint32_t iface, uint32_t nIface) const
+ArmValue*
+ArmValueDB::GetArmValue(uint32_t iface, uint32_t nIface) const
 {
     // NS_LOG_FUNCTION (this << iface);
     //
@@ -151,7 +151,7 @@ ArmValueDB::GetValueUnit(uint32_t iface, uint32_t nIface) const
     ArmValueDBMap_t::const_iterator ci = m_database.find(iface);
     if (ci != m_database.end())
     {
-        return ci->second->GetValueUnit(nIface);
+        return ci->second->GetArmValue(nIface);
     }
     return nullptr;
 }

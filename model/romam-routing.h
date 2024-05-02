@@ -147,11 +147,13 @@ class RomamRouting : public Ipv4RoutingProtocol
      */
     virtual void RemoveRoute(uint32_t i) = 0;
 
-  protected:
-    /**
-     * \brief Dispose this object
-     */
-    // void DoDispose(void) override;
+    // protected:
+    //   /**
+    //    * \brief Dispose this object
+    //    */
+    //   virtual void DoDispose() override;
+
+    //   virtual void DoInitialize() override;
 };
 
 } // namespace ns3

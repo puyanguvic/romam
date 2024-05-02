@@ -26,7 +26,7 @@ class Ipv4Interface;
 class Ipv4Address;
 class Ipv4Header;
 class Node;
-class ShortestPathForestRIE;
+class ArmedSpfRIE;
 class ArmValueDB;
 
 class OctopusRouting : public RomamRouting
@@ -68,9 +68,6 @@ class OctopusRouting : public RomamRouting
     void PrintRoutingTable(Ptr<OutputStreamWrapper> stream,
                            Time::Unit unit = Time::S) const override;
 
-    // These methods inherited from Objective class
-    void DoInitialize() override;
-
     // These methods inherited from RomamRouting class
     void AddHostRouteTo(Ipv4Address dest, Ipv4Address nextHop, uint32_t interface) override;
     void AddHostRouteTo(Ipv4Address dest, uint32_t interface) override;
@@ -101,13 +98,19 @@ class OctopusRouting : public RomamRouting
      */
     int64_t AssignStreams(int64_t stream);
 
-    ShortestPathForestRIE* GetRoute(uint32_t i) const;
+    ArmedSpfRIE* GetRoute(uint32_t i) const;
+
+    void InitializeSocketList();
 
   protected:
     /**
      * \brief Dispose this object
      */
     void DoDispose(void) override;
+    /**
+     * Start protocol operation
+     */
+    void DoInitialize() override;
 
   private:
     bool m_randomEcmpRouting;
@@ -117,13 +120,13 @@ class OctopusRouting : public RomamRouting
     Ptr<UniformRandomVariable> m_rand;
 
     /// container of Ipv4RoutingTableEntry (routes to hosts)
-    typedef std::list<ShortestPathForestRIE*> HostRoutes;
+    typedef std::list<ArmedSpfRIE*> HostRoutes;
 
     /// container of Ipv4RoutingTableEntry (routes to networks)
-    typedef std::list<ShortestPathForestRIE*> NetworkRoutes;
+    typedef std::list<ArmedSpfRIE*> NetworkRoutes;
 
     /// container of RoutingTableEntry (routes to external AS)
-    typedef std::list<ShortestPathForestRIE*> ASExternalRoutes;
+    typedef std::list<ArmedSpfRIE*> ASExternalRoutes;
 
     /**
      * \brief Lookup in the forwarding table for destination.
@@ -162,8 +165,8 @@ class OctopusRouting : public RomamRouting
      * \param socket the socket the packet was received from.
      */
     void Receive(Ptr<Socket> socket);
-    void HandleUpdate(uint32_t interface, uint32_t nextIface, double delay);
-    void SendOneHopAck(uint32_t iif, uint32_t oif);
+    void HandleUpdate(Ipv4Address dest, uint32_t interface, double reward);
+    void SendOneHopAck(Ipv4Address dest, uint32_t iif, uint32_t oif);
 
     // Ptr<OutputStreamWrapper> m_outStream = Create<OutputStreamWrapper>
     // ("queueStatusErr.txt", std::ios::out);

@@ -23,7 +23,8 @@ NS_OBJECT_ENSURE_REGISTERED(RomamRouting);
 TypeId
 RomamRouting::GetTypeId()
 {
-    static TypeId tid = TypeId("ns3::RomamRouting").SetParent<Object>().SetGroupName("Romam");
+    static TypeId tid =
+        TypeId("ns3::RomamRouting").SetParent<Ipv4RoutingProtocol>().SetGroupName("Romam");
     return tid;
 }
 
@@ -31,5 +32,17 @@ RomamRouting::~RomamRouting()
 {
     NS_LOG_FUNCTION(this);
 }
+
+// void
+// RomamRouting::DoDispose()
+// {
+//     Ipv4RoutingProtocol::DoDispose();
+// }
+
+// void
+// RomamRouting::DoInitialize()
+// {
+//     Ipv4RoutingProtocol::DoInitialize();
+// }
 
 } // namespace ns3

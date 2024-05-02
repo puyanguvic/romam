@@ -13,11 +13,11 @@
 namespace ns3
 {
 
-class ValueUnit
+class ArmValue
 {
   public:
-    ValueUnit();
-    ~ValueUnit();
+    ArmValue();
+    ~ArmValue();
     double GetCumulativeLoss() const;
     uint32_t GetNumPulls() const;
     void UpdateArm(double reward);
@@ -34,14 +34,14 @@ class NeighborArms
     NeighborArms();
     ~NeighborArms();
 
-    ValueUnit* GetValueUnit(uint32_t nIface) const;
+    ArmValue* GetArmValue(uint32_t nIface) const;
     uint32_t GetNumArmValuePairs() const;
     void UpdateArm(uint32_t nIface, double reward);
     void Print(std::ostream& os) const;
 
   private:
-    typedef std::map<uint32_t, ValueUnit*> NAMap_t;   //!< status, statistic*/
-    typedef std::pair<uint32_t, ValueUnit*> NAPair_t; //!< pair of <interface, StatusUnit>
+    typedef std::map<uint32_t, ArmValue*> NAMap_t;   //!< status, statistic*/
+    typedef std::pair<uint32_t, ArmValue*> NAPair_t; //!< pair of <interface, StatusUnit>
     NAMap_t m_arms;
 };
 
@@ -80,7 +80,7 @@ class ArmValueDB : public Database
      */
     NeighborArms* GetNeighborArms(uint32_t iface) const;
 
-    ValueUnit* GetValueUnit(uint32_t iface, uint32_t nIface) const;
+    ArmValue* GetArmValue(uint32_t iface, uint32_t nIface) const;
     void UpdateArm(uint32_t iface, uint32_t nIface, double reward);
 
     /**

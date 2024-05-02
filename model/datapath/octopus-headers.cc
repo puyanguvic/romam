@@ -8,8 +8,7 @@ namespace ns3
 {
 
 OctopusHeader::OctopusHeader()
-    : m_interface(0),
-      m_delay(0.0)
+    : m_reward(0.0)
 {
 }
 
@@ -32,7 +31,7 @@ OctopusHeader::GetInstanceTypeId() const
 void
 OctopusHeader::Print(std::ostream& os) const
 {
-    os << "delay: " << m_delay << ", interface: " << m_interface;
+    os << "destination: " << m_destination.Get() << ", reward: " << m_reward;
 }
 
 uint32_t
@@ -46,8 +45,8 @@ OctopusHeader::Serialize(Buffer::Iterator start) const
 {
     Buffer::Iterator i = start;
     i.WriteU8(uint8_t(m_command));
-    i.WriteU32(m_interface);
-    i.WriteU64(m_delay);
+    i.WriteHtonU32(m_destination.Get());
+    i.WriteHtonU64(m_reward);
 }
 
 uint32_t
@@ -55,8 +54,8 @@ OctopusHeader::Deserialize(Buffer::Iterator start)
 {
     Buffer::Iterator i = start;
     m_command = i.ReadU8();
-    m_interface = i.ReadU32();
-    m_delay = i.ReadU64();
+    m_destination.Set(i.ReadNtohU32());
+    m_reward = i.ReadNtohU64();
     return GetSerializedSize();
 }
 
@@ -72,28 +71,28 @@ OctopusHeader::SetCommand(Command_e command)
     m_command = command;
 }
 
-uint32_t
-OctopusHeader::GetInterface() const
+Ipv4Address
+OctopusHeader::GetDestination() const
 {
-    return m_interface;
+    return m_destination;
 }
 
 void
-OctopusHeader::SetInterface(uint32_t interface)
+OctopusHeader::SetDestination(Ipv4Address destination)
 {
-    m_interface = interface;
+    m_destination = destination;
 }
 
 double
-OctopusHeader::GetDelay() const
+OctopusHeader::GetReward() const
 {
-    return m_delay;
+    return m_reward;
 }
 
 void
-OctopusHeader::SetDelay(double delay)
+OctopusHeader::SetReward(double reward)
 {
-    m_delay = delay;
+    m_reward = reward;
 }
 
 std::ostream&

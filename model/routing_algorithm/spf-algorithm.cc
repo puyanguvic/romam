@@ -182,9 +182,6 @@ SPFAlgorithm::InitializeRoutes()
                     linkRemote = SPFGetNextLink(w, v, linkRemote);
                     Ptr<Ipv4> ipv4 = node->GetObject<Ipv4>();
                     int32_t Iface = ipv4->GetInterfaceForAddress(l->GetLinkData());
-                    // std::cout << "The interface = " << Iface << std::endl;
-                    // gr->AddHostRouteTo (linkRemote->GetLinkData (), linkRemote->GetLinkData (),
-                    // Iface, l->GetMetric ());
 
                     for (auto j = NodeList::Begin(); j != NodeList::End(); j++)
                     {

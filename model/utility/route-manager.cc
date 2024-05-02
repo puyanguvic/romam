@@ -2,14 +2,16 @@
 
 #include "route-manager.h"
 
+#include "../datapath/global-lsdb-manager.h"
+#include "../romam-routing.h"
 #include "../routing_algorithm/dijkstra-algorithm.h"
 #include "../routing_algorithm/spf-algorithm.h"
+#include "romam-router.h"
 
 #include "ns3/assert.h"
 #include "ns3/log.h"
+#include "ns3/node-list.h"
 #include "ns3/simulation-singleton.h"
-// #include "../routing_algorithm/spf-algorithm.h"
-#include "../datapath/global-lsdb-manager.h"
 
 namespace ns3
 {
