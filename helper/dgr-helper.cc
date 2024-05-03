@@ -70,7 +70,7 @@ DGRHelper::PopulateRoutingTables(void)
     RouteManager::InitializeSPFRoutes();
 
     t = clock() - t;
-    uint32_t time_init_ms = 1000000.0 * t / CLOCKS_PER_SEC;
+    uint32_t time_init_ms = 1000.0 * t / CLOCKS_PER_SEC;
     std::cout << "CPU time used for DGR Init: " << time_init_ms << "\n";
 }
 

@@ -32,8 +32,8 @@
 #include <string>
 #include <vector>
 
-#define DDR_PORT 666
-#define DDR_BROAD_CAST "224.0.0.17"
+#define OCTOPUS_PORT 666
+#define OCTOPUS_BROAD_CAST "224.0.0.17"
 
 namespace ns3
 {
@@ -87,7 +87,6 @@ OctopusRouting::RouteOutput(Ptr<Packet> p,
     //
     NS_LOG_LOGIC("Looking up route");
     Ptr<Ipv4Route> rtentry = LookupRoute(header.GetDestination());
-    // std::cout << "Output oif: " << rtentry->GetOutputDevice()->GetIfIndex() << std::endl;
     if (rtentry)
     {
         sockerr = Socket::ERROR_NOTERROR;
@@ -129,7 +128,6 @@ OctopusRouting::RouteInput(Ptr<const Packet> p,
             // multicast routing protocol can handle it.  It should be possible
             // to extend this to explicitly check whether it is a unicast
             // packet, and invoke the error callback if so
-            // std::cout << "ERROR !!!!" << std::endl;
             return false;
         }
     }
@@ -145,11 +143,9 @@ OctopusRouting::RouteInput(Ptr<const Packet> p,
     Ptr<Ipv4Route> rtentry = LookupRoute(header.GetDestination());
     if (rtentry)
     {
-        // std::cout << "Find the path for Input packet\n";
         uint32_t oif = rtentry->GetOutputDevice()->GetIfIndex();
         NS_LOG_LOGIC("Found unicast destination- calling unicast callback");
         ucb(rtentry, p, header);
-        std::cout << "Route Input iif: " << iif << ", oif: " << oif << std::endl;
         SendOneHopAck(header.GetDestination(), iif, oif);
         return true;
     }
@@ -523,7 +519,7 @@ OctopusRouting::LookupRoute(Ipv4Address dest, Ptr<NetDevice> oif)
             p_total += p[ref];
             ref += 1;
         }
-        // form the probabilities
+        // norm the probabilities
         p[0] = p[0] / p_total;
         for (int j = 1; j < nRoutes; j++)
         {
@@ -538,7 +534,6 @@ OctopusRouting::LookupRoute(Ipv4Address dest, Ptr<NetDevice> oif)
             j = nRoutes - 1;
         }
         uint32_t selectIndex = j;
-        // std::cout << "Forwarding Index: " << selectIndex << std::endl;
         ArmedSpfRIE* route = allRoutes.at(selectIndex);
         // create a Ipv4Route object from the selected routing table entry
         rtentry = Create<Ipv4Route>();
@@ -559,7 +554,6 @@ OctopusRouting::LookupRoute(Ipv4Address dest, Ptr<NetDevice> oif)
 void
 OctopusRouting::InitializeSocketList()
 {
-    // std::cout << "Initialize the socket for every netdevic.\n";
     // Initialize the sockets for every netdevice
     for (uint32_t i = 0; i < m_ipv4->GetNInterfaces(); i++)
     {
@@ -588,7 +582,7 @@ OctopusRouting::InitializeSocketList()
                 Ptr<Node> theNode = m_ipv4->GetObject<Node>();
                 Ptr<Socket> socket = Socket::CreateSocket(theNode, tid);
 
-                InetSocketAddress local = InetSocketAddress(address.GetLocal(), DDR_PORT);
+                InetSocketAddress local = InetSocketAddress(address.GetLocal(), OCTOPUS_PORT);
                 socket->BindToNetDevice(m_ipv4->GetNetDevice(i));
                 int ret = socket->Bind(local);
                 NS_ASSERT_MSG(ret == 0, "Bind unsuccessful");
@@ -608,7 +602,7 @@ OctopusRouting::InitializeSocketList()
         TypeId tid = TypeId::LookupByName("ns3::UdpSocketFactory");
         Ptr<Node> theNode = m_ipv4->GetObject<Node>();
         m_multicastRecvSocket = Socket::CreateSocket(theNode, tid);
-        InetSocketAddress local = InetSocketAddress(DDR_BROAD_CAST, DDR_PORT);
+        InetSocketAddress local = InetSocketAddress(OCTOPUS_BROAD_CAST, OCTOPUS_PORT);
         m_multicastRecvSocket->Bind(local);
         m_multicastRecvSocket->SetRecvCallback(MakeCallback(&OctopusRouting::Receive, this));
         m_multicastRecvSocket->SetIpRecvTtl(true);
@@ -620,7 +614,6 @@ void
 OctopusRouting::DoInitialize()
 {
     NS_LOG_FUNCTION(this);
-    std::cout << "DoInit\n";
     m_initialized = true;
     RomamRouting::DoInitialize();
 }
@@ -706,7 +699,6 @@ OctopusRouting::Receive(Ptr<Socket> socket)
 void
 OctopusRouting::HandleUpdate(Ipv4Address dest, uint32_t interface, double reward)
 {
-    std::cout << "Handle Update\n";
     NS_LOG_FUNCTION(this << dest << interface << reward);
 
     NS_LOG_LOGIC("Looking for route for destination " << dest);
@@ -793,7 +785,6 @@ OctopusRouting::SendOneHopAck(Ipv4Address dest, uint32_t iif, uint32_t oif)
 
     if (iter != m_unicastSocketList.end())
     {
-        std::cout << "Find the right socket\n";
         Ptr<NetDevice> odev = m_ipv4->GetNetDevice(oif);
         Ptr<QueueDisc> disc =
             m_ipv4->GetObject<Node>()->GetObject<TrafficControlLayer>()->GetRootQueueDiscOnDevice(
@@ -811,8 +802,7 @@ OctopusRouting::SendOneHopAck(Ipv4Address dest, uint32_t iif, uint32_t oif)
         hdr.SetDestination(dest);
         hdr.SetReward(delay);
         p->AddHeader(hdr);
-        iter->first->SendTo(p, 0, InetSocketAddress(DDR_BROAD_CAST, DDR_PORT));
-        std::cout << "Send ACK\n";
+        iter->first->SendTo(p, 0, InetSocketAddress(OCTOPUS_BROAD_CAST, OCTOPUS_PORT));
     }
 }
 } // namespace ns3

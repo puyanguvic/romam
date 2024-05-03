@@ -101,6 +101,9 @@ class RomamSink : public Application
 
     void MonitorThroughput(uint32_t interval);
 
+    bool GetRecordDelay() const;
+    void SetRecordDelay(bool recordDelay);
+
   protected:
     virtual void DoDispose(void);
 
@@ -177,8 +180,9 @@ class RomamSink : public Application
     TypeId m_tid;       //!< Protocol TypeId
 
     uint64_t m_old;
+    bool m_recordDelay;
     Ptr<OutputStreamWrapper> m_delayStream =
-        Create<OutputStreamWrapper>("dgr-packet.delay", std::ios::out);
+        Create<OutputStreamWrapper>("sinked-packet.delay", std::ios::out);
 
     Ptr<OutputStreamWrapper> m_throughputStream =
         Create<OutputStreamWrapper>("throughput.txt", std::ios::out);

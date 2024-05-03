@@ -61,7 +61,12 @@ RomamSink::GetTypeId(void)
             .AddTraceSource("RxWithSeqTsSize",
                             "A packet with SeqTsSize header has been received",
                             MakeTraceSourceAccessor(&RomamSink::m_rxTraceWithSeqTsSize),
-                            "ns3::PacketSink::SeqTsSizeCallback");
+                            "ns3::PacketSink::SeqTsSizeCallback")
+            .AddAttribute("EnableRecordDelay",
+                          "Enable record delay",
+                          BooleanValue(false),
+                          MakeBooleanAccessor(&RomamSink::m_recordDelay),
+                          MakeBooleanChecker());
     return tid;
 }
 
@@ -122,6 +127,18 @@ RomamSink::GetDelay(const Ptr<Packet>& p) const
     Time txTime = txTimeTag.GetTimestamp();
     Time delay = Simulator::Now() - txTime;
     return delay;
+}
+
+bool
+RomamSink::GetRecordDelay() const
+{
+    return m_recordDelay;
+}
+
+void
+RomamSink::SetRecordDelay(bool recordDelay)
+{
+    m_recordDelay = recordDelay;
 }
 
 void
@@ -218,20 +235,20 @@ RomamSink::HandleRead(Ptr<Socket> socket)
             packet->PeekPacketTag(timeTag);
             std::ostream* os = m_delayStream->GetStream();
             // timeTag.GetSeconds () << " "
-            BudgetTag bgtTag;
-            packet->PeekPacketTag(bgtTag);
+            // BudgetTag bgtTag;
+            // packet->PeekPacketTag(bgtTag);
 
-            *os << bgtTag.GetBudget() << std::endl;
-            if (GetDelay(packet).GetMicroSeconds() < bgtTag.GetBudget())
-            {
-                *os << "1" << std::endl;
-            }
-            else
-            {
-                *os << "0" << std::endl;
-            }
+            // *os << bgtTag.GetBudget() << std::endl;
+            // if (GetDelay(packet).GetMicroSeconds() < bgtTag.GetBudget())
+            // {
+            //     *os << "1" << std::endl;
+            // }
+            // else
+            // {
+            //     *os << "0" << std::endl;
+            // }
 
-            // *os << GetDelay (packet).GetMicroSeconds ()/1000.0 << std::endl;
+            *os << GetDelay(packet).GetMicroSeconds() / 1000.0 << std::endl;
         }
         // get delay
         m_totalRx += packet->GetSize();
