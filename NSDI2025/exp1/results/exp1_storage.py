@@ -9,10 +9,10 @@ def read_data(file_path):
 
 # Load data into dictionaries
 data = {
-    "ospf": read_data("ospf_storage.txt"),  # Load all data
-    "ddr": read_data("ddr_storage.txt"),
-    "dgr": read_data("dgr_storage.txt"),
-    "octopus": read_data("octopus_storage.txt")
+    "OSPF": read_data("ospf_cpu_time.txt"),  # 使用所有数据
+    "DDR": read_data("ddr_cpu_time.txt"),  
+    "DGR": read_data("dgr_cpu_time.txt"),  
+    "Octopus": read_data("octopus_cpu_time.txt")
 }
 
 # Convert to a pandas DataFrame
@@ -35,7 +35,7 @@ sns.barplot(x="topology", y="storage_size", hue="protocol", data=df_melted)
 # Set plot labels and title
 plt.xlabel("Topology")
 plt.ylabel("Route Information Base Size (kB)")
-plt.title("Route Information Base Size for Different Routing Protocols")
+plt.title("Memory Cosumption of Routing Protocol")
 plt.legend(title="Protocol")
 
 plt.tight_layout()

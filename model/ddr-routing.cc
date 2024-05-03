@@ -721,16 +721,17 @@ DDRRouting::LookupDDRRoute(Ipv4Address dest, Ptr<Packet> p, Ptr<const NetDevice>
     if (allRoutes.size() > 0) // if route(s) is found
     {
         // random select
-        uint32_t selectIndex = 0;
-        uint32_t shortestDist = allRoutes.at(0)->GetDistance();
-        for (uint32_t i = 0; i < allRoutes.size(); i++)
-        {
-            if (allRoutes.at(i)->GetDistance() < shortestDist)
-            {
-                selectIndex = i;
-                shortestDist = allRoutes.at(i)->GetDistance();
-            }
-        }
+        uint32_t selectIndex = m_rand->GetInteger(0, allRoutes.size() - 1);
+        // uint32_t selectIndex = 0;
+        // uint32_t shortestDist = allRoutes.at(0)->GetDistance();
+        // for (uint32_t i = 0; i < allRoutes.size(); i++)
+        // {
+        //     if (allRoutes.at(i)->GetDistance() < shortestDist)
+        //     {
+        //         selectIndex = i;
+        //         shortestDist = allRoutes.at(i)->GetDistance();
+        //     }
+        // }
 
         ShortestPathForestRIE* route = allRoutes.at(selectIndex);
         uint32_t interfaceIdx = route->GetInterface();

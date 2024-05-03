@@ -29,7 +29,6 @@ main(int argc, char* argv[])
 {
     std::string topo("abilene");
     std::string format("Inet");
-    uint32_t budget(20000); // in microsecond
     uint32_t sink = 10;
     uint32_t sender = 0;
     uint16_t udpPort = 9;
@@ -40,7 +39,6 @@ main(int argc, char* argv[])
     CommandLine cmd(__FILE__);
     cmd.AddValue("format", "Format to use for data input [Orbis|Inet|Rocketfuel].", format);
     cmd.AddValue("topo", "topology", topo);
-    cmd.AddValue("budget", "budget", budget);
     cmd.AddValue("sender", "Node # of sender", sender);
     cmd.AddValue("sink", "Node # of sink", sink);
 
@@ -130,7 +128,6 @@ main(int argc, char* argv[])
                packetSize,
                nPacket,
                DataRate("1kbps"),
-               budget,
                true);
     nodes.Get(sender)->AddApplication(app);
     app->SetStartTime(Seconds(0.0));
