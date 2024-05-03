@@ -88,15 +88,19 @@ DGRRouting::RouteOutput(Ptr<Packet> p,
     NS_LOG_LOGIC("Unicast destination- looking up");
     Ptr<Ipv4Route> rtentry;
     BudgetTag budgetTag;
-    if (p != nullptr && p->GetSize() != 0 && p->PeekPacketTag(budgetTag) &&
-        budgetTag.GetBudget() != 0)
+    if (!p)
     {
-        rtentry = LookupDGRRoute(header.GetDestination(), p);
+        rtentry = LookupShortestRoute(header.GetDestination(), oif);
+    }
+    else if (p->PeekPacketTag(budgetTag))
+    {
+        rtentry = LookupDGRRoute(header.GetDestination(), p, oif);
     }
     else
     {
         rtentry = LookupShortestRoute(header.GetDestination(), oif);
     }
+
     if (rtentry)
     {
         sockerr = Socket::ERROR_NOTERROR;
@@ -670,134 +674,29 @@ DGRRouting::LookupDGRRoute(Ipv4Address dest, Ptr<Packet> p, Ptr<const NetDevice>
     if (allRoutes.size() > 0) // if route(s) is found
     {
         // random select
-        uint32_t selectIndex = m_rand->GetInteger(0, allRoutes.size() - 1);
+        // uint32_t selectIndex = m_rand->GetInteger(0, allRoutes.size() - 1);
 
-        // // optimal
-        // uint32_t selectIndex = 0;
-        // uint32_t min = UINT32_MAX;
-        // for (uint32_t i = 0; i < allRoutes.size (); i++)
-        // {
-        //   if (allRoutes.at (i)->GetDistance () < min)
-        //   {
-        //     min = allRoutes.at (i)->GetDistance ();
-        //     selectIndex = i;
-        //   }
-        //  }
-
-        // // worst
-        // uint32_t selectIndex = 0;
-        // uint32_t max = 0;
-        // for (uint32_t i = 0; i < allRoutes.size (); i++)
-        // {
-        //   if (allRoutes.at (i)->GetDistance () > max)
-        //   {
-        //     max = allRoutes.at (i)->GetDistance ();
-        //     selectIndex = i;
-        //   }
-        // }
-
-        // // back pressure selection
-        // uint32_t selectIndex = 0;
-        // double minPressure = 1.0;
-        // uint32_t k = 0;
-        // for (RouteVecCI_t i = allRoutes.begin ();
-        //      i != allRoutes.end ();
-        //      i++, k ++)
-        //   {
-        //     // get the output device
-        //     Ptr <NetDevice> dev = m_ipv4->GetNetDevice ((*i)->GetInterface ());
-        //     // get the nexthop queue infomation
-        //     Ptr<Channel> channel = dev->GetChannel ();
-        //     PointToPointChannel *p2pchannel = dynamic_cast <PointToPointChannel *> (PeekPointer
-        //     (channel)); if (p2pchannel != 0)
-        //       {
-        //         Ptr<Node> node = dev->GetNode ();
-        //         Ptr<PointToPointNetDevice> d_dev = p2pchannel->GetDestination (0) == dev ?
-        //         p2pchannel->GetDestination (1) : p2pchannel->GetDestination (0); Ptr<Node> d_node
-        //         = d_dev->GetNode (); if ((*i)->GetNextInterface () != 0xffffffff)
-        //           {
-        //             Ptr<NetDevice> next_dev = d_node->GetDevice ((*i)->GetNextInterface ());
-        //             // std::cout << "next node: " << d_node->GetId () << "next interface: " <<
-        //             (*i)->GetNextInterface () << std::endl; Ptr<QueueDisc> next_disc =
-        //             d_node->GetObject<TrafficControlLayer> ()->GetRootQueueDiscOnDevice
-        //             (next_dev); Ptr<DGRVirtualQueueDisc> next_dvq = DynamicCast
-        //             <DGRVirtualQueueDisc> (next_disc); uint32_t next_dvq_length =
-        //             next_dvq->GetInternalQueue (1)->GetCurrentSize ().GetValue (); uint32_t
-        //             next_dvq_max = next_dvq->GetInternalQueue (1)->GetMaxSize ().GetValue ();
-        //             uint32_t next_dvq_slow_length = next_dvq->GetInternalQueue
-        //             (2)->GetCurrentSize ().GetValue ();
-        //             // uint32_t next_dvq_slow_max = next_dvq->GetInternalQueue (2)-> GetMaxSize
-        //             ().GetValue (); double pressure1 = next_dvq_length*1.0/next_dvq_max; double
-        //             pressure2 = next_dvq_slow_length*1.0/155;
-        //             // if (next_dvq_slow_length != 0) std::cout << "slow lane current: " <<
-        //             next_dvq_slow_length  << "slow_max: " << next_dvq_slow_max << std::endl; if
-        //             (pressure1 < pressure2) pressure1 = pressure2;
-        //             // if (pressure1 > 0.2) std::cout << pressure1 << std::endl;
-        //             if (pressure1 < minPressure)
-        //               {
-        //                 minPressure = pressure1;
-        //                 selectIndex = k;
-        //               }
-        //           }
-        //       }
-        //   }
-
-        // // back pressure + random selection
-        // uint32_t selectIndex = 0;
-        // double minPressure = 1.0;
-        // uint32_t k = 0;
-        // for (RouteVecCI_t i = allRoutes.begin ();
-        //      i != allRoutes.end ();
-        //      i++, k ++)
-        //   {
-        //     // get the output device
-        //     Ptr <NetDevice> dev = m_ipv4->GetNetDevice ((*i)->GetInterface ());
-        //     // get the nexthop queue infomation
-        //     Ptr<Channel> channel = dev->GetChannel ();
-        //     PointToPointChannel *p2pchannel = dynamic_cast <PointToPointChannel *> (PeekPointer
-        //     (channel)); if (p2pchannel != 0)
-        //       {
-        //         Ptr<Node> node = dev->GetNode ();
-        //         Ptr<PointToPointNetDevice> d_dev = p2pchannel->GetDestination (0) == dev ?
-        //         p2pchannel->GetDestination (1) : p2pchannel->GetDestination (0); Ptr<Node> d_node
-        //         = d_dev->GetNode (); if ((*i)->GetNextInterface () != 0xffffffff)
-        //           {
-        //             Ptr<NetDevice> next_dev = d_node->GetDevice ((*i)->GetNextInterface ());
-        //             // std::cout << "next node: " << d_node->GetId () << "next interface: " <<
-        //             (*i)->GetNextInterface () << std::endl; Ptr<QueueDisc> next_disc =
-        //             d_node->GetObject<TrafficControlLayer> ()->GetRootQueueDiscOnDevice
-        //             (next_dev); Ptr<DGRVirtualQueueDisc> next_dvq = DynamicCast
-        //             <DGRVirtualQueueDisc> (next_disc); uint32_t next_dvq_length =
-        //             next_dvq->GetInternalQueue (1)->GetCurrentSize ().GetValue (); uint32_t
-        //             next_dvq_max = next_dvq->GetInternalQueue (1)->GetMaxSize ().GetValue ();
-        //             uint32_t next_dvq_slow_length = next_dvq->GetInternalQueue
-        //             (2)->GetCurrentSize ().GetValue ();
-        //             // uint32_t next_dvq_slow_max = next_dvq->GetInternalQueue (2)-> GetMaxSize
-        //             ().GetValue (); double pressure1 = next_dvq_length*1.0/next_dvq_max; double
-        //             pressure2 = next_dvq_slow_length*1.0/155;
-        //             // if (next_dvq_slow_length != 0) std::cout << "slow lane current: " <<
-        //             next_dvq_slow_length  << "slow_max: " << next_dvq_slow_max << std::endl; if
-        //             (pressure1 < pressure2) pressure1 = pressure2;
-        //             // if (pressure1 > 0.2) std::cout << pressure1 << std::endl;
-        //             if (pressure1 < minPressure)
-        //               {
-        //                 minPressure = pressure1;
-        //                 selectIndex = k;
-        //               }
-        //           }
-        //       }
-        //   }
+        uint32_t selectIndex = 0;
+        uint32_t shortestDist = allRoutes.at(0)->GetDistance();
+        for (uint32_t i = 0; i < allRoutes.size(); i++)
+        {
+            if (allRoutes.at(i)->GetDistance() < shortestDist)
+            {
+                selectIndex = i;
+                shortestDist = allRoutes.at(i)->GetDistance();
+            }
+        }
 
         ShortestPathForestRIE* route = allRoutes.at(selectIndex);
+        uint32_t interfaceIdx = route->GetInterface();
+
         rtentry = Create<Ipv4Route>();
         rtentry->SetDestination(route->GetDest());
         /// \todo handle multi-address case
         rtentry->SetSource(m_ipv4->GetAddress(route->GetInterface(), 0).GetLocal());
         rtentry->SetGateway(route->GetGateway());
-        uint32_t interfaceIdx = route->GetInterface();
         rtentry->SetOutputDevice(m_ipv4->GetNetDevice(interfaceIdx));
-        // if (route->GetDistance () > 30000) std::cout << "budget: " << bgt << " distance: " <<
-        // route->GetDistance () << std::endl;
+
         if (bgt - route->GetDistance() <= 20)
         {
             prioTag.SetPriority(0);
@@ -806,6 +705,7 @@ DGRRouting::LookupDGRRoute(Ipv4Address dest, Ptr<Packet> p, Ptr<const NetDevice>
         {
             prioTag.SetPriority(1);
         }
+
         distTag.SetDistance(route->GetDistance());
         p->ReplacePacketTag(prioTag);
 

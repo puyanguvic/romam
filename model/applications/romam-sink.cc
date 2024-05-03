@@ -248,7 +248,8 @@ RomamSink::HandleRead(Ptr<Socket> socket)
             //     *os << "0" << std::endl;
             // }
 
-            *os << GetDelay(packet).GetMicroSeconds() / 1000.0 << std::endl;
+            *os << timeTag.GetTimestamp().GetMicroSeconds() / 1000.0 << "    "
+                << GetDelay(packet).GetMicroSeconds() / 1000.0 << std::endl;
         }
         // get delay
         m_totalRx += packet->GetSize();

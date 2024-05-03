@@ -30,11 +30,11 @@ main(int argc, char* argv[])
 {
     std::string topo("abilene");
     std::string format("Inet");
-    uint32_t budget(20000); // in microsecond
+    uint32_t budget(50); // in microsecond
     uint32_t sink = 10;
     uint32_t sender = 0;
     uint16_t udpPort = 9;
-    uint32_t nPacket = 10;
+    uint32_t nPacket = 10000;
     uint32_t packetSize = 1400; // bytes
 
     // Set up command line parameters used to control the experiment
@@ -104,6 +104,8 @@ main(int argc, char* argv[])
         ndc[i] = p2p.Install(nc[i]);
         tch.Install(ndc[i]);
         ipic[i] = address.Assign(ndc[i]);
+        ipic[i].SetMetric(0, metric);
+        ipic[i].SetMetric(1, metric);
         address.NewNetwork();
     }
 

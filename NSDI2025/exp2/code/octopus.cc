@@ -103,6 +103,8 @@ main(int argc, char* argv[])
         ndc[i] = p2p.Install(nc[i]);
         tch.Install(ndc[i]);
         ipic[i] = address.Assign(ndc[i]);
+        ipic[i].SetMetric(0, metric);
+        ipic[i].SetMetric(1, metric);
         address.NewNetwork();
     }
 
@@ -153,13 +155,13 @@ main(int argc, char* argv[])
     //     anim.SetConstantPosition(nodes.Get(no), x * 10, y * 10);
     // }
 
-    // ------------------------------------------------------------
-    // -- Print routing table
-    // ---------------------------------------------
-    OctopusHelper r;
-    Ptr<OutputStreamWrapper> routingStream =
-        Create<OutputStreamWrapper>(topo + expName + ".routes", std::ios::out);
-    r.PrintRoutingTableAllAt(Seconds(0), routingStream);
+    // // ------------------------------------------------------------
+    // // -- Print routing table
+    // // ---------------------------------------------
+    // OctopusHelper r;
+    // Ptr<OutputStreamWrapper> routingStream =
+    //     Create<OutputStreamWrapper>(topo + expName + ".routes", std::ios::out);
+    // r.PrintRoutingTableAllAt(Seconds(0), routingStream);
 
     // -------- Run the simulation --------------------------
     NS_LOG_INFO("Run Simulation.");
