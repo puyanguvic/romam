@@ -12,6 +12,7 @@ data = {
     "OSPF": read_data("ospf_cpu_time.txt"),  # 使用所有数据
     "DDR": read_data("ddr_cpu_time.txt"),  
     "DGR": read_data("dgr_cpu_time.txt"),  
+    "KShortest": read_data("kshortest_cpu_time.txt"),
     "Octopus": read_data("octopus_cpu_time.txt")
 }
 

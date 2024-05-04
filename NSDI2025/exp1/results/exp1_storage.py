@@ -9,10 +9,11 @@ def read_data(file_path):
 
 # Load data into dictionaries
 data = {
-    "OSPF": read_data("ospf_cpu_time.txt"),  # 使用所有数据
-    "DDR": read_data("ddr_cpu_time.txt"),  
-    "DGR": read_data("dgr_cpu_time.txt"),  
-    "Octopus": read_data("octopus_cpu_time.txt")
+    "OSPF": read_data("ospf_storage.txt"),  # 使用所有数据
+    "DDR": read_data("ddr_storage.txt"),  
+    "DGR": read_data("dgr_storage.txt"),
+    "KShortest": read_data("kshortest_storage.txt"),  
+    "Octopus": read_data("octopus_storage.txt")
 }
 
 # Convert to a pandas DataFrame
