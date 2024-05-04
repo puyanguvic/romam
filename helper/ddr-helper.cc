@@ -52,9 +52,23 @@ DDRHelper::PopulateRoutingTables(void)
     RouteManager::BuildLSDB();
     std::cout << "---Finished build up LSDB---\n";
     RouteManager::InitializeSPFRoutes();
+    // Initialize Sockets
+    for (auto i = NodeList::Begin(); i != NodeList::End(); i++)
+    {
+        Ptr<Node> node = *i;
+        Ptr<DDRRouter> router = node->GetObject<DDRRouter>();
+        if (!router)
+        {
+            continue;
+        }
+        Ptr<RomamRouting> routing = router->GetRoutingProtocol();
+        Ptr<DDRRouting> octopus = DynamicCast<DDRRouting>(routing);
+        octopus->InitializeSocketList();
+    }
 
     t = clock() - t;
     uint32_t time_init_ms = 1000.0 * t / CLOCKS_PER_SEC;
+
     std::cout << "CPU time used for DDR Init: " << time_init_ms << " ms\n";
 }
 

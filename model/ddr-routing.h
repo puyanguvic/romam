@@ -109,6 +109,7 @@ class DDRRouting : public RomamRouting
     int64_t AssignStreams(int64_t stream);
 
     ShortestPathForestRIE* GetRoute(uint32_t i) const;
+    void InitializeSocketList();
 
   protected:
     /**

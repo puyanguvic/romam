@@ -14,16 +14,24 @@ def read_and_process_data(file_path):
     return data['cumulative_average_delay']
 
 # 加载各协议的数据
-ddr_data = read_and_process_data('ddr-geant.txt')
-ospf_data = read_and_process_data('ospf-geant.txt')
-octopus_data = read_and_process_data('octopus-geant.txt')
+abilene_data = read_and_process_data('octopus-abilene.txt')
+att_data = read_and_process_data('octopus-att.txt')
+cernet_data = read_and_process_data('octopus-cernet.txt')
+geant_data = read_and_process_data('octopus-geant.txt')
 
-# 创建绘图 DataFrame
+min_length = min(len(abilene_data), len(att_data), len(cernet_data), len(geant_data))
+
+abilene_data = abilene_data[:min_length]
+att_data = att_data[:min_length]
+cernet_data = cernet_data[:min_length]
+geant_data = geant_data[:min_length]
+
 df = pd.DataFrame({
-    'Index': range(len(ddr_data)),  # 假设所有数据集长度相同
-    'DDR Delay': ddr_data,
-    'OSPF Delay': ospf_data,
-    'Octopus Delay': octopus_data
+    'Index': range(min_length), 
+    'Abilene': abilene_data,
+    'AT&T': att_data,
+    'CERNET': cernet_data,
+    'GEANT': geant_data
 })
 
 # 将DataFrame转化为长格式
@@ -33,7 +41,7 @@ df_long = pd.melt(df, id_vars='Index', var_name='Protocol', value_name='Cumulati
 plt.figure(figsize=(12, 8))
 sns.lineplot(data=df_long, x='Index', y='Cumulative Average Delay', hue='Protocol', style='Protocol', alpha=0.7)
 
-plt.title('Cumulative Average Packet Delay Over Time for Different Protocols')
+# plt.title('Cumulative Average Packet Delay Over Time for Different Protocols')
 plt.xlabel('Index')
 plt.ylabel('Average Delay (ms)')
 plt.grid(True)

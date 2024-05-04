@@ -622,7 +622,6 @@ DDRRouting::LookupECMPRoute(Ipv4Address dest, Ptr<NetDevice> oif)
 Ptr<Ipv4Route>
 DDRRouting::LookupDDRRoute(Ipv4Address dest, Ptr<Packet> p, Ptr<const NetDevice> idev)
 {
-    // std::cout <<"DGR routing" << std::endl;
     BudgetTag bgtTag;
     TimestampTag timeTag;
     p->PeekPacketTag(bgtTag);
@@ -720,18 +719,16 @@ DDRRouting::LookupDDRRoute(Ipv4Address dest, Ptr<Packet> p, Ptr<const NetDevice>
     }
     if (allRoutes.size() > 0) // if route(s) is found
     {
-        // random select
-        uint32_t selectIndex = m_rand->GetInteger(0, allRoutes.size() - 1);
-        // uint32_t selectIndex = 0;
-        // uint32_t shortestDist = allRoutes.at(0)->GetDistance();
-        // for (uint32_t i = 0; i < allRoutes.size(); i++)
-        // {
-        //     if (allRoutes.at(i)->GetDistance() < shortestDist)
-        //     {
-        //         selectIndex = i;
-        //         shortestDist = allRoutes.at(i)->GetDistance();
-        //     }
-        // }
+        uint32_t selectIndex = 0;
+        uint32_t shortestDist = allRoutes.at(0)->GetDistance();
+        for (uint32_t i = 0; i < allRoutes.size(); i++)
+        {
+            if (allRoutes.at(i)->GetDistance() < shortestDist)
+            {
+                selectIndex = i;
+                shortestDist = allRoutes.at(i)->GetDistance();
+            }
+        }
 
         ShortestPathForestRIE* route = allRoutes.at(selectIndex);
         uint32_t interfaceIdx = route->GetInterface();
@@ -770,6 +767,7 @@ DDRRouting::LookupDGRRoute(Ipv4Address dest, Ptr<Packet> p, Ptr<const NetDevice>
         dist = distTag.GetDistance();
     }
 
+    // std::cout << "budget: " << bgtTag.GetBudget() << std::endl;
     // budget in microseconds
     uint32_t bgt;
     if (bgtTag.GetBudget() + timeTag.GetTimestamp().GetMicroSeconds() <
@@ -886,7 +884,6 @@ DDRRouting::LookupKShortRoute(Ipv4Address dest, Ptr<Packet> p, Ptr<const NetDevi
     {
         dist = distTag.GetDistance();
     }
-
     NS_LOG_FUNCTION(this << dest << idev);
     NS_LOG_LOGIC("Looking for route for destination " << dest);
     Ptr<Ipv4Route> rtentry = 0;
@@ -909,12 +906,6 @@ DDRRouting::LookupKShortRoute(Ipv4Address dest, Ptr<Packet> p, Ptr<const NetDevi
                     continue;
                 }
             }
-            if ((*i)->GetDistance() > dist)
-            {
-                NS_LOG_LOGIC("Loop avoidance, skipping");
-                continue;
-            }
-
             allRoutes.push_back(*i);
             NS_LOG_LOGIC(allRoutes.size()
                          << "Found route" << *i << " with Cost: " << (*i)->GetDistance());
@@ -1089,12 +1080,8 @@ DDRRouting::LookupKShortRoute(Ipv4Address dest, Ptr<Packet> p, Ptr<const NetDevi
 // }
 
 void
-DDRRouting::DoInitialize()
+DDRRouting::InitializeSocketList()
 {
-    NS_LOG_FUNCTION(this);
-    // bool addedGlobal = false;
-    m_initialized = true;
-
     // To Check: An random value is needed to initialize the protocol?
     Time delay = m_unsolicitedUpdate;
     m_nextUnsolicitedUpdate = Simulator::Schedule(delay, &DDRRouting::SendUnsolicitedUpdate, this);
@@ -1165,19 +1152,13 @@ DDRRouting::DoInitialize()
         m_multicastRecvSocket->SetIpRecvTtl(true);
         m_multicastRecvSocket->SetRecvPktInfo(true);
     }
+}
 
-    // if (addedGlobal)
-    //   {
-    //     Time delay = Seconds (m_rand->GetValue (m_minTriggeredUpdateDelay.GetSeconds (),
-    //                                             m_maxTriggeredUpdateDelay.GetSeconds ()));
-    //     m_nextTriggeredUpdate = Simulator::Schedule (delay,
-    //     &DDRRouting::DoSendNeighborStatusUpdate, this, false);
-    //   }
-
-    // delay = Seconds (m_rand->GetValue (0.01, m_startupDelay.GetSeconds ()));
-    // m_nextTriggeredUpdate = Simulator::Schedule (delay,
-    // &DDRRouting::SendNeighborStatusRequest, this);
-
+void
+DDRRouting::DoInitialize()
+{
+    NS_LOG_FUNCTION(this);
+    m_initialized = true;
     Ipv4RoutingProtocol::DoInitialize();
 }
 
