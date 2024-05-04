@@ -34,10 +34,9 @@ sns.set(style="whitegrid")
 sns.barplot(x="topology", y="storage_size", hue="protocol", data=df_melted)
 
 # Set plot labels and title
-plt.xlabel("Topology")
 plt.ylabel("Route Information Base Size (kB)")
-plt.title("Memory Cosumption of Routing Protocol")
-plt.legend(title="Protocol")
+# plt.title("Memory Cosumption of Routing Protocol")
+plt.legend(title="Protocols")
 
 plt.tight_layout()
 plt.show()

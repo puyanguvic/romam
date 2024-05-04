@@ -33,10 +33,10 @@ sns.set_palette("deep")
 sns.barplot(x="topology", y="cpu_time", hue="protocol", data=df_melted)
 
 # Set plot labels and title
-plt.xlabel("Topology Index")
+#plt.xlabel("Topology Index")
 plt.ylabel("CPU Time (ms)")
-plt.title("CPU cosumption for Protocols Initialization")
-plt.legend(title="Protocol")
+# plt.title("CPU cosumption for Protocols Initialization")
+plt.legend(title="Protocols")
 
 plt.tight_layout()
 plt.show()

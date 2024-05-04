@@ -46,7 +46,7 @@ for protocol, file in files.items():
 
 plt.xlabel('Delay (ms)')
 plt.ylabel('Cumulative Distribution Function (CDF)')
-plt.title('CDF of Packet Delays Across Different Protocols')
+# plt.title('CDF of Packet Delays Across Different Protocols')
 plt.legend()
 plt.grid(True)
 plt.xlim([0, 150])  # Set x-axis limits

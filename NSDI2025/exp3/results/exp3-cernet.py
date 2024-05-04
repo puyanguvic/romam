@@ -45,7 +45,7 @@ for protocol, file in files.items():
     plt.plot(cdf.index, cdf.values, label=protocol)
 
 plt.xlabel('Delay (ms)')
-plt.ylabel('Cumulative Distribution Function (CDF)')
+# plt.ylabel('Cumulative Distribution Function (CDF)')
 plt.title('CDF of Packet Delays Across Different Protocols')
 plt.legend()
 plt.grid(True)
