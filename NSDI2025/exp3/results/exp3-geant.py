@@ -42,12 +42,19 @@ for protocol, file in files.items():
     last_n = 1000 if 'Octopus' in protocol else None
     delay_data = process_data(file, take_last_n=last_n)
     cdf = calculate_cdf(delay_data)
-    plt.plot(cdf.index, cdf.values, label=protocol)
+    plt.plot(cdf.index, cdf.values, label=protocol, linewidth=3)
 
-plt.xlabel('Delay (ms)')
-plt.ylabel('Cumulative Distribution Function (CDF)')
+# Set font size
+plt.rcParams.update({'font.size': 19})
+
+# Set tick font size for both x and y-axis
+plt.xticks(fontsize=19)
+plt.yticks(fontsize=19)
+
+plt.xlabel('Delay (ms)', fontsize=19)
+plt.ylabel('Cumulative Distribution Function (CDF)', fontsize=19)
 # plt.title('CDF of Packet Delays Across Different Protocols')
-plt.legend()
+plt.legend(fontsize=19)
 plt.grid(True)
 plt.xlim([0, 150])  # Set x-axis limits
 plt.show()

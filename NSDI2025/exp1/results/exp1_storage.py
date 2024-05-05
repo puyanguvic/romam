@@ -1,6 +1,7 @@
 import pandas as pd
 import seaborn as sns
 import matplotlib.pyplot as plt
+import matplotlib as mpl
 
 # Function to read and parse data from files
 def read_data(file_path):
@@ -9,7 +10,7 @@ def read_data(file_path):
 
 # Load data into dictionaries
 data = {
-    "OSPF": read_data("ospf_storage.txt"),  # 使用所有数据
+    "OSPF": read_data("ospf_storage.txt"),  # use all data
     "DDR": read_data("ddr_storage.txt"),  
     "DGR": read_data("dgr_storage.txt"),
     "KShortest": read_data("kshortest_storage.txt"),  
@@ -28,13 +29,16 @@ plt.figure(figsize=(12, 6))
 
 # Use a sophisticated palette
 sns.set_palette("deep")
-sns.set(style="whitegrid")
+
+# Set label font size
+mpl.rcParams.update({'font.size': 19})
 
 # Create the bar plot
 sns.barplot(x="topology", y="storage_size", hue="protocol", data=df_melted)
 
 # Set plot labels and title
-plt.ylabel("Route Information Base Size (kB)")
+plt.xlabel("Topology", fontsize=19)
+plt.ylabel("Route Information Base Size (kB)", fontsize=19)
 # plt.title("Memory Cosumption of Routing Protocol")
 plt.legend(title="Protocols")
 
