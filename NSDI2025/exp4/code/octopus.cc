@@ -157,8 +157,8 @@ main(int argc, char* argv[])
     app1->Setup(ns3udpSocket1,
                 InetSocketAddress(ipv4AddrSink1, udpPort),
                 packetSize,
-                100000,
-                DataRate("10Mbps"),
+                1,
+                DataRate("1kbps"),
                 false);
     nodes.Get(backgroundSender)->AddApplication(app1);
     app1->SetStartTime(Seconds(0.));
