@@ -749,6 +749,14 @@ OctopusRouting::HandleUpdate(Ipv4Address dest, uint32_t interface, double reward
             p[j] = p[j] / p_total;
         }
         // update arm's cumulative loss
+        // check the queueing delay of current node.
+        Ptr<NetDevice> odev = m_ipv4->GetNetDevice(interface);
+        Ptr<QueueDisc> disc =
+            m_ipv4->GetObject<Node>()->GetObject<TrafficControlLayer>()->GetRootQueueDiscOnDevice(
+                odev);
+        uint32_t length = disc->GetNBytes();
+        double delay = length / 100.0; // delay in milliseconds
+        reward += delay;
         double delta = (1 - exp(-(route->GetDistance() + reward))) / p[route_ref];
         route->UpdateArm(delta);
     }
