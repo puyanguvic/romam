@@ -1,50 +1,45 @@
-# Romam
+# ROMAM: An Traffic-aware Distributed Routing Protocol Framework
 
-Welcome to the Romam GitHub repository! Romam is a modular and reconfigurable routing protocol framework designed to facilitate the development, testing, and deployment of advanced network routing protocols. Inspired by the principles of modularity and flexibility, Romam allows researchers and developers to experiment with novel routing strategies and integrate cutting-edge AI-driven decision-making mechanisms.
+## Overview
 
-## Features
+ROMAM (ROuting Module Architecture for MAchine learning) is an innovative intra-autonomous system (AS) routing architecture designed to accelerate the research and development of intelligent routing protocols. It offers a modular, highly adaptable framework that integrates both static and dynamic network information, enabling swift prototyping and assessment of advanced routing solutions.
 
-- **Modular Design**: Easily interchangeable components for different aspects of routing.
-- **Interface-Driven Decoupling**: Separation of routing logic from data collection and forwarding decisions.
-- **Support for Advanced Algorithms**: Integration of AI and ML techniques for dynamic routing decisions.
-- **Extensive Simulation Support**: Compatible with ns-3 for thorough testing before deployment.
+## Key Features
 
-## Installation
+- Modular Architecture for flexible routing protocol development
+- Integration of static and dynamic network information
+- Support for rapid prototyping and evaluation of routing protocols
+- Comprehensive monitoring toolchain for pre-deployment evaluation
+- Significant reduction in development efforts
+- Native support for machine learning integration in routing decisions
 
-### Prerequisites
+## Core Components
 
-Ensure you have ns-3.40 installed on your Linux system. If you do not have ns-3.40, follow the installation guide here: [ns-3 Installation Guide](https://www.nsnam.org/docs/release/3.40/tutorial/html/getting-started.html).
+1. Information Collection Module (ICM)
+2. Route Discovery Module (RDM)
+3. Traffic Detection Module (TDM)
+4. Intelligent Forwarding Module (IFM)
 
-### Installing Romam
+## Implemented Protocols
 
-To integrate Romam with ns-3.40, clone this repository into the `contrib` folder of your ns-3 installation:
+- OSPF (Open Shortest Path First)
+- K-Shortest Path Routing
+- Octopus (MAB-based Intelligent Forwarding)
+- DGR (Delay Guaranteed Routing)
+- DDR (Deadline-Driven Routing)
 
-```bash
-# Navigate to your ns-3.40 `contrib` directory
-cd path/to/ns-3.40/contrib
+## Quick Start
 
-# Clone the Romam repository
-git clone https://github.com/yourusername/romam.git
+For detailed setup and usage instructions, please refer to our [Quick Start Guide](QUICK_START.md).
 
-# Navigate to the Romam directory and build the project
-cd romam
-./ns3 configure
-./ns3 build
-```
+## Documentation
 
-### Examples
-Romam comes with a set of routing protocol examples, reconstructed based on the Romam architecture. You can find these examples in the /contrib/romam/examples directory. These examples demonstrate the implementation of various routing protocols using Romam and provide a practical starting point for developing your own protocols.
+Comprehensive documentation is available in the [docs](docs/) directory.
 
-To run an example, just copy the xxx-example.cc to ns3.40/scratch/, and
+## Contributing
 
-```bash
-./ns3 run scratch/xxx-example.cc
-```
+We welcome contributions! Please see our [Contributing Guidelines](CONTRIBUTING.md) for more details.
 
-Contributing
-We welcome contributions from the community. If you would like to contribute to Romam, please fork the repository, make your changes, and submit a pull request.
+## License
 
-License
-Romam is licensed under the MIT License. See the LICENSE file for more details.
-
-This README provides a comprehensive overview of Romam, its installation process, and how to run examples, facilitating easy understanding and usability for new users. Adjust the paths and links as necessary to ensure they accurately reflect the structure of your project repository.
+This project is licensed under the [MIT License](LICENSE).
