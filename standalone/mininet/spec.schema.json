@@ -1,0 +1,85 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "ROMAM Mininet Experiment Spec",
+  "type": "object",
+  "required": ["version", "nodes", "links"],
+  "properties": {
+    "version": { "type": "integer", "const": 1 },
+    "name": { "type": "string" },
+    "romam": {
+      "type": "object",
+      "properties": {
+        "multicast": { "type": "string" },
+        "hello_interval_ms": { "type": "integer", "minimum": 10 },
+        "dead_interval_ms": { "type": "integer", "minimum": 10 },
+        "lsa_interval_ms": { "type": "integer", "minimum": 10 },
+        "route_table": { "type": "integer", "minimum": 0, "maximum": 255 },
+        "route_metric_base": { "type": "integer", "minimum": 0 }
+      },
+      "additionalProperties": false
+    },
+    "addressing": {
+      "type": "object",
+      "properties": {
+        "loopback_base": { "type": "string" },
+        "link_base": { "type": "string" },
+        "link_prefixlen": { "type": "integer", "minimum": 16, "maximum": 30 }
+      },
+      "additionalProperties": false
+    },
+    "defaults": {
+      "type": "object",
+      "properties": {
+        "tc": {
+          "type": "object",
+          "properties": {
+            "delay": { "type": "string" },
+            "loss": { "type": "number", "minimum": 0, "maximum": 100 },
+            "bw": { "type": "number", "minimum": 0 }
+          },
+          "additionalProperties": false
+        },
+        "cost": { "type": "integer", "minimum": 1 }
+      },
+      "additionalProperties": false
+    },
+    "nodes": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["name", "id"],
+        "properties": {
+          "name": { "type": "string", "pattern": "^[a-zA-Z][a-zA-Z0-9_-]*$" },
+          "id": { "type": "integer", "minimum": 0 },
+          "router_id": { "type": "string" },
+          "advertise": { "type": "array", "items": { "type": "string" } }
+        },
+        "additionalProperties": false
+      }
+    },
+    "links": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["a", "b"],
+        "properties": {
+          "a": { "type": "string" },
+          "b": { "type": "string" },
+          "cost": { "type": "integer", "minimum": 1 },
+          "tc": {
+            "type": "object",
+            "properties": {
+              "delay": { "type": "string" },
+              "loss": { "type": "number", "minimum": 0, "maximum": 100 },
+              "bw": { "type": "number", "minimum": 0 }
+            },
+            "additionalProperties": false
+          }
+        },
+        "additionalProperties": false
+      }
+    }
+  },
+  "additionalProperties": false
+}
+

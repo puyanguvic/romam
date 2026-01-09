@@ -1,0 +1,108 @@
+version = 1
+name = "abilene"
+
+[romam]
+multicast = "239.255.0.1:5000"
+hello_interval_ms = 500
+dead_interval_ms = 2000
+lsa_interval_ms = 1000
+route_table = 100
+route_metric_base = 100
+
+[addressing]
+loopback_base = "10.255.0.0/16"
+link_base = "10.0.0.0/8"
+link_prefixlen = 30
+
+[[nodes]]; name="r0"; id=0
+name = "r0"
+id = 0
+[[nodes]]; name="r1"; id=1
+name = "r1"
+id = 1
+[[nodes]]; name="r2"; id=2
+name = "r2"
+id = 2
+[[nodes]]; name="r3"; id=3
+name = "r3"
+id = 3
+[[nodes]]; name="r4"; id=4
+name = "r4"
+id = 4
+[[nodes]]; name="r5"; id=5
+name = "r5"
+id = 5
+[[nodes]]; name="r6"; id=6
+name = "r6"
+id = 6
+[[nodes]]; name="r7"; id=7
+name = "r7"
+id = 7
+[[nodes]]; name="r8"; id=8
+name = "r8"
+id = 8
+[[nodes]]; name="r9"; id=9
+name = "r9"
+id = 9
+[[nodes]]; name="r10"; id=10
+name = "r10"
+id = 10
+
+# costs from Abilene topo
+[[links]]; 0-1 cost 6
+a = "r0"
+b = "r1"
+cost = 6
+[[links]]; 0-2 cost 8
+a = "r0"
+b = "r2"
+cost = 8
+[[links]]; 1-2 cost 8
+a = "r1"
+b = "r2"
+cost = 8
+[[links]]; 1-3 cost 2
+a = "r1"
+b = "r3"
+cost = 2
+[[links]]; 3-4 cost 11
+a = "r3"
+b = "r4"
+cost = 11
+[[links]]; 2-5 cost 5
+a = "r2"
+b = "r5"
+cost = 5
+[[links]]; 4-5 cost 5
+a = "r4"
+b = "r5"
+cost = 5
+[[links]]; 6-7 cost 1
+a = "r6"
+b = "r7"
+cost = 1
+[[links]]; 4-8 cost 6
+a = "r4"
+b = "r8"
+cost = 6
+[[links]]; 5-7 cost 3
+a = "r5"
+b = "r7"
+cost = 3
+[[links]]; 7-8 cost 3
+a = "r7"
+b = "r8"
+cost = 3
+[[links]]; 8-9 cost 4
+a = "r8"
+b = "r9"
+cost = 4
+[[links]]; 6-10 cost 6
+a = "r6"
+b = "r10"
+cost = 6
+[[links]]; 9-10 cost 1
+a = "r9"
+b = "r10"
+cost = 1
+

@@ -1,0 +1,8 @@
+/home/cnlab-pu/Projects/romam/build-standalone/CMakeFiles/edit_cache.dir
+/home/cnlab-pu/Projects/romam/build-standalone/CMakeFiles/rebuild_cache.dir
+/home/cnlab-pu/Projects/romam/build-standalone/core/CMakeFiles/romam_core.dir
+/home/cnlab-pu/Projects/romam/build-standalone/core/CMakeFiles/edit_cache.dir
+/home/cnlab-pu/Projects/romam/build-standalone/core/CMakeFiles/rebuild_cache.dir
+/home/cnlab-pu/Projects/romam/build-standalone/daemon/CMakeFiles/romamd.dir
+/home/cnlab-pu/Projects/romam/build-standalone/daemon/CMakeFiles/edit_cache.dir
+/home/cnlab-pu/Projects/romam/build-standalone/daemon/CMakeFiles/rebuild_cache.dir
