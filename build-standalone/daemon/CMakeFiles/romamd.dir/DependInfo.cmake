@@ -8,9 +8,9 @@ set(CMAKE_DEPENDS_LANGUAGES
 
 # The set of dependency files which are needed:
 set(CMAKE_DEPENDS_DEPENDENCY_FILES
-  "/home/cnlab-pu/Projects/romam/standalone/daemon/src/linux_netlink.cpp" "daemon/CMakeFiles/romamd.dir/src/linux_netlink.cpp.o" "gcc" "daemon/CMakeFiles/romamd.dir/src/linux_netlink.cpp.o.d"
-  "/home/cnlab-pu/Projects/romam/standalone/daemon/src/main.cpp" "daemon/CMakeFiles/romamd.dir/src/main.cpp.o" "gcc" "daemon/CMakeFiles/romamd.dir/src/main.cpp.o.d"
-  "/home/cnlab-pu/Projects/romam/standalone/daemon/src/multicast.cpp" "daemon/CMakeFiles/romamd.dir/src/multicast.cpp.o" "gcc" "daemon/CMakeFiles/romamd.dir/src/multicast.cpp.o.d"
+  "/home/cnlab-pu/Projects/romam/standalone/protocol/daemon/src/linux_netlink.cpp" "daemon/CMakeFiles/romamd.dir/src/linux_netlink.cpp.o" "gcc" "daemon/CMakeFiles/romamd.dir/src/linux_netlink.cpp.o.d"
+  "/home/cnlab-pu/Projects/romam/standalone/protocol/daemon/src/main.cpp" "daemon/CMakeFiles/romamd.dir/src/main.cpp.o" "gcc" "daemon/CMakeFiles/romamd.dir/src/main.cpp.o.d"
+  "/home/cnlab-pu/Projects/romam/standalone/protocol/daemon/src/multicast.cpp" "daemon/CMakeFiles/romamd.dir/src/multicast.cpp.o" "gcc" "daemon/CMakeFiles/romamd.dir/src/multicast.cpp.o.d"
   )
 
 # Targets to which this target links which contain Fortran sources.

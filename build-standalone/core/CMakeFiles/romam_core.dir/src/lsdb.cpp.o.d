@@ -1,8 +1,8 @@
 core/CMakeFiles/romam_core.dir/src/lsdb.cpp.o: \
- /home/cnlab-pu/Projects/romam/standalone/core/src/lsdb.cpp \
+ /home/cnlab-pu/Projects/romam/standalone/protocol/core/src/lsdb.cpp \
  /usr/include/stdc-predef.h \
- /home/cnlab-pu/Projects/romam/standalone/core/include/romam/lsdb.hpp \
- /home/cnlab-pu/Projects/romam/standalone/core/include/romam/ip.hpp \
+ /home/cnlab-pu/Projects/romam/standalone/protocol/core/include/romam/lsdb.hpp \
+ /home/cnlab-pu/Projects/romam/standalone/protocol/core/include/romam/ip.hpp \
  /usr/include/c++/13/array /usr/include/c++/13/compare \
  /usr/include/c++/13/initializer_list \
  /usr/include/x86_64-linux-gnu/c++/13/bits/c++config.h \
@@ -124,7 +124,7 @@ core/CMakeFiles/romam_core.dir/src/lsdb.cpp.o: \
  /usr/include/c++/13/bits/memory_resource.h /usr/include/c++/13/cstddef \
  /usr/include/c++/13/bits/uses_allocator.h \
  /usr/include/c++/13/bits/uses_allocator_args.h /usr/include/c++/13/tuple \
- /home/cnlab-pu/Projects/romam/standalone/core/include/romam/wire.hpp \
+ /home/cnlab-pu/Projects/romam/standalone/protocol/core/include/romam/wire.hpp \
  /usr/include/c++/13/vector /usr/include/c++/13/bits/stl_uninitialized.h \
  /usr/include/c++/13/bits/stl_vector.h \
  /usr/include/c++/13/bits/stl_bvector.h \

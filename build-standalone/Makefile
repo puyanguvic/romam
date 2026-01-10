@@ -142,6 +142,19 @@ romamd/fast:
 	$(MAKE) $(MAKESILENT) -f daemon/CMakeFiles/romamd.dir/build.make daemon/CMakeFiles/romamd.dir/build
 .PHONY : romamd/fast
 
+#=============================================================================
+# Target rules for targets named romam-traffic
+
+# Build rule for target.
+romam-traffic: cmake_check_build_system
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/Makefile2 romam-traffic
+.PHONY : romam-traffic
+
+# fast build rule for target.
+romam-traffic/fast:
+	$(MAKE) $(MAKESILENT) -f traffic/CMakeFiles/romam-traffic.dir/build.make traffic/CMakeFiles/romam-traffic.dir/build
+.PHONY : romam-traffic/fast
+
 # Help Target
 help:
 	@echo "The following are some of the valid targets for this Makefile:"
@@ -150,6 +163,7 @@ help:
 	@echo "... depend"
 	@echo "... edit_cache"
 	@echo "... rebuild_cache"
+	@echo "... romam-traffic"
 	@echo "... romam_core"
 	@echo "... romamd"
 .PHONY : help

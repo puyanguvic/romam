@@ -8,11 +8,12 @@ set(CMAKE_DEPENDS_LANGUAGES
 
 # The set of dependency files which are needed:
 set(CMAKE_DEPENDS_DEPENDENCY_FILES
-  "/home/cnlab-pu/Projects/romam/standalone/core/src/config.cpp" "core/CMakeFiles/romam_core.dir/src/config.cpp.o" "gcc" "core/CMakeFiles/romam_core.dir/src/config.cpp.o.d"
-  "/home/cnlab-pu/Projects/romam/standalone/core/src/ip.cpp" "core/CMakeFiles/romam_core.dir/src/ip.cpp.o" "gcc" "core/CMakeFiles/romam_core.dir/src/ip.cpp.o.d"
-  "/home/cnlab-pu/Projects/romam/standalone/core/src/lsdb.cpp" "core/CMakeFiles/romam_core.dir/src/lsdb.cpp.o" "gcc" "core/CMakeFiles/romam_core.dir/src/lsdb.cpp.o.d"
-  "/home/cnlab-pu/Projects/romam/standalone/core/src/spf.cpp" "core/CMakeFiles/romam_core.dir/src/spf.cpp.o" "gcc" "core/CMakeFiles/romam_core.dir/src/spf.cpp.o.d"
-  "/home/cnlab-pu/Projects/romam/standalone/core/src/wire.cpp" "core/CMakeFiles/romam_core.dir/src/wire.cpp.o" "gcc" "core/CMakeFiles/romam_core.dir/src/wire.cpp.o.d"
+  "/home/cnlab-pu/Projects/romam/standalone/protocol/core/src/config.cpp" "core/CMakeFiles/romam_core.dir/src/config.cpp.o" "gcc" "core/CMakeFiles/romam_core.dir/src/config.cpp.o.d"
+  "/home/cnlab-pu/Projects/romam/standalone/protocol/core/src/ip.cpp" "core/CMakeFiles/romam_core.dir/src/ip.cpp.o" "gcc" "core/CMakeFiles/romam_core.dir/src/ip.cpp.o.d"
+  "/home/cnlab-pu/Projects/romam/standalone/protocol/core/src/lsdb.cpp" "core/CMakeFiles/romam_core.dir/src/lsdb.cpp.o" "gcc" "core/CMakeFiles/romam_core.dir/src/lsdb.cpp.o.d"
+  "/home/cnlab-pu/Projects/romam/standalone/protocol/core/src/routing.cpp" "core/CMakeFiles/romam_core.dir/src/routing.cpp.o" "gcc" "core/CMakeFiles/romam_core.dir/src/routing.cpp.o.d"
+  "/home/cnlab-pu/Projects/romam/standalone/protocol/core/src/spf.cpp" "core/CMakeFiles/romam_core.dir/src/spf.cpp.o" "gcc" "core/CMakeFiles/romam_core.dir/src/spf.cpp.o.d"
+  "/home/cnlab-pu/Projects/romam/standalone/protocol/core/src/wire.cpp" "core/CMakeFiles/romam_core.dir/src/wire.cpp.o" "gcc" "core/CMakeFiles/romam_core.dir/src/wire.cpp.o.d"
   )
 
 # Targets to which this target links which contain Fortran sources.

@@ -1,8 +1,8 @@
 daemon/CMakeFiles/romamd.dir/src/main.cpp.o: \
- /home/cnlab-pu/Projects/romam/standalone/daemon/src/main.cpp \
+ /home/cnlab-pu/Projects/romam/standalone/protocol/daemon/src/main.cpp \
  /usr/include/stdc-predef.h \
- /home/cnlab-pu/Projects/romam/standalone/daemon/src/linux_netlink.hpp \
- /home/cnlab-pu/Projects/romam/standalone/core/include/romam/ip.hpp \
+ /home/cnlab-pu/Projects/romam/standalone/protocol/daemon/src/linux_netlink.hpp \
+ /home/cnlab-pu/Projects/romam/standalone/protocol/core/include/romam/ip.hpp \
  /usr/include/c++/13/array /usr/include/c++/13/compare \
  /usr/include/c++/13/initializer_list \
  /usr/include/x86_64-linux-gnu/c++/13/bits/c++config.h \
@@ -124,12 +124,12 @@ daemon/CMakeFiles/romamd.dir/src/main.cpp.o: \
  /usr/include/c++/13/bits/memory_resource.h /usr/include/c++/13/cstddef \
  /usr/include/c++/13/bits/uses_allocator.h \
  /usr/include/c++/13/bits/uses_allocator_args.h /usr/include/c++/13/tuple \
- /home/cnlab-pu/Projects/romam/standalone/daemon/src/multicast.hpp \
+ /home/cnlab-pu/Projects/romam/standalone/protocol/daemon/src/multicast.hpp \
  /usr/include/c++/13/vector /usr/include/c++/13/bits/stl_uninitialized.h \
  /usr/include/c++/13/bits/stl_vector.h \
  /usr/include/c++/13/bits/stl_bvector.h \
  /usr/include/c++/13/bits/vector.tcc \
- /home/cnlab-pu/Projects/romam/standalone/core/include/romam/config.hpp \
+ /home/cnlab-pu/Projects/romam/standalone/protocol/core/include/romam/config.hpp \
  /usr/include/c++/13/chrono /usr/include/c++/13/bits/chrono.h \
  /usr/include/c++/13/ratio /usr/include/c++/13/limits \
  /usr/include/c++/13/ctime /usr/include/time.h \
@@ -145,12 +145,13 @@ daemon/CMakeFiles/romamd.dir/src/main.cpp.o: \
  /usr/include/c++/13/ext/aligned_buffer.h \
  /usr/include/c++/13/bits/node_handle.h \
  /usr/include/c++/13/bits/erase_if.h \
- /home/cnlab-pu/Projects/romam/standalone/core/include/romam/lsdb.hpp \
- /home/cnlab-pu/Projects/romam/standalone/core/include/romam/wire.hpp \
+ /home/cnlab-pu/Projects/romam/standalone/protocol/core/include/romam/lsdb.hpp \
+ /home/cnlab-pu/Projects/romam/standalone/protocol/core/include/romam/wire.hpp \
  /usr/include/c++/13/map /usr/include/c++/13/bits/stl_tree.h \
  /usr/include/c++/13/bits/stl_map.h \
  /usr/include/c++/13/bits/stl_multimap.h \
- /home/cnlab-pu/Projects/romam/standalone/core/include/romam/spf.hpp \
+ /home/cnlab-pu/Projects/romam/standalone/protocol/core/include/romam/routing.hpp \
+ /home/cnlab-pu/Projects/romam/standalone/protocol/core/include/romam/spf.hpp \
  /usr/include/net/if.h /usr/include/x86_64-linux-gnu/sys/socket.h \
  /usr/include/x86_64-linux-gnu/bits/types/struct_iovec.h \
  /usr/include/x86_64-linux-gnu/bits/socket.h \

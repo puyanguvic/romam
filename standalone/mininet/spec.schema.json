@@ -10,6 +10,7 @@
       "type": "object",
       "properties": {
         "multicast": { "type": "string" },
+        "routing_algo": { "type": "string" },
         "hello_interval_ms": { "type": "integer", "minimum": 10 },
         "dead_interval_ms": { "type": "integer", "minimum": 10 },
         "lsa_interval_ms": { "type": "integer", "minimum": 10 },
@@ -82,4 +83,3 @@
   },
   "additionalProperties": false
 }
-

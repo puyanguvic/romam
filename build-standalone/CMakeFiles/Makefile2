@@ -65,16 +65,19 @@ CMAKE_BINARY_DIR = /home/cnlab-pu/Projects/romam/build-standalone
 # The main recursive "all" target.
 all: core/all
 all: daemon/all
+all: traffic/all
 .PHONY : all
 
 # The main recursive "preinstall" target.
 preinstall: core/preinstall
 preinstall: daemon/preinstall
+preinstall: traffic/preinstall
 .PHONY : preinstall
 
 # The main recursive "clean" target.
 clean: core/clean
 clean: daemon/clean
+clean: traffic/clean
 .PHONY : clean
 
 #=============================================================================
@@ -108,18 +111,33 @@ daemon/clean: daemon/CMakeFiles/romamd.dir/clean
 .PHONY : daemon/clean
 
 #=============================================================================
+# Directory level rules for directory traffic
+
+# Recursive "all" directory target.
+traffic/all: traffic/CMakeFiles/romam-traffic.dir/all
+.PHONY : traffic/all
+
+# Recursive "preinstall" directory target.
+traffic/preinstall:
+.PHONY : traffic/preinstall
+
+# Recursive "clean" directory target.
+traffic/clean: traffic/CMakeFiles/romam-traffic.dir/clean
+.PHONY : traffic/clean
+
+#=============================================================================
 # Target rules for target core/CMakeFiles/romam_core.dir
 
 # All Build rule for target.
 core/CMakeFiles/romam_core.dir/all:
 	$(MAKE) $(MAKESILENT) -f core/CMakeFiles/romam_core.dir/build.make core/CMakeFiles/romam_core.dir/depend
 	$(MAKE) $(MAKESILENT) -f core/CMakeFiles/romam_core.dir/build.make core/CMakeFiles/romam_core.dir/build
-	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --progress-dir=/home/cnlab-pu/Projects/romam/build-standalone/CMakeFiles --progress-num=1,2,3,4,5,6 "Built target romam_core"
+	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --progress-dir=/home/cnlab-pu/Projects/romam/build-standalone/CMakeFiles --progress-num=3,4,5,6,7,8,9 "Built target romam_core"
 .PHONY : core/CMakeFiles/romam_core.dir/all
 
 # Build rule for subdir invocation for target.
 core/CMakeFiles/romam_core.dir/rule: cmake_check_build_system
-	$(CMAKE_COMMAND) -E cmake_progress_start /home/cnlab-pu/Projects/romam/build-standalone/CMakeFiles 6
+	$(CMAKE_COMMAND) -E cmake_progress_start /home/cnlab-pu/Projects/romam/build-standalone/CMakeFiles 7
 	$(MAKE) $(MAKESILENT) -f CMakeFiles/Makefile2 core/CMakeFiles/romam_core.dir/all
 	$(CMAKE_COMMAND) -E cmake_progress_start /home/cnlab-pu/Projects/romam/build-standalone/CMakeFiles 0
 .PHONY : core/CMakeFiles/romam_core.dir/rule
@@ -140,12 +158,12 @@ core/CMakeFiles/romam_core.dir/clean:
 daemon/CMakeFiles/romamd.dir/all: core/CMakeFiles/romam_core.dir/all
 	$(MAKE) $(MAKESILENT) -f daemon/CMakeFiles/romamd.dir/build.make daemon/CMakeFiles/romamd.dir/depend
 	$(MAKE) $(MAKESILENT) -f daemon/CMakeFiles/romamd.dir/build.make daemon/CMakeFiles/romamd.dir/build
-	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --progress-dir=/home/cnlab-pu/Projects/romam/build-standalone/CMakeFiles --progress-num=7,8,9,10 "Built target romamd"
+	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --progress-dir=/home/cnlab-pu/Projects/romam/build-standalone/CMakeFiles --progress-num=10,11,12,13 "Built target romamd"
 .PHONY : daemon/CMakeFiles/romamd.dir/all
 
 # Build rule for subdir invocation for target.
 daemon/CMakeFiles/romamd.dir/rule: cmake_check_build_system
-	$(CMAKE_COMMAND) -E cmake_progress_start /home/cnlab-pu/Projects/romam/build-standalone/CMakeFiles 10
+	$(CMAKE_COMMAND) -E cmake_progress_start /home/cnlab-pu/Projects/romam/build-standalone/CMakeFiles 11
 	$(MAKE) $(MAKESILENT) -f CMakeFiles/Makefile2 daemon/CMakeFiles/romamd.dir/all
 	$(CMAKE_COMMAND) -E cmake_progress_start /home/cnlab-pu/Projects/romam/build-standalone/CMakeFiles 0
 .PHONY : daemon/CMakeFiles/romamd.dir/rule
@@ -158,6 +176,32 @@ romamd: daemon/CMakeFiles/romamd.dir/rule
 daemon/CMakeFiles/romamd.dir/clean:
 	$(MAKE) $(MAKESILENT) -f daemon/CMakeFiles/romamd.dir/build.make daemon/CMakeFiles/romamd.dir/clean
 .PHONY : daemon/CMakeFiles/romamd.dir/clean
+
+#=============================================================================
+# Target rules for target traffic/CMakeFiles/romam-traffic.dir
+
+# All Build rule for target.
+traffic/CMakeFiles/romam-traffic.dir/all:
+	$(MAKE) $(MAKESILENT) -f traffic/CMakeFiles/romam-traffic.dir/build.make traffic/CMakeFiles/romam-traffic.dir/depend
+	$(MAKE) $(MAKESILENT) -f traffic/CMakeFiles/romam-traffic.dir/build.make traffic/CMakeFiles/romam-traffic.dir/build
+	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --progress-dir=/home/cnlab-pu/Projects/romam/build-standalone/CMakeFiles --progress-num=1,2 "Built target romam-traffic"
+.PHONY : traffic/CMakeFiles/romam-traffic.dir/all
+
+# Build rule for subdir invocation for target.
+traffic/CMakeFiles/romam-traffic.dir/rule: cmake_check_build_system
+	$(CMAKE_COMMAND) -E cmake_progress_start /home/cnlab-pu/Projects/romam/build-standalone/CMakeFiles 2
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/Makefile2 traffic/CMakeFiles/romam-traffic.dir/all
+	$(CMAKE_COMMAND) -E cmake_progress_start /home/cnlab-pu/Projects/romam/build-standalone/CMakeFiles 0
+.PHONY : traffic/CMakeFiles/romam-traffic.dir/rule
+
+# Convenience name for target.
+romam-traffic: traffic/CMakeFiles/romam-traffic.dir/rule
+.PHONY : romam-traffic
+
+# clean rule for target.
+traffic/CMakeFiles/romam-traffic.dir/clean:
+	$(MAKE) $(MAKESILENT) -f traffic/CMakeFiles/romam-traffic.dir/build.make traffic/CMakeFiles/romam-traffic.dir/clean
+.PHONY : traffic/CMakeFiles/romam-traffic.dir/clean
 
 #=============================================================================
 # Special targets to cleanup operation of make.

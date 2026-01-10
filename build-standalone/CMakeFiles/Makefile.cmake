@@ -10,8 +10,9 @@ set(CMAKE_MAKEFILE_DEPENDS
   "CMakeFiles/3.28.3/CMakeCXXCompiler.cmake"
   "CMakeFiles/3.28.3/CMakeSystem.cmake"
   "/home/cnlab-pu/Projects/romam/standalone/CMakeLists.txt"
-  "/home/cnlab-pu/Projects/romam/standalone/core/CMakeLists.txt"
-  "/home/cnlab-pu/Projects/romam/standalone/daemon/CMakeLists.txt"
+  "/home/cnlab-pu/Projects/romam/standalone/protocol/core/CMakeLists.txt"
+  "/home/cnlab-pu/Projects/romam/standalone/protocol/daemon/CMakeLists.txt"
+  "/home/cnlab-pu/Projects/romam/standalone/traffic/CMakeLists.txt"
   "/usr/share/cmake-3.28/Modules/CMakeCXXInformation.cmake"
   "/usr/share/cmake-3.28/Modules/CMakeCommonLanguageInclude.cmake"
   "/usr/share/cmake-3.28/Modules/CMakeGenericSystem.cmake"
@@ -47,10 +48,12 @@ set(CMAKE_MAKEFILE_PRODUCTS
   "CMakeFiles/CMakeDirectoryInformation.cmake"
   "core/CMakeFiles/CMakeDirectoryInformation.cmake"
   "daemon/CMakeFiles/CMakeDirectoryInformation.cmake"
+  "traffic/CMakeFiles/CMakeDirectoryInformation.cmake"
   )
 
 # Dependency information for all targets:
 set(CMAKE_DEPEND_INFO_FILES
   "core/CMakeFiles/romam_core.dir/DependInfo.cmake"
   "daemon/CMakeFiles/romamd.dir/DependInfo.cmake"
+  "traffic/CMakeFiles/romam-traffic.dir/DependInfo.cmake"
   )

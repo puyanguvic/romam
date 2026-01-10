@@ -16,6 +16,6 @@ if(ROMAM_WARNINGS_AS_ERRORS)
   target_compile_options(romam_warnings INTERFACE -Werror)
 endif()
 
-add_subdirectory(core)
-add_subdirectory(daemon)
-
+add_subdirectory(protocol/core core)
+add_subdirectory(protocol/daemon daemon)
+add_subdirectory(traffic traffic)

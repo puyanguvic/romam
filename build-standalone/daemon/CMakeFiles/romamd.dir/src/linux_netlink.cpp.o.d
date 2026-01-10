@@ -1,8 +1,8 @@
 daemon/CMakeFiles/romamd.dir/src/linux_netlink.cpp.o: \
- /home/cnlab-pu/Projects/romam/standalone/daemon/src/linux_netlink.cpp \
+ /home/cnlab-pu/Projects/romam/standalone/protocol/daemon/src/linux_netlink.cpp \
  /usr/include/stdc-predef.h \
- /home/cnlab-pu/Projects/romam/standalone/daemon/src/linux_netlink.hpp \
- /home/cnlab-pu/Projects/romam/standalone/core/include/romam/ip.hpp \
+ /home/cnlab-pu/Projects/romam/standalone/protocol/daemon/src/linux_netlink.hpp \
+ /home/cnlab-pu/Projects/romam/standalone/protocol/core/include/romam/ip.hpp \
  /usr/include/c++/13/array /usr/include/c++/13/compare \
  /usr/include/c++/13/initializer_list \
  /usr/include/x86_64-linux-gnu/c++/13/bits/c++config.h \

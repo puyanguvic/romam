@@ -70,46 +70,46 @@ include daemon/CMakeFiles/romamd.dir/progress.make
 include daemon/CMakeFiles/romamd.dir/flags.make
 
 daemon/CMakeFiles/romamd.dir/src/linux_netlink.cpp.o: daemon/CMakeFiles/romamd.dir/flags.make
-daemon/CMakeFiles/romamd.dir/src/linux_netlink.cpp.o: /home/cnlab-pu/Projects/romam/standalone/daemon/src/linux_netlink.cpp
+daemon/CMakeFiles/romamd.dir/src/linux_netlink.cpp.o: /home/cnlab-pu/Projects/romam/standalone/protocol/daemon/src/linux_netlink.cpp
 daemon/CMakeFiles/romamd.dir/src/linux_netlink.cpp.o: daemon/CMakeFiles/romamd.dir/compiler_depend.ts
 	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --green --progress-dir=/home/cnlab-pu/Projects/romam/build-standalone/CMakeFiles --progress-num=$(CMAKE_PROGRESS_1) "Building CXX object daemon/CMakeFiles/romamd.dir/src/linux_netlink.cpp.o"
-	cd /home/cnlab-pu/Projects/romam/build-standalone/daemon && /usr/bin/c++ $(CXX_DEFINES) $(CXX_INCLUDES) $(CXX_FLAGS) -MD -MT daemon/CMakeFiles/romamd.dir/src/linux_netlink.cpp.o -MF CMakeFiles/romamd.dir/src/linux_netlink.cpp.o.d -o CMakeFiles/romamd.dir/src/linux_netlink.cpp.o -c /home/cnlab-pu/Projects/romam/standalone/daemon/src/linux_netlink.cpp
+	cd /home/cnlab-pu/Projects/romam/build-standalone/daemon && /usr/bin/c++ $(CXX_DEFINES) $(CXX_INCLUDES) $(CXX_FLAGS) -MD -MT daemon/CMakeFiles/romamd.dir/src/linux_netlink.cpp.o -MF CMakeFiles/romamd.dir/src/linux_netlink.cpp.o.d -o CMakeFiles/romamd.dir/src/linux_netlink.cpp.o -c /home/cnlab-pu/Projects/romam/standalone/protocol/daemon/src/linux_netlink.cpp
 
 daemon/CMakeFiles/romamd.dir/src/linux_netlink.cpp.i: cmake_force
 	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --green "Preprocessing CXX source to CMakeFiles/romamd.dir/src/linux_netlink.cpp.i"
-	cd /home/cnlab-pu/Projects/romam/build-standalone/daemon && /usr/bin/c++ $(CXX_DEFINES) $(CXX_INCLUDES) $(CXX_FLAGS) -E /home/cnlab-pu/Projects/romam/standalone/daemon/src/linux_netlink.cpp > CMakeFiles/romamd.dir/src/linux_netlink.cpp.i
+	cd /home/cnlab-pu/Projects/romam/build-standalone/daemon && /usr/bin/c++ $(CXX_DEFINES) $(CXX_INCLUDES) $(CXX_FLAGS) -E /home/cnlab-pu/Projects/romam/standalone/protocol/daemon/src/linux_netlink.cpp > CMakeFiles/romamd.dir/src/linux_netlink.cpp.i
 
 daemon/CMakeFiles/romamd.dir/src/linux_netlink.cpp.s: cmake_force
 	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --green "Compiling CXX source to assembly CMakeFiles/romamd.dir/src/linux_netlink.cpp.s"
-	cd /home/cnlab-pu/Projects/romam/build-standalone/daemon && /usr/bin/c++ $(CXX_DEFINES) $(CXX_INCLUDES) $(CXX_FLAGS) -S /home/cnlab-pu/Projects/romam/standalone/daemon/src/linux_netlink.cpp -o CMakeFiles/romamd.dir/src/linux_netlink.cpp.s
+	cd /home/cnlab-pu/Projects/romam/build-standalone/daemon && /usr/bin/c++ $(CXX_DEFINES) $(CXX_INCLUDES) $(CXX_FLAGS) -S /home/cnlab-pu/Projects/romam/standalone/protocol/daemon/src/linux_netlink.cpp -o CMakeFiles/romamd.dir/src/linux_netlink.cpp.s
 
 daemon/CMakeFiles/romamd.dir/src/main.cpp.o: daemon/CMakeFiles/romamd.dir/flags.make
-daemon/CMakeFiles/romamd.dir/src/main.cpp.o: /home/cnlab-pu/Projects/romam/standalone/daemon/src/main.cpp
+daemon/CMakeFiles/romamd.dir/src/main.cpp.o: /home/cnlab-pu/Projects/romam/standalone/protocol/daemon/src/main.cpp
 daemon/CMakeFiles/romamd.dir/src/main.cpp.o: daemon/CMakeFiles/romamd.dir/compiler_depend.ts
 	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --green --progress-dir=/home/cnlab-pu/Projects/romam/build-standalone/CMakeFiles --progress-num=$(CMAKE_PROGRESS_2) "Building CXX object daemon/CMakeFiles/romamd.dir/src/main.cpp.o"
-	cd /home/cnlab-pu/Projects/romam/build-standalone/daemon && /usr/bin/c++ $(CXX_DEFINES) $(CXX_INCLUDES) $(CXX_FLAGS) -MD -MT daemon/CMakeFiles/romamd.dir/src/main.cpp.o -MF CMakeFiles/romamd.dir/src/main.cpp.o.d -o CMakeFiles/romamd.dir/src/main.cpp.o -c /home/cnlab-pu/Projects/romam/standalone/daemon/src/main.cpp
+	cd /home/cnlab-pu/Projects/romam/build-standalone/daemon && /usr/bin/c++ $(CXX_DEFINES) $(CXX_INCLUDES) $(CXX_FLAGS) -MD -MT daemon/CMakeFiles/romamd.dir/src/main.cpp.o -MF CMakeFiles/romamd.dir/src/main.cpp.o.d -o CMakeFiles/romamd.dir/src/main.cpp.o -c /home/cnlab-pu/Projects/romam/standalone/protocol/daemon/src/main.cpp
 
 daemon/CMakeFiles/romamd.dir/src/main.cpp.i: cmake_force
 	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --green "Preprocessing CXX source to CMakeFiles/romamd.dir/src/main.cpp.i"
-	cd /home/cnlab-pu/Projects/romam/build-standalone/daemon && /usr/bin/c++ $(CXX_DEFINES) $(CXX_INCLUDES) $(CXX_FLAGS) -E /home/cnlab-pu/Projects/romam/standalone/daemon/src/main.cpp > CMakeFiles/romamd.dir/src/main.cpp.i
+	cd /home/cnlab-pu/Projects/romam/build-standalone/daemon && /usr/bin/c++ $(CXX_DEFINES) $(CXX_INCLUDES) $(CXX_FLAGS) -E /home/cnlab-pu/Projects/romam/standalone/protocol/daemon/src/main.cpp > CMakeFiles/romamd.dir/src/main.cpp.i
 
 daemon/CMakeFiles/romamd.dir/src/main.cpp.s: cmake_force
 	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --green "Compiling CXX source to assembly CMakeFiles/romamd.dir/src/main.cpp.s"
-	cd /home/cnlab-pu/Projects/romam/build-standalone/daemon && /usr/bin/c++ $(CXX_DEFINES) $(CXX_INCLUDES) $(CXX_FLAGS) -S /home/cnlab-pu/Projects/romam/standalone/daemon/src/main.cpp -o CMakeFiles/romamd.dir/src/main.cpp.s
+	cd /home/cnlab-pu/Projects/romam/build-standalone/daemon && /usr/bin/c++ $(CXX_DEFINES) $(CXX_INCLUDES) $(CXX_FLAGS) -S /home/cnlab-pu/Projects/romam/standalone/protocol/daemon/src/main.cpp -o CMakeFiles/romamd.dir/src/main.cpp.s
 
 daemon/CMakeFiles/romamd.dir/src/multicast.cpp.o: daemon/CMakeFiles/romamd.dir/flags.make
-daemon/CMakeFiles/romamd.dir/src/multicast.cpp.o: /home/cnlab-pu/Projects/romam/standalone/daemon/src/multicast.cpp
+daemon/CMakeFiles/romamd.dir/src/multicast.cpp.o: /home/cnlab-pu/Projects/romam/standalone/protocol/daemon/src/multicast.cpp
 daemon/CMakeFiles/romamd.dir/src/multicast.cpp.o: daemon/CMakeFiles/romamd.dir/compiler_depend.ts
 	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --green --progress-dir=/home/cnlab-pu/Projects/romam/build-standalone/CMakeFiles --progress-num=$(CMAKE_PROGRESS_3) "Building CXX object daemon/CMakeFiles/romamd.dir/src/multicast.cpp.o"
-	cd /home/cnlab-pu/Projects/romam/build-standalone/daemon && /usr/bin/c++ $(CXX_DEFINES) $(CXX_INCLUDES) $(CXX_FLAGS) -MD -MT daemon/CMakeFiles/romamd.dir/src/multicast.cpp.o -MF CMakeFiles/romamd.dir/src/multicast.cpp.o.d -o CMakeFiles/romamd.dir/src/multicast.cpp.o -c /home/cnlab-pu/Projects/romam/standalone/daemon/src/multicast.cpp
+	cd /home/cnlab-pu/Projects/romam/build-standalone/daemon && /usr/bin/c++ $(CXX_DEFINES) $(CXX_INCLUDES) $(CXX_FLAGS) -MD -MT daemon/CMakeFiles/romamd.dir/src/multicast.cpp.o -MF CMakeFiles/romamd.dir/src/multicast.cpp.o.d -o CMakeFiles/romamd.dir/src/multicast.cpp.o -c /home/cnlab-pu/Projects/romam/standalone/protocol/daemon/src/multicast.cpp
 
 daemon/CMakeFiles/romamd.dir/src/multicast.cpp.i: cmake_force
 	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --green "Preprocessing CXX source to CMakeFiles/romamd.dir/src/multicast.cpp.i"
-	cd /home/cnlab-pu/Projects/romam/build-standalone/daemon && /usr/bin/c++ $(CXX_DEFINES) $(CXX_INCLUDES) $(CXX_FLAGS) -E /home/cnlab-pu/Projects/romam/standalone/daemon/src/multicast.cpp > CMakeFiles/romamd.dir/src/multicast.cpp.i
+	cd /home/cnlab-pu/Projects/romam/build-standalone/daemon && /usr/bin/c++ $(CXX_DEFINES) $(CXX_INCLUDES) $(CXX_FLAGS) -E /home/cnlab-pu/Projects/romam/standalone/protocol/daemon/src/multicast.cpp > CMakeFiles/romamd.dir/src/multicast.cpp.i
 
 daemon/CMakeFiles/romamd.dir/src/multicast.cpp.s: cmake_force
 	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --green "Compiling CXX source to assembly CMakeFiles/romamd.dir/src/multicast.cpp.s"
-	cd /home/cnlab-pu/Projects/romam/build-standalone/daemon && /usr/bin/c++ $(CXX_DEFINES) $(CXX_INCLUDES) $(CXX_FLAGS) -S /home/cnlab-pu/Projects/romam/standalone/daemon/src/multicast.cpp -o CMakeFiles/romamd.dir/src/multicast.cpp.s
+	cd /home/cnlab-pu/Projects/romam/build-standalone/daemon && /usr/bin/c++ $(CXX_DEFINES) $(CXX_INCLUDES) $(CXX_FLAGS) -S /home/cnlab-pu/Projects/romam/standalone/protocol/daemon/src/multicast.cpp -o CMakeFiles/romamd.dir/src/multicast.cpp.s
 
 # Object files for target romamd
 romamd_OBJECTS = \
@@ -138,6 +138,6 @@ daemon/CMakeFiles/romamd.dir/clean:
 .PHONY : daemon/CMakeFiles/romamd.dir/clean
 
 daemon/CMakeFiles/romamd.dir/depend:
-	cd /home/cnlab-pu/Projects/romam/build-standalone && $(CMAKE_COMMAND) -E cmake_depends "Unix Makefiles" /home/cnlab-pu/Projects/romam/standalone /home/cnlab-pu/Projects/romam/standalone/daemon /home/cnlab-pu/Projects/romam/build-standalone /home/cnlab-pu/Projects/romam/build-standalone/daemon /home/cnlab-pu/Projects/romam/build-standalone/daemon/CMakeFiles/romamd.dir/DependInfo.cmake "--color=$(COLOR)"
+	cd /home/cnlab-pu/Projects/romam/build-standalone && $(CMAKE_COMMAND) -E cmake_depends "Unix Makefiles" /home/cnlab-pu/Projects/romam/standalone /home/cnlab-pu/Projects/romam/standalone/protocol/daemon /home/cnlab-pu/Projects/romam/build-standalone /home/cnlab-pu/Projects/romam/build-standalone/daemon /home/cnlab-pu/Projects/romam/build-standalone/daemon/CMakeFiles/romamd.dir/DependInfo.cmake "--color=$(COLOR)"
 .PHONY : daemon/CMakeFiles/romamd.dir/depend
 

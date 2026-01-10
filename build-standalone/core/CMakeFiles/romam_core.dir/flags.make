@@ -4,7 +4,7 @@
 # compile CXX with /usr/bin/c++
 CXX_DEFINES = 
 
-CXX_INCLUDES = -I/home/cnlab-pu/Projects/romam/standalone/core/include
+CXX_INCLUDES = -I/home/cnlab-pu/Projects/romam/standalone/protocol/core/include
 
 CXX_FLAGS = -std=c++17 -Wall -Wextra -Wpedantic
 

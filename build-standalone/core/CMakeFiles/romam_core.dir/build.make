@@ -70,80 +70,95 @@ include core/CMakeFiles/romam_core.dir/progress.make
 include core/CMakeFiles/romam_core.dir/flags.make
 
 core/CMakeFiles/romam_core.dir/src/config.cpp.o: core/CMakeFiles/romam_core.dir/flags.make
-core/CMakeFiles/romam_core.dir/src/config.cpp.o: /home/cnlab-pu/Projects/romam/standalone/core/src/config.cpp
+core/CMakeFiles/romam_core.dir/src/config.cpp.o: /home/cnlab-pu/Projects/romam/standalone/protocol/core/src/config.cpp
 core/CMakeFiles/romam_core.dir/src/config.cpp.o: core/CMakeFiles/romam_core.dir/compiler_depend.ts
 	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --green --progress-dir=/home/cnlab-pu/Projects/romam/build-standalone/CMakeFiles --progress-num=$(CMAKE_PROGRESS_1) "Building CXX object core/CMakeFiles/romam_core.dir/src/config.cpp.o"
-	cd /home/cnlab-pu/Projects/romam/build-standalone/core && /usr/bin/c++ $(CXX_DEFINES) $(CXX_INCLUDES) $(CXX_FLAGS) -MD -MT core/CMakeFiles/romam_core.dir/src/config.cpp.o -MF CMakeFiles/romam_core.dir/src/config.cpp.o.d -o CMakeFiles/romam_core.dir/src/config.cpp.o -c /home/cnlab-pu/Projects/romam/standalone/core/src/config.cpp
+	cd /home/cnlab-pu/Projects/romam/build-standalone/core && /usr/bin/c++ $(CXX_DEFINES) $(CXX_INCLUDES) $(CXX_FLAGS) -MD -MT core/CMakeFiles/romam_core.dir/src/config.cpp.o -MF CMakeFiles/romam_core.dir/src/config.cpp.o.d -o CMakeFiles/romam_core.dir/src/config.cpp.o -c /home/cnlab-pu/Projects/romam/standalone/protocol/core/src/config.cpp
 
 core/CMakeFiles/romam_core.dir/src/config.cpp.i: cmake_force
 	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --green "Preprocessing CXX source to CMakeFiles/romam_core.dir/src/config.cpp.i"
-	cd /home/cnlab-pu/Projects/romam/build-standalone/core && /usr/bin/c++ $(CXX_DEFINES) $(CXX_INCLUDES) $(CXX_FLAGS) -E /home/cnlab-pu/Projects/romam/standalone/core/src/config.cpp > CMakeFiles/romam_core.dir/src/config.cpp.i
+	cd /home/cnlab-pu/Projects/romam/build-standalone/core && /usr/bin/c++ $(CXX_DEFINES) $(CXX_INCLUDES) $(CXX_FLAGS) -E /home/cnlab-pu/Projects/romam/standalone/protocol/core/src/config.cpp > CMakeFiles/romam_core.dir/src/config.cpp.i
 
 core/CMakeFiles/romam_core.dir/src/config.cpp.s: cmake_force
 	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --green "Compiling CXX source to assembly CMakeFiles/romam_core.dir/src/config.cpp.s"
-	cd /home/cnlab-pu/Projects/romam/build-standalone/core && /usr/bin/c++ $(CXX_DEFINES) $(CXX_INCLUDES) $(CXX_FLAGS) -S /home/cnlab-pu/Projects/romam/standalone/core/src/config.cpp -o CMakeFiles/romam_core.dir/src/config.cpp.s
+	cd /home/cnlab-pu/Projects/romam/build-standalone/core && /usr/bin/c++ $(CXX_DEFINES) $(CXX_INCLUDES) $(CXX_FLAGS) -S /home/cnlab-pu/Projects/romam/standalone/protocol/core/src/config.cpp -o CMakeFiles/romam_core.dir/src/config.cpp.s
 
 core/CMakeFiles/romam_core.dir/src/ip.cpp.o: core/CMakeFiles/romam_core.dir/flags.make
-core/CMakeFiles/romam_core.dir/src/ip.cpp.o: /home/cnlab-pu/Projects/romam/standalone/core/src/ip.cpp
+core/CMakeFiles/romam_core.dir/src/ip.cpp.o: /home/cnlab-pu/Projects/romam/standalone/protocol/core/src/ip.cpp
 core/CMakeFiles/romam_core.dir/src/ip.cpp.o: core/CMakeFiles/romam_core.dir/compiler_depend.ts
 	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --green --progress-dir=/home/cnlab-pu/Projects/romam/build-standalone/CMakeFiles --progress-num=$(CMAKE_PROGRESS_2) "Building CXX object core/CMakeFiles/romam_core.dir/src/ip.cpp.o"
-	cd /home/cnlab-pu/Projects/romam/build-standalone/core && /usr/bin/c++ $(CXX_DEFINES) $(CXX_INCLUDES) $(CXX_FLAGS) -MD -MT core/CMakeFiles/romam_core.dir/src/ip.cpp.o -MF CMakeFiles/romam_core.dir/src/ip.cpp.o.d -o CMakeFiles/romam_core.dir/src/ip.cpp.o -c /home/cnlab-pu/Projects/romam/standalone/core/src/ip.cpp
+	cd /home/cnlab-pu/Projects/romam/build-standalone/core && /usr/bin/c++ $(CXX_DEFINES) $(CXX_INCLUDES) $(CXX_FLAGS) -MD -MT core/CMakeFiles/romam_core.dir/src/ip.cpp.o -MF CMakeFiles/romam_core.dir/src/ip.cpp.o.d -o CMakeFiles/romam_core.dir/src/ip.cpp.o -c /home/cnlab-pu/Projects/romam/standalone/protocol/core/src/ip.cpp
 
 core/CMakeFiles/romam_core.dir/src/ip.cpp.i: cmake_force
 	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --green "Preprocessing CXX source to CMakeFiles/romam_core.dir/src/ip.cpp.i"
-	cd /home/cnlab-pu/Projects/romam/build-standalone/core && /usr/bin/c++ $(CXX_DEFINES) $(CXX_INCLUDES) $(CXX_FLAGS) -E /home/cnlab-pu/Projects/romam/standalone/core/src/ip.cpp > CMakeFiles/romam_core.dir/src/ip.cpp.i
+	cd /home/cnlab-pu/Projects/romam/build-standalone/core && /usr/bin/c++ $(CXX_DEFINES) $(CXX_INCLUDES) $(CXX_FLAGS) -E /home/cnlab-pu/Projects/romam/standalone/protocol/core/src/ip.cpp > CMakeFiles/romam_core.dir/src/ip.cpp.i
 
 core/CMakeFiles/romam_core.dir/src/ip.cpp.s: cmake_force
 	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --green "Compiling CXX source to assembly CMakeFiles/romam_core.dir/src/ip.cpp.s"
-	cd /home/cnlab-pu/Projects/romam/build-standalone/core && /usr/bin/c++ $(CXX_DEFINES) $(CXX_INCLUDES) $(CXX_FLAGS) -S /home/cnlab-pu/Projects/romam/standalone/core/src/ip.cpp -o CMakeFiles/romam_core.dir/src/ip.cpp.s
+	cd /home/cnlab-pu/Projects/romam/build-standalone/core && /usr/bin/c++ $(CXX_DEFINES) $(CXX_INCLUDES) $(CXX_FLAGS) -S /home/cnlab-pu/Projects/romam/standalone/protocol/core/src/ip.cpp -o CMakeFiles/romam_core.dir/src/ip.cpp.s
 
 core/CMakeFiles/romam_core.dir/src/lsdb.cpp.o: core/CMakeFiles/romam_core.dir/flags.make
-core/CMakeFiles/romam_core.dir/src/lsdb.cpp.o: /home/cnlab-pu/Projects/romam/standalone/core/src/lsdb.cpp
+core/CMakeFiles/romam_core.dir/src/lsdb.cpp.o: /home/cnlab-pu/Projects/romam/standalone/protocol/core/src/lsdb.cpp
 core/CMakeFiles/romam_core.dir/src/lsdb.cpp.o: core/CMakeFiles/romam_core.dir/compiler_depend.ts
 	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --green --progress-dir=/home/cnlab-pu/Projects/romam/build-standalone/CMakeFiles --progress-num=$(CMAKE_PROGRESS_3) "Building CXX object core/CMakeFiles/romam_core.dir/src/lsdb.cpp.o"
-	cd /home/cnlab-pu/Projects/romam/build-standalone/core && /usr/bin/c++ $(CXX_DEFINES) $(CXX_INCLUDES) $(CXX_FLAGS) -MD -MT core/CMakeFiles/romam_core.dir/src/lsdb.cpp.o -MF CMakeFiles/romam_core.dir/src/lsdb.cpp.o.d -o CMakeFiles/romam_core.dir/src/lsdb.cpp.o -c /home/cnlab-pu/Projects/romam/standalone/core/src/lsdb.cpp
+	cd /home/cnlab-pu/Projects/romam/build-standalone/core && /usr/bin/c++ $(CXX_DEFINES) $(CXX_INCLUDES) $(CXX_FLAGS) -MD -MT core/CMakeFiles/romam_core.dir/src/lsdb.cpp.o -MF CMakeFiles/romam_core.dir/src/lsdb.cpp.o.d -o CMakeFiles/romam_core.dir/src/lsdb.cpp.o -c /home/cnlab-pu/Projects/romam/standalone/protocol/core/src/lsdb.cpp
 
 core/CMakeFiles/romam_core.dir/src/lsdb.cpp.i: cmake_force
 	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --green "Preprocessing CXX source to CMakeFiles/romam_core.dir/src/lsdb.cpp.i"
-	cd /home/cnlab-pu/Projects/romam/build-standalone/core && /usr/bin/c++ $(CXX_DEFINES) $(CXX_INCLUDES) $(CXX_FLAGS) -E /home/cnlab-pu/Projects/romam/standalone/core/src/lsdb.cpp > CMakeFiles/romam_core.dir/src/lsdb.cpp.i
+	cd /home/cnlab-pu/Projects/romam/build-standalone/core && /usr/bin/c++ $(CXX_DEFINES) $(CXX_INCLUDES) $(CXX_FLAGS) -E /home/cnlab-pu/Projects/romam/standalone/protocol/core/src/lsdb.cpp > CMakeFiles/romam_core.dir/src/lsdb.cpp.i
 
 core/CMakeFiles/romam_core.dir/src/lsdb.cpp.s: cmake_force
 	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --green "Compiling CXX source to assembly CMakeFiles/romam_core.dir/src/lsdb.cpp.s"
-	cd /home/cnlab-pu/Projects/romam/build-standalone/core && /usr/bin/c++ $(CXX_DEFINES) $(CXX_INCLUDES) $(CXX_FLAGS) -S /home/cnlab-pu/Projects/romam/standalone/core/src/lsdb.cpp -o CMakeFiles/romam_core.dir/src/lsdb.cpp.s
+	cd /home/cnlab-pu/Projects/romam/build-standalone/core && /usr/bin/c++ $(CXX_DEFINES) $(CXX_INCLUDES) $(CXX_FLAGS) -S /home/cnlab-pu/Projects/romam/standalone/protocol/core/src/lsdb.cpp -o CMakeFiles/romam_core.dir/src/lsdb.cpp.s
+
+core/CMakeFiles/romam_core.dir/src/routing.cpp.o: core/CMakeFiles/romam_core.dir/flags.make
+core/CMakeFiles/romam_core.dir/src/routing.cpp.o: /home/cnlab-pu/Projects/romam/standalone/protocol/core/src/routing.cpp
+core/CMakeFiles/romam_core.dir/src/routing.cpp.o: core/CMakeFiles/romam_core.dir/compiler_depend.ts
+	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --green --progress-dir=/home/cnlab-pu/Projects/romam/build-standalone/CMakeFiles --progress-num=$(CMAKE_PROGRESS_4) "Building CXX object core/CMakeFiles/romam_core.dir/src/routing.cpp.o"
+	cd /home/cnlab-pu/Projects/romam/build-standalone/core && /usr/bin/c++ $(CXX_DEFINES) $(CXX_INCLUDES) $(CXX_FLAGS) -MD -MT core/CMakeFiles/romam_core.dir/src/routing.cpp.o -MF CMakeFiles/romam_core.dir/src/routing.cpp.o.d -o CMakeFiles/romam_core.dir/src/routing.cpp.o -c /home/cnlab-pu/Projects/romam/standalone/protocol/core/src/routing.cpp
+
+core/CMakeFiles/romam_core.dir/src/routing.cpp.i: cmake_force
+	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --green "Preprocessing CXX source to CMakeFiles/romam_core.dir/src/routing.cpp.i"
+	cd /home/cnlab-pu/Projects/romam/build-standalone/core && /usr/bin/c++ $(CXX_DEFINES) $(CXX_INCLUDES) $(CXX_FLAGS) -E /home/cnlab-pu/Projects/romam/standalone/protocol/core/src/routing.cpp > CMakeFiles/romam_core.dir/src/routing.cpp.i
+
+core/CMakeFiles/romam_core.dir/src/routing.cpp.s: cmake_force
+	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --green "Compiling CXX source to assembly CMakeFiles/romam_core.dir/src/routing.cpp.s"
+	cd /home/cnlab-pu/Projects/romam/build-standalone/core && /usr/bin/c++ $(CXX_DEFINES) $(CXX_INCLUDES) $(CXX_FLAGS) -S /home/cnlab-pu/Projects/romam/standalone/protocol/core/src/routing.cpp -o CMakeFiles/romam_core.dir/src/routing.cpp.s
 
 core/CMakeFiles/romam_core.dir/src/spf.cpp.o: core/CMakeFiles/romam_core.dir/flags.make
-core/CMakeFiles/romam_core.dir/src/spf.cpp.o: /home/cnlab-pu/Projects/romam/standalone/core/src/spf.cpp
+core/CMakeFiles/romam_core.dir/src/spf.cpp.o: /home/cnlab-pu/Projects/romam/standalone/protocol/core/src/spf.cpp
 core/CMakeFiles/romam_core.dir/src/spf.cpp.o: core/CMakeFiles/romam_core.dir/compiler_depend.ts
-	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --green --progress-dir=/home/cnlab-pu/Projects/romam/build-standalone/CMakeFiles --progress-num=$(CMAKE_PROGRESS_4) "Building CXX object core/CMakeFiles/romam_core.dir/src/spf.cpp.o"
-	cd /home/cnlab-pu/Projects/romam/build-standalone/core && /usr/bin/c++ $(CXX_DEFINES) $(CXX_INCLUDES) $(CXX_FLAGS) -MD -MT core/CMakeFiles/romam_core.dir/src/spf.cpp.o -MF CMakeFiles/romam_core.dir/src/spf.cpp.o.d -o CMakeFiles/romam_core.dir/src/spf.cpp.o -c /home/cnlab-pu/Projects/romam/standalone/core/src/spf.cpp
+	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --green --progress-dir=/home/cnlab-pu/Projects/romam/build-standalone/CMakeFiles --progress-num=$(CMAKE_PROGRESS_5) "Building CXX object core/CMakeFiles/romam_core.dir/src/spf.cpp.o"
+	cd /home/cnlab-pu/Projects/romam/build-standalone/core && /usr/bin/c++ $(CXX_DEFINES) $(CXX_INCLUDES) $(CXX_FLAGS) -MD -MT core/CMakeFiles/romam_core.dir/src/spf.cpp.o -MF CMakeFiles/romam_core.dir/src/spf.cpp.o.d -o CMakeFiles/romam_core.dir/src/spf.cpp.o -c /home/cnlab-pu/Projects/romam/standalone/protocol/core/src/spf.cpp
 
 core/CMakeFiles/romam_core.dir/src/spf.cpp.i: cmake_force
 	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --green "Preprocessing CXX source to CMakeFiles/romam_core.dir/src/spf.cpp.i"
-	cd /home/cnlab-pu/Projects/romam/build-standalone/core && /usr/bin/c++ $(CXX_DEFINES) $(CXX_INCLUDES) $(CXX_FLAGS) -E /home/cnlab-pu/Projects/romam/standalone/core/src/spf.cpp > CMakeFiles/romam_core.dir/src/spf.cpp.i
+	cd /home/cnlab-pu/Projects/romam/build-standalone/core && /usr/bin/c++ $(CXX_DEFINES) $(CXX_INCLUDES) $(CXX_FLAGS) -E /home/cnlab-pu/Projects/romam/standalone/protocol/core/src/spf.cpp > CMakeFiles/romam_core.dir/src/spf.cpp.i
 
 core/CMakeFiles/romam_core.dir/src/spf.cpp.s: cmake_force
 	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --green "Compiling CXX source to assembly CMakeFiles/romam_core.dir/src/spf.cpp.s"
-	cd /home/cnlab-pu/Projects/romam/build-standalone/core && /usr/bin/c++ $(CXX_DEFINES) $(CXX_INCLUDES) $(CXX_FLAGS) -S /home/cnlab-pu/Projects/romam/standalone/core/src/spf.cpp -o CMakeFiles/romam_core.dir/src/spf.cpp.s
+	cd /home/cnlab-pu/Projects/romam/build-standalone/core && /usr/bin/c++ $(CXX_DEFINES) $(CXX_INCLUDES) $(CXX_FLAGS) -S /home/cnlab-pu/Projects/romam/standalone/protocol/core/src/spf.cpp -o CMakeFiles/romam_core.dir/src/spf.cpp.s
 
 core/CMakeFiles/romam_core.dir/src/wire.cpp.o: core/CMakeFiles/romam_core.dir/flags.make
-core/CMakeFiles/romam_core.dir/src/wire.cpp.o: /home/cnlab-pu/Projects/romam/standalone/core/src/wire.cpp
+core/CMakeFiles/romam_core.dir/src/wire.cpp.o: /home/cnlab-pu/Projects/romam/standalone/protocol/core/src/wire.cpp
 core/CMakeFiles/romam_core.dir/src/wire.cpp.o: core/CMakeFiles/romam_core.dir/compiler_depend.ts
-	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --green --progress-dir=/home/cnlab-pu/Projects/romam/build-standalone/CMakeFiles --progress-num=$(CMAKE_PROGRESS_5) "Building CXX object core/CMakeFiles/romam_core.dir/src/wire.cpp.o"
-	cd /home/cnlab-pu/Projects/romam/build-standalone/core && /usr/bin/c++ $(CXX_DEFINES) $(CXX_INCLUDES) $(CXX_FLAGS) -MD -MT core/CMakeFiles/romam_core.dir/src/wire.cpp.o -MF CMakeFiles/romam_core.dir/src/wire.cpp.o.d -o CMakeFiles/romam_core.dir/src/wire.cpp.o -c /home/cnlab-pu/Projects/romam/standalone/core/src/wire.cpp
+	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --green --progress-dir=/home/cnlab-pu/Projects/romam/build-standalone/CMakeFiles --progress-num=$(CMAKE_PROGRESS_6) "Building CXX object core/CMakeFiles/romam_core.dir/src/wire.cpp.o"
+	cd /home/cnlab-pu/Projects/romam/build-standalone/core && /usr/bin/c++ $(CXX_DEFINES) $(CXX_INCLUDES) $(CXX_FLAGS) -MD -MT core/CMakeFiles/romam_core.dir/src/wire.cpp.o -MF CMakeFiles/romam_core.dir/src/wire.cpp.o.d -o CMakeFiles/romam_core.dir/src/wire.cpp.o -c /home/cnlab-pu/Projects/romam/standalone/protocol/core/src/wire.cpp
 
 core/CMakeFiles/romam_core.dir/src/wire.cpp.i: cmake_force
 	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --green "Preprocessing CXX source to CMakeFiles/romam_core.dir/src/wire.cpp.i"
-	cd /home/cnlab-pu/Projects/romam/build-standalone/core && /usr/bin/c++ $(CXX_DEFINES) $(CXX_INCLUDES) $(CXX_FLAGS) -E /home/cnlab-pu/Projects/romam/standalone/core/src/wire.cpp > CMakeFiles/romam_core.dir/src/wire.cpp.i
+	cd /home/cnlab-pu/Projects/romam/build-standalone/core && /usr/bin/c++ $(CXX_DEFINES) $(CXX_INCLUDES) $(CXX_FLAGS) -E /home/cnlab-pu/Projects/romam/standalone/protocol/core/src/wire.cpp > CMakeFiles/romam_core.dir/src/wire.cpp.i
 
 core/CMakeFiles/romam_core.dir/src/wire.cpp.s: cmake_force
 	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --green "Compiling CXX source to assembly CMakeFiles/romam_core.dir/src/wire.cpp.s"
-	cd /home/cnlab-pu/Projects/romam/build-standalone/core && /usr/bin/c++ $(CXX_DEFINES) $(CXX_INCLUDES) $(CXX_FLAGS) -S /home/cnlab-pu/Projects/romam/standalone/core/src/wire.cpp -o CMakeFiles/romam_core.dir/src/wire.cpp.s
+	cd /home/cnlab-pu/Projects/romam/build-standalone/core && /usr/bin/c++ $(CXX_DEFINES) $(CXX_INCLUDES) $(CXX_FLAGS) -S /home/cnlab-pu/Projects/romam/standalone/protocol/core/src/wire.cpp -o CMakeFiles/romam_core.dir/src/wire.cpp.s
 
 # Object files for target romam_core
 romam_core_OBJECTS = \
 "CMakeFiles/romam_core.dir/src/config.cpp.o" \
 "CMakeFiles/romam_core.dir/src/ip.cpp.o" \
 "CMakeFiles/romam_core.dir/src/lsdb.cpp.o" \
+"CMakeFiles/romam_core.dir/src/routing.cpp.o" \
 "CMakeFiles/romam_core.dir/src/spf.cpp.o" \
 "CMakeFiles/romam_core.dir/src/wire.cpp.o"
 
@@ -153,11 +168,12 @@ romam_core_EXTERNAL_OBJECTS =
 core/libromam_core.a: core/CMakeFiles/romam_core.dir/src/config.cpp.o
 core/libromam_core.a: core/CMakeFiles/romam_core.dir/src/ip.cpp.o
 core/libromam_core.a: core/CMakeFiles/romam_core.dir/src/lsdb.cpp.o
+core/libromam_core.a: core/CMakeFiles/romam_core.dir/src/routing.cpp.o
 core/libromam_core.a: core/CMakeFiles/romam_core.dir/src/spf.cpp.o
 core/libromam_core.a: core/CMakeFiles/romam_core.dir/src/wire.cpp.o
 core/libromam_core.a: core/CMakeFiles/romam_core.dir/build.make
 core/libromam_core.a: core/CMakeFiles/romam_core.dir/link.txt
-	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --green --bold --progress-dir=/home/cnlab-pu/Projects/romam/build-standalone/CMakeFiles --progress-num=$(CMAKE_PROGRESS_6) "Linking CXX static library libromam_core.a"
+	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --green --bold --progress-dir=/home/cnlab-pu/Projects/romam/build-standalone/CMakeFiles --progress-num=$(CMAKE_PROGRESS_7) "Linking CXX static library libromam_core.a"
 	cd /home/cnlab-pu/Projects/romam/build-standalone/core && $(CMAKE_COMMAND) -P CMakeFiles/romam_core.dir/cmake_clean_target.cmake
 	cd /home/cnlab-pu/Projects/romam/build-standalone/core && $(CMAKE_COMMAND) -E cmake_link_script CMakeFiles/romam_core.dir/link.txt --verbose=$(VERBOSE)
 
@@ -170,6 +186,6 @@ core/CMakeFiles/romam_core.dir/clean:
 .PHONY : core/CMakeFiles/romam_core.dir/clean
 
 core/CMakeFiles/romam_core.dir/depend:
-	cd /home/cnlab-pu/Projects/romam/build-standalone && $(CMAKE_COMMAND) -E cmake_depends "Unix Makefiles" /home/cnlab-pu/Projects/romam/standalone /home/cnlab-pu/Projects/romam/standalone/core /home/cnlab-pu/Projects/romam/build-standalone /home/cnlab-pu/Projects/romam/build-standalone/core /home/cnlab-pu/Projects/romam/build-standalone/core/CMakeFiles/romam_core.dir/DependInfo.cmake "--color=$(COLOR)"
+	cd /home/cnlab-pu/Projects/romam/build-standalone && $(CMAKE_COMMAND) -E cmake_depends "Unix Makefiles" /home/cnlab-pu/Projects/romam/standalone /home/cnlab-pu/Projects/romam/standalone/protocol/core /home/cnlab-pu/Projects/romam/build-standalone /home/cnlab-pu/Projects/romam/build-standalone/core /home/cnlab-pu/Projects/romam/build-standalone/core/CMakeFiles/romam_core.dir/DependInfo.cmake "--color=$(COLOR)"
 .PHONY : core/CMakeFiles/romam_core.dir/depend
 

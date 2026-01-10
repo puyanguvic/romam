@@ -1,13 +1,25 @@
+FROM ubuntu:22.04 AS build
+
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    build-essential cmake \
+  && rm -rf /var/lib/apt/lists/*
+
+WORKDIR /src
+COPY standalone /src/standalone
+
+RUN cmake -S /src/standalone -B /build \
+  && cmake --build /build -j \
+  && install -d /out \
+  && install -m 0755 /build/daemon/romamd /out/romamd \
+  && install -m 0755 /build/traffic/romam-traffic /out/romam-traffic
+
 FROM ubuntu:22.04
 
 RUN apt-get update && apt-get install -y --no-install-recommends \
-    build-essential cmake iproute2 \
+    iproute2 \
   && rm -rf /var/lib/apt/lists/*
 
-WORKDIR /work
-COPY . /work
+COPY --from=build /out/romamd /usr/local/bin/romamd
+COPY --from=build /out/romam-traffic /usr/local/bin/romam-traffic
 
-RUN cmake -S standalone -B build-standalone && cmake --build build-standalone -j
-
-ENTRYPOINT ["/work/build-standalone/daemon/romamd"]
-
+ENTRYPOINT ["/usr/local/bin/romamd"]

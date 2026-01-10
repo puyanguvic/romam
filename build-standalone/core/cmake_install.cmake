@@ -1,4 +1,4 @@
-# Install script for directory: /home/cnlab-pu/Projects/romam/standalone/core
+# Install script for directory: /home/cnlab-pu/Projects/romam/standalone/protocol/core
 
 # Set the install prefix
 if(NOT DEFINED CMAKE_INSTALL_PREFIX)

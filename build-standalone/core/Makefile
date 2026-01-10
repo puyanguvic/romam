@@ -202,6 +202,30 @@ src/lsdb.cpp.s:
 	cd /home/cnlab-pu/Projects/romam/build-standalone && $(MAKE) $(MAKESILENT) -f core/CMakeFiles/romam_core.dir/build.make core/CMakeFiles/romam_core.dir/src/lsdb.cpp.s
 .PHONY : src/lsdb.cpp.s
 
+src/routing.o: src/routing.cpp.o
+.PHONY : src/routing.o
+
+# target to build an object file
+src/routing.cpp.o:
+	cd /home/cnlab-pu/Projects/romam/build-standalone && $(MAKE) $(MAKESILENT) -f core/CMakeFiles/romam_core.dir/build.make core/CMakeFiles/romam_core.dir/src/routing.cpp.o
+.PHONY : src/routing.cpp.o
+
+src/routing.i: src/routing.cpp.i
+.PHONY : src/routing.i
+
+# target to preprocess a source file
+src/routing.cpp.i:
+	cd /home/cnlab-pu/Projects/romam/build-standalone && $(MAKE) $(MAKESILENT) -f core/CMakeFiles/romam_core.dir/build.make core/CMakeFiles/romam_core.dir/src/routing.cpp.i
+.PHONY : src/routing.cpp.i
+
+src/routing.s: src/routing.cpp.s
+.PHONY : src/routing.s
+
+# target to generate assembly for a file
+src/routing.cpp.s:
+	cd /home/cnlab-pu/Projects/romam/build-standalone && $(MAKE) $(MAKESILENT) -f core/CMakeFiles/romam_core.dir/build.make core/CMakeFiles/romam_core.dir/src/routing.cpp.s
+.PHONY : src/routing.cpp.s
+
 src/spf.o: src/spf.cpp.o
 .PHONY : src/spf.o
 
@@ -268,6 +292,9 @@ help:
 	@echo "... src/lsdb.o"
 	@echo "... src/lsdb.i"
 	@echo "... src/lsdb.s"
+	@echo "... src/routing.o"
+	@echo "... src/routing.i"
+	@echo "... src/routing.s"
 	@echo "... src/spf.o"
 	@echo "... src/spf.i"
 	@echo "... src/spf.s"

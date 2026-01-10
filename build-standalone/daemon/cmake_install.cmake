@@ -1,4 +1,4 @@
-# Install script for directory: /home/cnlab-pu/Projects/romam/standalone/daemon
+# Install script for directory: /home/cnlab-pu/Projects/romam/standalone/protocol/daemon
 
 # Set the install prefix
 if(NOT DEFINED CMAKE_INSTALL_PREFIX)
