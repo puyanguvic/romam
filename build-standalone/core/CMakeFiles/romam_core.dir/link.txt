@@ -1,0 +1,2 @@
+/usr/bin/ar qc libromam_core.a CMakeFiles/romam_core.dir/src/config.cpp.o CMakeFiles/romam_core.dir/src/ip.cpp.o CMakeFiles/romam_core.dir/src/lsdb.cpp.o CMakeFiles/romam_core.dir/src/routing.cpp.o CMakeFiles/romam_core.dir/src/spf.cpp.o CMakeFiles/romam_core.dir/src/wire.cpp.o
+/usr/bin/ranlib libromam_core.a

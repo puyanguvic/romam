@@ -1,0 +1,60 @@
+version = 1
+name = "linear5"
+
+[romam]
+multicast = "239.255.0.1:5000"
+hello_interval_ms = 500
+dead_interval_ms = 2000
+lsa_interval_ms = 1000
+route_table = 100
+route_metric_base = 100
+
+[addressing]
+loopback_base = "10.255.0.0/16"
+link_base = "10.0.0.0/8"
+link_prefixlen = 30
+
+[defaults]
+cost = 1
+
+[defaults.tc]
+delay = "5ms"
+bw = 100
+loss = 0.0
+
+[[nodes]]
+name = "r1"
+id = 1
+
+[[nodes]]
+name = "r2"
+id = 2
+
+[[nodes]]
+name = "r3"
+id = 3
+
+[[nodes]]
+name = "r4"
+id = 4
+
+[[nodes]]
+name = "r5"
+id = 5
+
+[[links]]
+a = "r1"
+b = "r2"
+
+[[links]]
+a = "r2"
+b = "r3"
+
+[[links]]
+a = "r3"
+b = "r4"
+
+[[links]]
+a = "r4"
+b = "r5"
+

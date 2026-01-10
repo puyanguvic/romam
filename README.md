@@ -1,4 +1,4 @@
-# ROMAM: An Traffic-aware Distributed Routing Protocol Framework
+# ROMAM: Traffic-aware Routing Framework (Standalone-first)
 
 ## Overview
 
@@ -30,7 +30,30 @@ ROMAM (ROuting Module Architecture for MAchine learning) is an innovative intra-
 
 ## Quick Start
 
-For detailed setup and usage instructions, please refer to our [Quick Start Guide](QUICK_START.md).
+本仓库当前推荐使用 **Standalone 版本**（Linux / Mininet / Docker），不依赖 ns-3：
+
+- `standalone/README.md`：构建、单机运行、Mininet、纯 Linux netns、Docker
+- `MANUAL.zh-CN.md`：中文运行手册（Standalone）
+
+## Module Layout (Refactored)
+
+为了方便“用脚本组装实验”，代码按以下 4 个模块组织（入口保持兼容）：
+
+1) **网络拓扑构建（containerlab-first）**
+   - 入口：`standalone/containerlab/gen.py`
+   - Host 侧库：`romam_lab/topology/*`
+
+2) **网络协议块（重点，便于扩展路由算法）**
+   - Standalone 协议实现：`standalone/protocol/*`（产物仍在 `build-standalone/daemon/romamd`）
+   - 新增配置项：`routing_algo=...`（默认 `spf`）
+
+3) **流量生成器（节点侧应用层）**
+   - Standalone 产物：`build-standalone/traffic/romam-traffic`
+   - Docker 镜像会内置该二进制，便于 containerlab 节点直接跑流量
+
+4) **网络观测工具（Host 侧采集/整理）**
+   - Host 侧库：`romam_lab/observe/*`
+   - 可编辑示例脚本：`lab/*`
 
 ## Documentation
 
