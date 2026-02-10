@@ -7,8 +7,16 @@ EXP_REPEATS ?= 5
 EXP_TOPOLOGY ?= er
 EXP_ER_P ?= 0.12
 EXP_BA_M ?= 2
+EXP_LINK_DELAY_MS ?= 1.0
+EXP_NODE_IMAGE ?= ghcr.io/srl-labs/network-multitool:latest
+EXP_CLAB_IMAGE ?= ghcr.io/srl-labs/clab:latest
+EXP_MGMT_NETWORK_NAME ?=
+EXP_MGMT_IPV4_SUBNET ?=
+EXP_MGMT_IPV6_SUBNET ?=
+EXP_MGMT_EXTERNAL_ACCESS ?= 0
+EXP_USE_SUDO ?= 0
 
-.PHONY: install test lint run-emu run-mininet run-mininet-exp eval clean
+.PHONY: install test lint run-emu run-containerlab-exp eval clean
 
 install:
 	$(PIP) install -e .[dev]
@@ -22,16 +30,21 @@ lint:
 run-emu:
 	PYTHONPATH=$(PYTHONPATH) $(PYTHON) -m rpf.cli.main run --config $(CONFIG)
 
-run-mininet:
-	PYTHONPATH=$(PYTHONPATH) $(PYTHON) -m rpf.cli.main run-mininet --config $(CONFIG)
-
-run-mininet-exp:
-	PYTHONPATH=$(PYTHONPATH) $(PYTHON) exps/ospf_coverage_mininet_exp.py \
+run-containerlab-exp:
+	PYTHONPATH=$(PYTHONPATH) $(PYTHON) exps/ospf_coverage_containerlab_exp.py \
 		--n-nodes $(EXP_N_NODES) \
 		--repeats $(EXP_REPEATS) \
 		--topology $(EXP_TOPOLOGY) \
 		--er-p $(EXP_ER_P) \
-		--ba-m $(EXP_BA_M)
+		--ba-m $(EXP_BA_M) \
+		--link-delay-ms $(EXP_LINK_DELAY_MS) \
+		--node-image $(EXP_NODE_IMAGE) \
+		--clab-image $(EXP_CLAB_IMAGE) \
+		$(if $(strip $(EXP_MGMT_NETWORK_NAME)),--mgmt-network-name $(EXP_MGMT_NETWORK_NAME),) \
+		$(if $(strip $(EXP_MGMT_IPV4_SUBNET)),--mgmt-ipv4-subnet $(EXP_MGMT_IPV4_SUBNET),) \
+		$(if $(strip $(EXP_MGMT_IPV6_SUBNET)),--mgmt-ipv6-subnet $(EXP_MGMT_IPV6_SUBNET),) \
+		$(if $(filter 1 yes true,$(EXP_MGMT_EXTERNAL_ACCESS)),--mgmt-external-access,) \
+		$(if $(filter 1 yes true,$(EXP_USE_SUDO)),--sudo,)
 
 eval:
 	PYTHONPATH=$(PYTHONPATH) $(PYTHON) -m rpf.eval.summarize --runs results/runs --out results/tables/summary.csv
