@@ -1,33 +1,17 @@
 from __future__ import annotations
 
-import heapq
 from typing import Dict
 
 from rpf.protocols.base import RoutingProtocol
 
 
-def shortest_distances(graph: Dict[int, Dict[int, float]], start: int) -> Dict[int, float]:
-    dist = {start: 0.0}
-    pq = [(0.0, start)]
-    while pq:
-        d, u = heapq.heappop(pq)
-        if d > dist.get(u, float("inf")):
-            continue
-        for v, w in graph.get(u, {}).items():
-            nd = d + w
-            if nd < dist.get(v, float("inf")):
-                dist[v] = nd
-                heapq.heappush(pq, (nd, v))
-    return dist
-
-
 class EcmpProtocol(RoutingProtocol):
-    """Centralized ECMP planner over current topology snapshot."""
+    """Topology-snapshot ECMP planner over global shortest paths."""
 
     def __init__(self, node_id: int, config: dict | None = None) -> None:
         super().__init__(node_id, config)
-        self.k_paths = int(self.config.get("k_paths", 2))
-        self.recompute_interval = int(self.config.get("recompute_interval", 3))
+        self.k_paths = max(1, int(self.config.get("k_paths", self.config.get("max_paths", 4))))
+        self.recompute_interval = max(1, int(self.config.get("recompute_interval", 3)))
 
     def on_start(self, ctx) -> None:
         self._recompute(ctx)
@@ -44,30 +28,35 @@ class EcmpProtocol(RoutingProtocol):
         self._recompute(ctx)
 
     def _recompute(self, ctx) -> None:
-        graph = ctx.get_topology_snapshot()
-        my_neighbors = graph.get(self.node_id, {})
-        if not my_neighbors:
-            ctx.replace_routes({})
+        graph: Dict[int, Dict[int, float]] = ctx.get_topology_snapshot()
+        if self.node_id not in graph:
+            self.clear_routes(keep_self=True)
+            self.publish_routing_table(ctx)
             return
 
-        dist_from_neighbor = {nbr: shortest_distances(graph, nbr) for nbr in my_neighbors}
-        all_nodes = sorted(graph.keys())
-        routes = {}
+        distances, predecessors = self.dijkstra_with_predecessors(graph, self.node_id)
 
-        for dst in all_nodes:
+        self.clear_routes(keep_self=True)
+        for dst in sorted(distances):
             if dst == self.node_id:
                 continue
-            best = float("inf")
-            candidates = []
-            for nbr, link_cost in my_neighbors.items():
-                d = dist_from_neighbor[nbr].get(dst, float("inf"))
-                total = link_cost + d
-                if total < best:
-                    best = total
-                    candidates = [nbr]
-                elif total == best:
-                    candidates.append(nbr)
-            if candidates and best < float("inf"):
-                routes[dst] = sorted(candidates)[: self.k_paths]
+            first_hops = self.compute_shortest_first_hops(
+                start=self.node_id,
+                dst=dst,
+                predecessors=predecessors,
+                max_paths=self.k_paths,
+            )
+            if not first_hops:
+                continue
+            self.upsert_route(
+                dst=dst,
+                metric=float(distances[dst]),
+                candidate_next_hops=first_hops,
+                source="ecmp",
+            )
 
-        ctx.replace_routes(routes)
+        self.publish_routing_table(ctx)
+
+
+class EcompProtocol(EcmpProtocol):
+    """Alias for users using the historical 'ecomp' name."""

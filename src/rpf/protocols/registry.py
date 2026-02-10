@@ -3,19 +3,20 @@ from __future__ import annotations
 from typing import Dict, Type
 
 from rpf.protocols.base import RoutingProtocol
-from rpf.protocols.ecmp import EcmpProtocol
-from rpf.protocols.ospf_like import OspfLikeProtocol
-from rpf.protocols.rip_like import RipLikeProtocol
+from rpf.protocols.ecmp import EcmpProtocol, EcompProtocol
+from rpf.protocols.ospf import OspfProtocol
+from rpf.protocols.rip import RipProtocol
 
 _REGISTRY: Dict[str, Type[RoutingProtocol]] = {
-    "ospf_like": OspfLikeProtocol,
-    "rip_like": RipLikeProtocol,
+    "ospf": OspfProtocol,
+    "rip": RipProtocol,
     "ecmp": EcmpProtocol,
+    "ecomp": EcompProtocol,
 }
 
 
 def register_protocol(name: str, protocol_cls: Type[RoutingProtocol]) -> None:
-    _REGISTRY[name] = protocol_cls
+    _REGISTRY[str(name)] = protocol_cls
 
 
 def load_protocol(name: str) -> Type[RoutingProtocol]:
