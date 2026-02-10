@@ -1,1 +1,0 @@
-/usr/bin/c++ CMakeFiles/romamd.dir/src/linux_netlink.cpp.o CMakeFiles/romamd.dir/src/main.cpp.o CMakeFiles/romamd.dir/src/multicast.cpp.o -o romamd  ../core/libromam_core.a 
