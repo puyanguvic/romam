@@ -3,11 +3,15 @@ build/
 
 *.pyc
 __pycache__/
-
 *.routes
 sinked-packet.delay
 throughput.txt
-
 .DS_Store
-
 experiment/
+*.py[cod]
+*.egg-info/
+.pytest_cache/
+.ruff_cache/
+results/runs/
+results/tables/
+results/figs/
