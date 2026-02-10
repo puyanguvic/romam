@@ -1,7 +1,7 @@
 name: metric_drift
 seed: 123
-protocol: ospf_like
-protocol_config: configs/protocols/ospf_like.yaml
+protocol: ospf
+protocol_config: configs/protocols/ospf.yaml
 topology:
   type: grid
   rows: 4

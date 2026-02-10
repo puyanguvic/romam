@@ -16,7 +16,7 @@ from rpf.utils.io import dump_json, ensure_dir, now_tag
 class EmuBackend(Backend):
     def run(self, config: Dict[str, Any]) -> Dict[str, Any]:
         seed = int(config.get("seed", 42))
-        protocol_name = str(config.get("protocol", "ospf_like"))
+        protocol_name = str(config.get("protocol", "ospf"))
         protocol_cfg = config.get("protocol_params", {})
 
         topology = Topology.from_config(config.get("topology", {}), seed=seed)

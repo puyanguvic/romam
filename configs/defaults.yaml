@@ -6,8 +6,8 @@ logging:
 output_dir: results/runs
 engine: tick
 engine_config: configs/engines/tick.yaml
-protocol: ospf_like
-protocol_config: configs/protocols/ospf_like.yaml
+protocol: ospf
+protocol_config: configs/protocols/ospf.yaml
 topology:
   type: ring
   n_nodes: 8

@@ -1,7 +1,7 @@
 name: failure_recovery
 seed: 42
-protocol: ospf_like
-protocol_config: configs/protocols/ospf_like.yaml
+protocol: ospf
+protocol_config: configs/protocols/ospf.yaml
 topology:
   type: ring
   n_nodes: 12
