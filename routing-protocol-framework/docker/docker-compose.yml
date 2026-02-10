@@ -1,0 +1,24 @@
+version: "3.9"
+
+services:
+  framework:
+    build:
+      context: ..
+      dockerfile: docker/Dockerfile.framework
+    working_dir: /app
+    volumes:
+      - ..:/app
+    profiles: ["emu", "eval"]
+    entrypoint: ["bash", "docker/entrypoints/run_emu.sh"]
+
+  mininet:
+    build:
+      context: ..
+      dockerfile: docker/Dockerfile.mininet
+    working_dir: /app
+    privileged: true
+    network_mode: host
+    volumes:
+      - ..:/app
+    profiles: ["mn"]
+    entrypoint: ["bash", "docker/entrypoints/run_mn.sh"]

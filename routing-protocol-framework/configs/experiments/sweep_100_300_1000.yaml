@@ -1,0 +1,17 @@
+name: sweep_100_300_1000
+seed: 7
+protocols:
+  - ospf_like
+  - rip_like
+sizes: [100, 300, 1000]
+repeats: 2
+topology:
+  type: er
+  p: 0.02
+engine:
+  max_ticks: 200
+network:
+  base_delay: 1
+  jitter: 1
+  loss_prob: 0.0
+output_dir: results/runs/sweep

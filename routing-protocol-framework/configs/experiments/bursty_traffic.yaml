@@ -1,0 +1,22 @@
+name: bursty_traffic
+seed: 999
+protocol: ecmp
+protocol_config: configs/protocols/ecmp.yaml
+topology:
+  type: er
+  n_nodes: 40
+  p: 0.08
+  default_metric: 1.0
+engine:
+  max_ticks: 120
+network:
+  base_delay: 1
+  jitter: 1
+  loss_prob: 0.02
+traffic:
+  model: bursty
+  bursts:
+    - tick: 20
+      duration: 15
+      intensity: high
+output_dir: results/runs/bursty_traffic

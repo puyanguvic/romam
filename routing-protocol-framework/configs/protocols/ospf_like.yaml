@@ -1,0 +1,5 @@
+name: ospf_like
+spf_interval: 3
+lsa_refresh: 20
+jitter: 0
+infinity_cost: 1000000
