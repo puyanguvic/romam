@@ -8,7 +8,7 @@ A lightweight, extensible routing protocol framework for emulation, protocol com
 - Pluggable routing protocols (`ospf_like`, `rip_like`, `ecmp`).
 - Config-driven experiments (topology, failures, metrics drift, sweeps).
 - Structured run logs (`jsonl`) and summary tables.
-- Optional Mininet integration stubs for realism validation.
+- Mininet support via a standalone `1ms` link-delay experiment script.
 
 ## Quick Start
 
@@ -23,6 +23,25 @@ or with CLI:
 ```bash
 rpf run --config configs/experiments/failure_recovery.yaml
 ```
+
+## Mininet Experiment (1ms Link Delay)
+
+Run the standalone Mininet coverage experiment (all links use `1ms` delay):
+
+```bash
+make run-mininet-exp EXP_N_NODES=20 EXP_REPEATS=3 EXP_TOPOLOGY=er EXP_ER_P=0.2
+```
+
+or directly:
+
+```bash
+python3 exps/ospf_coverage_mininet_exp.py --n-nodes 20 --repeats 3 --topology er --er-p 0.2
+```
+
+Outputs:
+
+- Run artifacts: `results/runs/ospf_coverage_mininet/`
+- Aggregated tables: `results/tables/ospf_coverage_mininet_n*.json` and `.csv`
 
 ## Project Layout
 
@@ -39,4 +58,5 @@ By default, outputs are stored under `results/`:
 ## Notes
 
 - This baseline implementation focuses on emulation backend and deterministic tick engine.
-- Mininet backend is included as interfaces/stubs for further extension.
+- CLI Mininet backend remains interface/stub based.
+- A standalone Mininet experiment script is available at `exps/ospf_coverage_mininet_exp.py`.
