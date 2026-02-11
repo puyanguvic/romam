@@ -1,14 +1,27 @@
-# Routing Protocol Framework (Containerlab Only)
+# Routing Protocol Framework (Containerlab + Per-Router Daemon)
 
-This repository has been cleaned to keep only the containerlab-based experiment workflow.
-Mininet and pure in-process simulation components have been removed.
+This project now follows a routing-suite style architecture:
+- one `routerd` process per router container,
+- protocol engines (OSPF / RIP) running inside that daemon,
+- containerlab only manages containers/links/namespaces/lifecycle/fault injection.
 
-## What Remains
+The control plane is organized into four core parts:
+- control messages (`src/rpf/model/messages.py`)
+- local protocol state (`src/rpf/model/state.py`)
+- routing table / RIB (`src/rpf/model/routing.py`)
+- forwarding / FIB apply layer (`src/rpf/runtime/forwarding.py`)
 
-- Containerlab OSPF convergence runner: `exps/ospf_convergence_exp.py`
-- Topology utilities used by the runner: `src/rpf/core/topology.py`
-- Shared file/time helpers: `src/rpf/utils/io.py`
-- Make target for running the experiment: `make run-ospf-convergence-exp` (legacy alias: `make run-containerlab-exp`)
+## Main Components
+
+- Router daemon runtime: `src/rpf/routerd.py`, `src/rpf/runtime/daemon.py`
+- Protocol engines:
+  - OSPF-like link-state: `src/rpf/protocols/ospf.py`
+  - RIP distance-vector: `src/rpf/protocols/rip.py`
+- Config loader: `src/rpf/runtime/config.py`
+- Example daemon configs: `exps/routerd_examples/`
+- Existing topology + experiment utilities remain:
+  - `src/rpf/core/topology.py`
+  - `exps/ospf_convergence_exp.py`
 
 ## Setup
 
@@ -37,6 +50,107 @@ If needed:
 ```bash
 export PATH="$HOME/.local/bin:$PATH"
 ```
+
+## Run Router Daemon (Inside Each Router Container)
+
+Per container (router) run one daemon:
+
+```bash
+python3 -m rpf.routerd --config /path/to/router.yaml --log-level INFO
+```
+
+OSPF example config: `exps/routerd_examples/ospf_router1.yaml`  
+RIP example config: `exps/routerd_examples/rip_router1.yaml`
+
+### Config Shape
+
+```yaml
+router_id: 1
+protocol: ospf  # or rip
+bind:
+  address: 0.0.0.0
+  port: 5500
+timers:
+  tick_interval: 1.0
+  dead_interval: 4.0
+neighbors:
+  - router_id: 2
+    address: 10.0.12.2
+    port: 5500
+    cost: 1.0
+protocol_params:
+  ospf:
+    hello_interval: 1.0
+    lsa_interval: 3.0
+forwarding:
+  enabled: false
+  dry_run: true
+```
+
+`forwarding.enabled=true` enables Linux route programming (`ip route`) based on protocol output.
+You need `destination_prefixes` and `next_hop_ips` mappings in config to install concrete kernel routes.
+
+## Generate Containerlab Topology + Per-Router Configs
+
+Use the generator to create one `.clab.yaml` and one `routerd` config per node:
+
+```bash
+make gen-routerd-lab LABGEN_PROTOCOL=ospf LABGEN_TOPOLOGY=ring LABGEN_N_NODES=6
+```
+
+Or run directly:
+
+```bash
+python3 exps/generate_routerd_lab.py --protocol rip --topology er --n-nodes 8 --seed 7
+```
+
+Generated assets are written under:
+- `results/runs/routerd_labs/<lab_name>/<lab_name>.clab.yaml`
+- `results/runs/routerd_labs/<lab_name>/configs/r*.yaml`
+
+The generator now writes a dedicated containerlab `mgmt` network block and auto-selects
+free subnets when possible, to avoid default `clab` subnet conflicts.
+
+The generated topology already includes node `exec` commands to:
+- bring up data interfaces,
+- assign /30 link IPs,
+- start `python3 -m rpf.routerd` inside each router container.
+
+### Common Pitfalls
+
+- `Permission denied` under `results/runs/routerd_labs/...`:
+  this is usually caused by previous `sudo make` creating root-owned files.
+  Fix with:
+  ```bash
+  sudo chown -R "$USER:$USER" results/runs/routerd_labs
+  ```
+- `sudo: containerlab: command not found`:
+  your `sudo` PATH may not include `~/.local/bin`.
+  Use absolute path:
+  ```bash
+  sudo "$(which containerlab)" deploy -t <topology_file> --reconfigure
+  ```
+- Deploying the wrong run:
+  always deploy the same `topology_file` path printed by your latest `make gen-routerd-lab`.
+
+## Validate A Running Lab
+
+After `containerlab deploy`, run:
+
+```bash
+make check-routerd-lab \
+  CHECK_TOPOLOGY_FILE=results/runs/routerd_labs/<lab_name>/<lab_name>.clab.yaml \
+  CHECK_USE_SUDO=1 \
+  CHECK_EXPECT_PROTOCOL=ospf
+```
+
+What it checks per node:
+- container is running,
+- `rpf.routerd` process exists,
+- neighbor IP ping (from generated config) succeeds,
+- latest `RIB/FIB updated` route count is at least `n_nodes-1` (or `CHECK_MIN_ROUTES`).
+
+By default checker waits up to `10s` for early convergence logs (`CHECK_MAX_WAIT_S`).
 
 ## Run OSPF Convergence Demo
 
