@@ -91,7 +91,8 @@ class Topology:
     @classmethod
     def grid(cls, rows: int, cols: int, metric: float = 1.0) -> "Topology":
         t = cls()
-        idx = lambda r, c: r * cols + c
+        def idx(r: int, c: int) -> int:
+            return r * cols + c
         for r in range(rows):
             for c in range(cols):
                 u = idx(r, c)

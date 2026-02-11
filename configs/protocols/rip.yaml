@@ -1,5 +1,0 @@
-name: rip
-update_interval: 5
-triggered_min_gap: 2
-infinity_metric: 16
-split_horizon: true

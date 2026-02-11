@@ -1,3 +1,0 @@
-# Optional event-queue mode placeholder.
-enabled: false
-max_events: 100000

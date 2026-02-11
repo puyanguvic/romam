@@ -1,7 +1,6 @@
 PYTHON ?= python3
 PIP ?= $(PYTHON) -m pip
 PYTHONPATH ?= src
-CONFIG ?= configs/experiments/failure_recovery.yaml
 EXP_N_NODES ?= 50
 EXP_REPEATS ?= 5
 EXP_TOPOLOGY ?= er
@@ -15,7 +14,7 @@ EXP_MGMT_IPV6_SUBNET ?=
 EXP_MGMT_EXTERNAL_ACCESS ?= 0
 EXP_USE_SUDO ?= 0
 
-.PHONY: install test lint run-emu run-containerlab-exp eval clean
+.PHONY: install test lint run-containerlab-exp clean
 
 install:
 	$(PIP) install -e .[dev]
@@ -24,10 +23,7 @@ test:
 	$(PYTHON) -m pytest
 
 lint:
-	ruff check src tests scripts
-
-run-emu:
-	PYTHONPATH=$(PYTHONPATH) $(PYTHON) -m rpf.cli.main run --config $(CONFIG)
+	ruff check src tests scripts exps
 
 run-containerlab-exp:
 	PYTHONPATH=$(PYTHONPATH) $(PYTHON) exps/ospf_coverage_containerlab_exp.py \
@@ -43,9 +39,6 @@ run-containerlab-exp:
 		$(if $(strip $(EXP_MGMT_IPV6_SUBNET)),--mgmt-ipv6-subnet $(EXP_MGMT_IPV6_SUBNET),) \
 		$(if $(filter 1 yes true,$(EXP_MGMT_EXTERNAL_ACCESS)),--mgmt-external-access,) \
 		$(if $(filter 1 yes true,$(EXP_USE_SUDO)),--sudo,)
-
-eval:
-	PYTHONPATH=$(PYTHONPATH) $(PYTHON) -m rpf.eval.summarize --runs results/runs --out results/tables/summary.csv
 
 clean:
 	rm -rf .pytest_cache .ruff_cache dist build *.egg-info

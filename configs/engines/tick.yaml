@@ -1,6 +1,0 @@
-max_ticks: 120
-deterministic: true
-network:
-  base_delay: 1
-  jitter: 0
-  loss_prob: 0.0

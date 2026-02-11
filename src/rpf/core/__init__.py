@@ -1,1 +1,1 @@
-"""Core simulation components."""
+"""Core topology components."""

@@ -5,7 +5,7 @@ build-backend = "setuptools.build_meta"
 [project]
 name = "routing-protocol-framework"
 version = "0.1.0"
-description = "Tick-based routing protocol framework for emulation and evaluation"
+description = "Containerlab-based routing experiment toolkit"
 readme = "README.md"
 requires-python = ">=3.10"
 dependencies = [
@@ -13,14 +13,10 @@ dependencies = [
 ]
 
 [project.optional-dependencies]
-plot = ["matplotlib>=3.8"]
 dev = [
   "pytest>=8.0",
   "ruff>=0.6",
 ]
-
-[project.scripts]
-rpf = "rpf.cli.main:main"
 
 [tool.setuptools]
 package-dir = {"" = "src"}

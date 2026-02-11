@@ -1,3 +1,0 @@
-name: ecmp
-k_paths: 2
-pinning: flow_hash
