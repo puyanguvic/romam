@@ -9,7 +9,6 @@ EXP_ER_P ?= 0.12
 EXP_BA_M ?= 2
 EXP_LINK_DELAY_MS ?= 1.0
 EXP_NODE_IMAGE ?= ghcr.io/srl-labs/network-multitool:latest
-EXP_CLAB_IMAGE ?= ghcr.io/srl-labs/clab:latest
 EXP_MGMT_NETWORK_NAME ?=
 EXP_MGMT_IPV4_SUBNET ?=
 EXP_MGMT_IPV6_SUBNET ?=
@@ -39,7 +38,6 @@ run-containerlab-exp:
 		--ba-m $(EXP_BA_M) \
 		--link-delay-ms $(EXP_LINK_DELAY_MS) \
 		--node-image $(EXP_NODE_IMAGE) \
-		--clab-image $(EXP_CLAB_IMAGE) \
 		$(if $(strip $(EXP_MGMT_NETWORK_NAME)),--mgmt-network-name $(EXP_MGMT_NETWORK_NAME),) \
 		$(if $(strip $(EXP_MGMT_IPV4_SUBNET)),--mgmt-ipv4-subnet $(EXP_MGMT_IPV4_SUBNET),) \
 		$(if $(strip $(EXP_MGMT_IPV6_SUBNET)),--mgmt-ipv6-subnet $(EXP_MGMT_IPV6_SUBNET),) \

@@ -34,7 +34,7 @@ make install
 
 2. Ensure Docker is installed and running.
 
-3. Install a local `containerlab` binary (recommended for this project):
+3. Install a local `containerlab` binary (required for this project):
 
 ```bash
 mkdir -p "$HOME/.local/bin"
@@ -69,7 +69,10 @@ make run-containerlab-exp EXP_N_NODES=20 EXP_REPEATS=3 EXP_TOPOLOGY=er EXP_ER_P=
 Prerequisites:
 
 - Use a locally installed `containerlab` binary (see setup section above).
+- The experiment script invokes host `containerlab` directly (`deploy ... --reconfigure` / `destroy ... --cleanup`), not the clab Docker image.
+- `docker compose --profile clab ...` is no longer supported for this experiment.
 - If your environment needs root privileges for Docker/containerlab, set `EXP_USE_SUDO=1`.
+- Prefer `make run-containerlab-exp EXP_USE_SUDO=1 ...` instead of `sudo make ...` to avoid PATH differences.
 - The script auto-selects a free containerlab management subnet to avoid Docker network conflicts.
 - Management `external-access` is disabled by default.
 

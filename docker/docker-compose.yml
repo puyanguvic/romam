@@ -10,16 +10,3 @@ services:
       - ..:/app
     profiles: ["emu", "eval"]
     entrypoint: ["bash", "docker/entrypoints/run_emu.sh"]
-
-  containerlab:
-    build:
-      context: ..
-      dockerfile: docker/Dockerfile.containerlab
-    working_dir: /app
-    privileged: true
-    network_mode: host
-    volumes:
-      - ..:/app
-      - /var/run/docker.sock:/var/run/docker.sock
-    profiles: ["clab"]
-    entrypoint: ["bash", "docker/entrypoints/run_clab_exp.sh"]

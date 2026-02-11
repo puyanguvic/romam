@@ -7,6 +7,8 @@ import csv
 import ipaddress
 import json
 import math
+import os
+import pwd
 import re
 import shutil
 import subprocess
@@ -85,11 +87,6 @@ def parse_args() -> argparse.Namespace:
         "--node-image",
         default="ghcr.io/srl-labs/network-multitool:latest",
         help="Container image for linux nodes.",
-    )
-    parser.add_argument(
-        "--clab-image",
-        default="ghcr.io/srl-labs/clab:latest",
-        help="Containerlab image used when local containerlab binary is unavailable.",
     )
     parser.add_argument(
         "--lab-name-prefix",
@@ -217,23 +214,59 @@ def run_cmd(cmd: List[str], capture_output: bool = True, check: bool = True) -> 
     return (result.stdout or "").strip()
 
 
+def containerlab_search_candidates() -> List[Path]:
+    candidates: List[Path] = []
+    seen: set[str] = set()
+
+    def add_candidate(path_str: str | None) -> None:
+        if not path_str:
+            return
+        path = Path(path_str).expanduser()
+        key = str(path)
+        if key in seen:
+            return
+        seen.add(key)
+        candidates.append(path)
+
+    add_candidate(shutil.which("containerlab"))
+    add_candidate(os.environ.get("CONTAINERLAB_BIN"))
+    add_candidate(str(Path.home() / ".local/bin" / "containerlab"))
+
+    sudo_user = os.environ.get("SUDO_USER")
+    if sudo_user:
+        try:
+            sudo_home = Path(pwd.getpwnam(sudo_user).pw_dir)
+            add_candidate(str(sudo_home / ".local/bin" / "containerlab"))
+        except KeyError:
+            pass
+
+    add_candidate("/usr/local/bin/containerlab")
+    add_candidate("/usr/bin/containerlab")
+    add_candidate("/bin/containerlab")
+    return candidates
+
+
 def local_containerlab_path() -> str | None:
-    path = shutil.which("containerlab")
-    if not path:
-        return None
-    return str(Path(path).resolve())
-
-
-def has_local_containerlab() -> bool:
-    return local_containerlab_path() is not None
+    for candidate in containerlab_search_candidates():
+        try:
+            if candidate.is_file() and os.access(candidate, os.X_OK):
+                return str(candidate.resolve(strict=False))
+        except OSError:
+            continue
+    return None
 
 
 def ensure_prerequisites(use_sudo: bool) -> None:
     if shutil.which("docker") is None:
         raise RuntimeError("Missing required command(s): docker")
-    if not has_local_containerlab():
-        # Fallback to clab docker image is supported; only fail if neither path is possible.
-        _ = shutil.which("docker")
+    if local_containerlab_path() is None:
+        search_hint = ", ".join(str(p) for p in containerlab_search_candidates())
+        raise RuntimeError(
+            "Missing required command: containerlab.\n"
+            f"Searched: {search_hint}\n"
+            "Install containerlab on host and ensure it is available in PATH.\n"
+            "If using sudo, prefer 'make ... EXP_USE_SUDO=1' instead of 'sudo make ...'."
+        )
     if use_sudo and shutil.which("sudo") is None:
         raise RuntimeError("Missing required command: sudo")
     try:
@@ -247,88 +280,31 @@ def ensure_prerequisites(use_sudo: bool) -> None:
         raise
 
 
-def clab_commands(
+def clab_command(
     args: argparse.Namespace,
     action: str,
     topology_path: Path,
-) -> List[List[str]]:
+) -> List[str]:
     action_flag = "--reconfigure" if action == "deploy" else "--cleanup"
     local_bin = local_containerlab_path()
-    if local_bin:
-        return [
-            with_sudo(
-                [local_bin, action, "-t", str(topology_path), action_flag],
-                args.sudo,
-            )
-        ]
-
-    workspace_mount = str(REPO_ROOT)
-    container_topology_path = f"/workspace/{topology_path.relative_to(REPO_ROOT)}"
-    base = [
-        "docker",
-        "run",
-        "--rm",
-        "--privileged",
-        "--network",
-        "host",
-        "-v",
-        "/var/run/docker.sock:/var/run/docker.sock",
-        "-v",
-        "/proc/sys:/proc/sys",
-        "-v",
-        f"{workspace_mount}:/workspace",
-        "-w",
-        "/workspace",
-    ]
-    deploy_args = [action, "-t", container_topology_path, action_flag]
-    candidates = [
-        [
-            *base,
-            "--entrypoint",
-            "containerlab",
-            str(args.clab_image),
-            *deploy_args,
-        ],
-        [
-            *base,
-            "--entrypoint",
-            "clab",
-            str(args.clab_image),
-            *deploy_args,
-        ],
-        [
-            *base,
-            str(args.clab_image),
-            "containerlab",
-            *deploy_args,
-        ],
-    ]
-    return [with_sudo(cmd, args.sudo) for cmd in candidates]
+    if local_bin is None:
+        raise RuntimeError(
+            "Missing required command: containerlab.\n"
+            "Install containerlab on host and rerun."
+        )
+    return with_sudo([local_bin, action, "-t", str(topology_path), action_flag], args.sudo)
 
 
 def run_clab_action(args: argparse.Namespace, action: str, topology_path: Path) -> None:
-    last_error: RuntimeError | None = None
-    attempts: List[str] = []
-    for cmd in clab_commands(args, action, topology_path):
-        try:
-            run_cmd(cmd)
-            return
-        except RuntimeError as exc:
-            attempts.append(" ".join(cmd))
-            last_error = exc
-    if last_error is not None:
-        last_msg = str(last_error)
-        extra_hint = ""
-        if "rp_filter" in last_msg or "read-only file system" in last_msg:
-            extra_hint = (
-                "\nHint: running containerlab via docker-image fallback "
-                "is blocked by host sysctl restrictions. "
-                "Install local containerlab binary and rerun with --sudo."
-            )
+    cmd = clab_command(args, action, topology_path)
+    try:
+        run_cmd(cmd)
+    except RuntimeError as exc:
         raise RuntimeError(
-            f"All containerlab invocation strategies failed for action '{action}'.\n"
-            f"Tried:\n- " + "\n- ".join(attempts) + f"\n\nLast error:\n{last_error}{extra_hint}"
-        ) from last_error
+            f"containerlab action '{action}' failed.\n"
+            f"Command: {' '.join(cmd)}\n"
+            f"Error:\n{exc}"
+        ) from exc
 
 
 def format_delay(delay_ms: float) -> str:
@@ -665,7 +641,7 @@ def run_once(
         "edge_count": len(probe_plan),
         "link_delay_ms": float(args.link_delay_ms),
         "node_image": args.node_image,
-        "clab_mode": "local-binary" if has_local_containerlab() else "docker-image",
+        "clab_mode": "host-binary",
         "lab_name": lab_name,
         "mgmt_network_name": mgmt_network_name,
         "mgmt_ipv4_subnet": mgmt_ipv4_subnet,
@@ -692,7 +668,7 @@ def summarize(metrics_rows: List[Dict[str, Any]], args: argparse.Namespace) -> D
         "topology": args.topology,
         "link_delay_ms": float(args.link_delay_ms),
         "node_image": args.node_image,
-        "clab_mode": "local-binary" if has_local_containerlab() else "docker-image",
+        "clab_mode": "host-binary",
         "mgmt_network_name": metrics_rows[0]["mgmt_network_name"] if metrics_rows else None,
         "mgmt_ipv4_subnet": metrics_rows[0]["mgmt_ipv4_subnet"] if metrics_rows else None,
         "mgmt_ipv6_subnet": metrics_rows[0]["mgmt_ipv6_subnet"] if metrics_rows else None,
