@@ -1,8 +1,8 @@
 PYTHON ?= python3
 PIP ?= $(PYTHON) -m pip
 PYTHONPATH ?= src
-EXP_N_NODES ?= 50
-EXP_REPEATS ?= 5
+EXP_N_NODES ?= 6
+EXP_REPEATS ?= 1
 EXP_TOPOLOGY ?= er
 EXP_ER_P ?= 0.12
 EXP_BA_M ?= 2
@@ -14,7 +14,7 @@ EXP_MGMT_IPV6_SUBNET ?=
 EXP_MGMT_EXTERNAL_ACCESS ?= 0
 EXP_USE_SUDO ?= 0
 
-.PHONY: install test lint run-containerlab-exp clean
+.PHONY: install test lint run-containerlab-exp run-ospf-convergence-exp clean
 
 install:
 	$(PIP) install -e .[dev]
@@ -26,7 +26,10 @@ lint:
 	ruff check src tests scripts exps
 
 run-containerlab-exp:
-	PYTHONPATH=$(PYTHONPATH) $(PYTHON) exps/ospf_coverage_containerlab_exp.py \
+	$(MAKE) run-ospf-convergence-exp
+
+run-ospf-convergence-exp:
+	PYTHONPATH=$(PYTHONPATH) $(PYTHON) exps/ospf_convergence_exp.py \
 		--n-nodes $(EXP_N_NODES) \
 		--repeats $(EXP_REPEATS) \
 		--topology $(EXP_TOPOLOGY) \

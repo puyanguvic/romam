@@ -5,10 +5,10 @@ Mininet and pure in-process simulation components have been removed.
 
 ## What Remains
 
-- Containerlab experiment runner: `exps/ospf_coverage_containerlab_exp.py`
+- Containerlab OSPF convergence runner: `exps/ospf_convergence_exp.py`
 - Topology utilities used by the runner: `src/rpf/core/topology.py`
 - Shared file/time helpers: `src/rpf/utils/io.py`
-- Make target for running the experiment: `make run-containerlab-exp`
+- Make target for running the experiment: `make run-ospf-convergence-exp` (legacy alias: `make run-containerlab-exp`)
 
 ## Setup
 
@@ -38,28 +38,28 @@ If needed:
 export PATH="$HOME/.local/bin:$PATH"
 ```
 
-## Run Containerlab Experiment
+## Run OSPF Convergence Demo
 
 ```bash
-make run-containerlab-exp EXP_N_NODES=20 EXP_REPEATS=3 EXP_TOPOLOGY=er EXP_ER_P=0.2
+make run-ospf-convergence-exp EXP_N_NODES=6 EXP_REPEATS=1 EXP_TOPOLOGY=er EXP_ER_P=0.2
 ```
 
 Direct script usage:
 
 ```bash
-python3 exps/ospf_coverage_containerlab_exp.py --n-nodes 20 --repeats 3 --topology er --er-p 0.2
+python3 exps/ospf_convergence_exp.py --n-nodes 6 --repeats 1 --topology er --er-p 0.2
 ```
 
 If your environment requires privilege escalation for Docker/containerlab:
 
 ```bash
-make run-containerlab-exp EXP_USE_SUDO=1
+make run-ospf-convergence-exp EXP_USE_SUDO=1
 ```
 
 Optional fixed management network/subnets:
 
 ```bash
-make run-containerlab-exp EXP_USE_SUDO=1 \
+make run-ospf-convergence-exp EXP_USE_SUDO=1 \
   EXP_MGMT_NETWORK_NAME=clab-mgmt-romam \
   EXP_MGMT_IPV4_SUBNET=10.250.10.0/24 \
   EXP_MGMT_IPV6_SUBNET=fd00:fa:10::/64
@@ -67,5 +67,5 @@ make run-containerlab-exp EXP_USE_SUDO=1 \
 
 ## Outputs
 
-- Per-run artifacts: `results/runs/ospf_coverage_containerlab/`
-- Aggregated results: `results/tables/ospf_coverage_containerlab_n*.json` and `.csv`
+- Per-run artifacts: `results/runs/ospf_convergence_containerlab/`
+- Aggregated results: `results/tables/ospf_convergence_containerlab_n*.json` and `.csv`
