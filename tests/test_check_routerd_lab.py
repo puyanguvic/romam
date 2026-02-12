@@ -19,8 +19,8 @@ def _load_module():
 def test_parse_last_route_count() -> None:
     module = _load_module()
     text = """
-2026-02-11 INFO rpf.routerd: something
-2026-02-11 INFO rpf.routerd: RIB/FIB updated: [(2, 2, 1.0), (3, 2, 2.0), (4, 4, 1.0)]
+2026-02-11 INFO irp.routerd: something
+2026-02-11 INFO irp.routerd: RIB/FIB updated: [(2, 2, 1.0), (3, 2, 2.0), (4, 4, 1.0)]
 """.strip()
     assert module.parse_last_route_count(text) == 3
 
@@ -28,6 +28,6 @@ def test_parse_last_route_count() -> None:
 def test_parse_protocol_from_log() -> None:
     module = _load_module()
     text = """
-2026-02-11 INFO rpf.routerd: routerd start: router_id=1 protocol=ospf bind=0.0.0.0:5500
+2026-02-11 INFO irp.routerd: routerd start: router_id=1 protocol=ospf bind=0.0.0.0:5500
 """.strip()
     assert module.parse_protocol_from_log(text) == "ospf"

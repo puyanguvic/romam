@@ -1,8 +1,8 @@
 from __future__ import annotations
 
-from rpf.model.messages import ControlMessage, MessageKind
-from rpf.protocols.base import ProtocolContext, RouterLink
-from rpf.protocols.ospf import OspfProtocol, OspfTimers
+from irp.model.messages import ControlMessage, MessageKind
+from irp.protocols.base import ProtocolContext, RouterLink
+from irp.protocols.ospf import OspfProtocol, OspfTimers
 
 
 def _ctx(now: float, links: dict[int, tuple[float, bool]]) -> ProtocolContext:

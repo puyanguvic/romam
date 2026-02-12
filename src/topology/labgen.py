@@ -6,8 +6,8 @@ from typing import Any, Dict, List, Tuple
 
 import yaml
 
-from rpf.topology.topology import Topology
-from rpf.utils.io import ensure_dir
+from irp.utils.io import ensure_dir
+from topology.topology import Topology
 
 
 @dataclass(frozen=True)
@@ -202,8 +202,8 @@ def _build_clab_topology(
         exec_cmds.append("sysctl -w net.ipv4.ip_forward=1")
         daemon_cmd = (
             "sh -lc "
-            f"'PYTHONPATH=/rpf/src nohup python3 -m rpf.routerd "
-            f"--config /rpf/configs/{node_name}.yaml "
+            f"'PYTHONPATH=/irp/src nohup python3 -m irp.routerd "
+            f"--config /irp/configs/{node_name}.yaml "
             f"--log-level {params.log_level} >/tmp/routerd.log 2>&1 &'"
         )
         exec_cmds.append(
@@ -211,7 +211,7 @@ def _build_clab_topology(
         )
         nodes[node_name] = {
             "kind": "linux",
-            "binds": [f"{src_bind}:/rpf/src:ro", f"{configs_bind}:/rpf/configs:ro"],
+            "binds": [f"{src_bind}:/irp/src:ro", f"{configs_bind}:/irp/configs:ro"],
             "exec": exec_cmds,
         }
 

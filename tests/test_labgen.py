@@ -4,7 +4,7 @@ from pathlib import Path
 
 import yaml
 
-from rpf.topology.labgen import LabGenParams, generate_routerd_lab
+from topology.labgen import LabGenParams, generate_routerd_lab
 
 
 def test_generate_routerd_lab_outputs_topology_and_configs(tmp_path: Path) -> None:
@@ -57,7 +57,7 @@ def test_generate_routerd_lab_outputs_topology_and_configs(tmp_path: Path) -> No
 
     node_r1 = topo["topology"]["nodes"]["r1"]
     exec_lines = node_r1["exec"]
-    assert any("python3 -m rpf.routerd" in line for line in exec_lines)
+    assert any("python3 -m irp.routerd" in line for line in exec_lines)
     assert any("ip addr replace" in line for line in exec_lines)
 
     cfg_r1 = yaml.safe_load((configs_dir / "r1.yaml").read_text(encoding="utf-8"))

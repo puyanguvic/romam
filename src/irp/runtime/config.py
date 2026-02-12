@@ -4,7 +4,7 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any, Dict, List
 
-from rpf.utils.io import load_yaml
+from irp.utils.io import load_yaml
 
 
 @dataclass(frozen=True)

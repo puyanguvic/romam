@@ -3,7 +3,7 @@ from __future__ import annotations
 import argparse
 import logging
 
-from rpf.runtime import RouterDaemon, load_daemon_config
+from irp.runtime import RouterDaemon, load_daemon_config
 
 
 def parse_args() -> argparse.Namespace:

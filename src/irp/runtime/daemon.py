@@ -6,15 +6,15 @@ import time
 from dataclasses import dataclass
 from typing import Dict
 
-from rpf.model.messages import decode_message, encode_message
-from rpf.model.routing import ForwardingTable, RouteTable
-from rpf.model.state import NeighborInfo, NeighborTable
-from rpf.protocols.base import ProtocolContext, ProtocolEngine, RouterLink
-from rpf.protocols.ospf import OspfProtocol, OspfTimers
-from rpf.protocols.rip import RipProtocol, RipTimers
-from rpf.runtime.config import DaemonConfig
-from rpf.runtime.forwarding import LinuxForwardingApplier, NullForwardingApplier
-from rpf.runtime.transport import UdpTransport
+from irp.model.messages import decode_message, encode_message
+from irp.model.routing import ForwardingTable, RouteTable
+from irp.model.state import NeighborInfo, NeighborTable
+from irp.protocols.base import ProtocolContext, ProtocolEngine, RouterLink
+from irp.protocols.ospf import OspfProtocol, OspfTimers
+from irp.protocols.rip import RipProtocol, RipTimers
+from irp.runtime.config import DaemonConfig
+from irp.runtime.forwarding import LinuxForwardingApplier, NullForwardingApplier
+from irp.runtime.transport import UdpTransport
 
 
 @dataclass
@@ -28,7 +28,7 @@ class DaemonRuntime:
 class RouterDaemon:
     def __init__(self, config: DaemonConfig, logger: logging.Logger | None = None) -> None:
         self._cfg = config
-        self._log = logger or logging.getLogger("rpf.routerd")
+        self._log = logger or logging.getLogger("irp.routerd")
         self._transport = UdpTransport(bind_address=config.bind_address, bind_port=config.bind_port)
         self._neighbor_table = NeighborTable(
             [

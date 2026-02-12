@@ -3,9 +3,9 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import Dict, List, Tuple
 
-from rpf.model.messages import ControlMessage, MessageKind
-from rpf.model.routing import Route
-from rpf.protocols.base import ProtocolContext, ProtocolEngine, ProtocolOutputs
+from irp.model.messages import ControlMessage, MessageKind
+from irp.model.routing import Route
+from irp.protocols.base import ProtocolContext, ProtocolEngine, ProtocolOutputs
 
 
 @dataclass

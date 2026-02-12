@@ -19,7 +19,7 @@ SRC_DIR = REPO_ROOT / "src"
 if str(SRC_DIR) not in sys.path:
     sys.path.insert(0, str(SRC_DIR))
 
-from rpf.utils.io import dump_json
+from irp.utils.io import dump_json
 
 RIB_LOG_RE = re.compile(r"RIB/FIB updated:\s*(\[.*\])")
 START_LOG_RE = re.compile(r"routerd start: .*protocol=(\w+)")
@@ -118,10 +118,10 @@ def clab_container_name(lab_name: str, node_name: str) -> str:
 def parse_config_bind(node: Dict[str, Any]) -> Path:
     for bind in node.get("binds", []):
         bind_text = str(bind)
-        if ":/rpf/configs:ro" in bind_text:
-            host_path = bind_text.split(":/rpf/configs:ro", maxsplit=1)[0]
+        if ":/irp/configs:ro" in bind_text:
+            host_path = bind_text.split(":/irp/configs:ro", maxsplit=1)[0]
             return Path(host_path)
-    raise ValueError("node bind does not include /rpf/configs:ro mapping")
+    raise ValueError("node bind does not include /irp/configs:ro mapping")
 
 
 def load_neighbors(config_dir: Path, node_name: str) -> List[NeighborSpec]:
@@ -163,7 +163,7 @@ def inspect_node(
 
     pgrep = run_cmd(
         with_sudo(
-            ["docker", "exec", container, "sh", "-lc", "pgrep -af rpf.routerd || true"],
+            ["docker", "exec", container, "sh", "-lc", "pgrep -af irp.routerd || true"],
             use_sudo,
         ),
         check=False,

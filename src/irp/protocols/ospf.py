@@ -4,10 +4,10 @@ import heapq
 from dataclasses import dataclass
 from typing import Dict, List
 
-from rpf.model.messages import ControlMessage, MessageKind
-from rpf.model.routing import Route
-from rpf.model.state import LinkStateDB
-from rpf.protocols.base import ProtocolContext, ProtocolEngine, ProtocolOutputs
+from irp.model.messages import ControlMessage, MessageKind
+from irp.model.routing import Route
+from irp.model.state import LinkStateDB
+from irp.protocols.base import ProtocolContext, ProtocolEngine, ProtocolOutputs
 
 
 @dataclass

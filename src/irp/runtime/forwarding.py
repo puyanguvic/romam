@@ -4,8 +4,8 @@ import logging
 import subprocess
 from typing import Dict, Iterable
 
-from rpf.model.routing import ForwardingEntry
-from rpf.runtime.config import ForwardingConfig
+from irp.model.routing import ForwardingEntry
+from irp.runtime.config import ForwardingConfig
 
 
 class ForwardingApplier:

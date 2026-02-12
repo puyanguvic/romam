@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from rpf.runtime.config import load_daemon_config
+from irp.runtime.config import load_daemon_config
 
 
 def test_load_daemon_config_parses_protocol_and_forwarding(tmp_path: Path) -> None:

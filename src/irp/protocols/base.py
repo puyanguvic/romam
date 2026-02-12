@@ -4,8 +4,8 @@ from abc import ABC, abstractmethod
 from dataclasses import dataclass, field
 from typing import Dict, List, Optional, Tuple
 
-from rpf.model.messages import ControlMessage
-from rpf.model.routing import Route
+from irp.model.messages import ControlMessage
+from irp.model.routing import Route
 
 
 @dataclass(frozen=True)

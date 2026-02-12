@@ -30,8 +30,15 @@ CHECK_OUTPUT_JSON ?=
 CHECK_USE_SUDO ?= 0
 CHECK_MAX_WAIT_S ?= 10
 CHECK_POLL_INTERVAL_S ?= 1
+RUNLAB_USE_SUDO ?= 1
+RUNLAB_KEEP_LAB ?= 0
+RUNLAB_CHECK_TAIL_LINES ?= 60
+RUNLAB_CHECK_MAX_WAIT_S ?= 10
+RUNLAB_CHECK_POLL_INTERVAL_S ?= 1
+RUNLAB_CHECK_MIN_ROUTES ?= -1
+RUNLAB_CHECK_OUTPUT_JSON ?=
 
-.PHONY: install test lint run-containerlab-exp run-ospf-convergence-exp run-routerd gen-routerd-lab check-routerd-lab clean
+.PHONY: install test lint run-containerlab-exp run-ospf-convergence-exp run-routerd gen-routerd-lab check-routerd-lab run-routerd-lab clean
 
 install:
 	$(PIP) install -e .[dev]
@@ -61,7 +68,7 @@ run-ospf-convergence-exp:
 		$(if $(filter 1 yes true,$(EXP_USE_SUDO)),--sudo,)
 
 run-routerd:
-	PYTHONPATH=$(PYTHONPATH) $(PYTHON) -m rpf.routerd \
+	PYTHONPATH=$(PYTHONPATH) $(PYTHON) -m irp.routerd \
 		--config $(ROUTERD_CONFIG) \
 		--log-level $(ROUTERD_LOG_LEVEL)
 
@@ -86,6 +93,24 @@ check-routerd-lab:
 		--poll-interval-s $(CHECK_POLL_INTERVAL_S) \
 		$(if $(strip $(CHECK_OUTPUT_JSON)),--output-json $(CHECK_OUTPUT_JSON),) \
 		$(if $(filter 1 yes true,$(CHECK_USE_SUDO)),--sudo,)
+
+run-routerd-lab:
+	PYTHONPATH=$(PYTHONPATH) $(PYTHON) exps/run_routerd_lab.py \
+		--protocol $(LABGEN_PROTOCOL) \
+		--topology $(LABGEN_TOPOLOGY) \
+		--n-nodes $(LABGEN_N_NODES) \
+		--seed $(LABGEN_SEED) \
+		$(if $(strip $(LABGEN_MGMT_NETWORK_NAME)),--mgmt-network-name $(LABGEN_MGMT_NETWORK_NAME),) \
+		$(if $(strip $(LABGEN_MGMT_IPV4_SUBNET)),--mgmt-ipv4-subnet $(LABGEN_MGMT_IPV4_SUBNET),) \
+		$(if $(strip $(LABGEN_MGMT_IPV6_SUBNET)),--mgmt-ipv6-subnet $(LABGEN_MGMT_IPV6_SUBNET),) \
+		$(if $(filter 1 yes true,$(LABGEN_MGMT_EXTERNAL_ACCESS)),--mgmt-external-access,) \
+		$(if $(filter 1 yes true,$(RUNLAB_USE_SUDO)),--sudo,--no-sudo) \
+		$(if $(filter 1 yes true,$(RUNLAB_KEEP_LAB)),--keep-lab,) \
+		--check-tail-lines $(RUNLAB_CHECK_TAIL_LINES) \
+		--check-max-wait-s $(RUNLAB_CHECK_MAX_WAIT_S) \
+		--check-poll-interval-s $(RUNLAB_CHECK_POLL_INTERVAL_S) \
+		--check-min-routes $(RUNLAB_CHECK_MIN_ROUTES) \
+		$(if $(strip $(RUNLAB_CHECK_OUTPUT_JSON)),--check-output-json $(RUNLAB_CHECK_OUTPUT_JSON),)
 
 clean:
 	rm -rf .pytest_cache .ruff_cache dist build *.egg-info

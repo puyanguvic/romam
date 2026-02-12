@@ -1,4 +1,4 @@
-# Routing Protocol Framework (Containerlab + Per-Router Daemon)
+# Intelligent Routing Protocol (IRP) Framework (Containerlab + Per-Router Daemon)
 
 This project now follows a routing-suite style architecture:
 - one `routerd` process per router container,
@@ -6,23 +6,23 @@ This project now follows a routing-suite style architecture:
 - containerlab only manages containers/links/namespaces/lifecycle/fault injection.
 
 The control plane is organized into four core parts:
-- control messages (`src/rpf/model/messages.py`)
-- local protocol state (`src/rpf/model/state.py`)
-- routing table / RIB (`src/rpf/model/routing.py`)
-- forwarding / FIB apply layer (`src/rpf/runtime/forwarding.py`)
+- control messages (`src/irp/model/messages.py`)
+- local protocol state (`src/irp/model/state.py`)
+- routing table / RIB (`src/irp/model/routing.py`)
+- forwarding / FIB apply layer (`src/irp/runtime/forwarding.py`)
 
 Code layout keeps protocol implementation and experiment topology tooling parallel:
-- device-side routing protocol/runtime: `src/rpf/protocols/` + `src/rpf/runtime/`
-- experiment-side topology/lab generation: `src/rpf/topology/`
+- device-side routing protocol/runtime: `src/irp/protocols/` + `src/irp/runtime/`
+- experiment-side topology/lab generation: `src/topology/`
 
 ## Main Components
 
-- Router daemon runtime: `src/rpf/routerd.py`, `src/rpf/runtime/daemon.py`
+- Router daemon runtime: `src/irp/routerd.py`, `src/irp/runtime/daemon.py`
 - Protocol engines:
-  - OSPF-like link-state: `src/rpf/protocols/ospf.py`
-  - RIP distance-vector: `src/rpf/protocols/rip.py`
-- Config loader: `src/rpf/runtime/config.py`
-- Topology model + lab generators: `src/rpf/topology/topology.py`, `src/rpf/topology/labgen.py`
+  - OSPF-like link-state: `src/irp/protocols/ospf.py`
+  - RIP distance-vector: `src/irp/protocols/rip.py`
+- Config loader: `src/irp/runtime/config.py`
+- Topology model + lab generators: `src/topology/topology.py`, `src/topology/labgen.py`
 - Example daemon configs: `exps/routerd_examples/`
 - Experiment utilities: `exps/ospf_convergence_exp.py`
 
@@ -59,7 +59,7 @@ export PATH="$HOME/.local/bin:$PATH"
 Per container (router) run one daemon:
 
 ```bash
-python3 -m rpf.routerd --config /path/to/router.yaml --log-level INFO
+python3 -m irp.routerd --config /path/to/router.yaml --log-level INFO
 ```
 
 OSPF example config: `exps/routerd_examples/ospf_router1.yaml`  
@@ -107,6 +107,20 @@ Or run directly:
 python3 exps/generate_routerd_lab.py --protocol rip --topology er --n-nodes 8 --seed 7
 ```
 
+## One-Command Lab Run
+
+For a quick end-to-end run (generate + deploy + health-check + destroy):
+
+```bash
+make run-routerd-lab LABGEN_PROTOCOL=rip LABGEN_TOPOLOGY=ring LABGEN_N_NODES=4
+```
+
+Keep the lab after checks:
+
+```bash
+make run-routerd-lab LABGEN_PROTOCOL=rip LABGEN_TOPOLOGY=ring LABGEN_N_NODES=4 RUNLAB_KEEP_LAB=1
+```
+
 Generated assets are written under:
 - `results/runs/routerd_labs/<lab_name>/<lab_name>.clab.yaml`
 - `results/runs/routerd_labs/<lab_name>/configs/r*.yaml`
@@ -117,7 +131,7 @@ free subnets when possible, to avoid default `clab` subnet conflicts.
 The generated topology already includes node `exec` commands to:
 - bring up data interfaces,
 - assign /30 link IPs,
-- start `python3 -m rpf.routerd` inside each router container.
+- start `python3 -m irp.routerd` inside each router container.
 
 ### Common Pitfalls
 
@@ -149,7 +163,7 @@ make check-routerd-lab \
 
 What it checks per node:
 - container is running,
-- `rpf.routerd` process exists,
+- `irp.routerd` process exists,
 - neighbor IP ping (from generated config) succeeds,
 - latest `RIB/FIB updated` route count is at least `n_nodes-1` (or `CHECK_MIN_ROUTES`).
 
