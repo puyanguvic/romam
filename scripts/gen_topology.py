@@ -4,7 +4,7 @@ from __future__ import annotations
 import argparse
 import json
 
-from rpf.core.topology import Topology
+from rpf.topology.topology import Topology
 
 
 def main() -> None:

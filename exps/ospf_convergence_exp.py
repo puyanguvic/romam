@@ -26,7 +26,7 @@ SRC_DIR = REPO_ROOT / "src"
 if str(SRC_DIR) not in sys.path:
     sys.path.insert(0, str(SRC_DIR))
 
-from rpf.core.topology import Topology
+from rpf.topology.topology import Topology
 from rpf.utils.io import dump_json, ensure_dir, now_tag
 
 PING_SUMMARY_RE = re.compile(r"(\d+) packets transmitted, (\d+) (?:packets )?received")

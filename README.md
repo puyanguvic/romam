@@ -11,6 +11,10 @@ The control plane is organized into four core parts:
 - routing table / RIB (`src/rpf/model/routing.py`)
 - forwarding / FIB apply layer (`src/rpf/runtime/forwarding.py`)
 
+Code layout keeps protocol implementation and experiment topology tooling parallel:
+- device-side routing protocol/runtime: `src/rpf/protocols/` + `src/rpf/runtime/`
+- experiment-side topology/lab generation: `src/rpf/topology/`
+
 ## Main Components
 
 - Router daemon runtime: `src/rpf/routerd.py`, `src/rpf/runtime/daemon.py`
@@ -18,10 +22,9 @@ The control plane is organized into four core parts:
   - OSPF-like link-state: `src/rpf/protocols/ospf.py`
   - RIP distance-vector: `src/rpf/protocols/rip.py`
 - Config loader: `src/rpf/runtime/config.py`
+- Topology model + lab generators: `src/rpf/topology/topology.py`, `src/rpf/topology/labgen.py`
 - Example daemon configs: `exps/routerd_examples/`
-- Existing topology + experiment utilities remain:
-  - `src/rpf/core/topology.py`
-  - `exps/ospf_convergence_exp.py`
+- Experiment utilities: `exps/ospf_convergence_exp.py`
 
 ## Setup
 

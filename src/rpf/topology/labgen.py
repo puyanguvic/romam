@@ -6,7 +6,7 @@ from typing import Any, Dict, List, Tuple
 
 import yaml
 
-from rpf.core.topology import Topology
+from rpf.topology.topology import Topology
 from rpf.utils.io import ensure_dir
 
 

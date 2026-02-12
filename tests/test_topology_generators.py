@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from rpf.core.topology import Topology
+from rpf.topology.topology import Topology
 
 
 def test_ring_topology_edge_count() -> None:

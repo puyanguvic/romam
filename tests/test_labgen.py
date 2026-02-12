@@ -4,7 +4,7 @@ from pathlib import Path
 
 import yaml
 
-from rpf.runtime.labgen import LabGenParams, generate_routerd_lab
+from rpf.topology.labgen import LabGenParams, generate_routerd_lab
 
 
 def test_generate_routerd_lab_outputs_topology_and_configs(tmp_path: Path) -> None:
