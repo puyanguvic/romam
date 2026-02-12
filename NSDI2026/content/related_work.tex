@@ -1,0 +1,18 @@
+\section{Related Work}\label{sec:related_work}
+
+\subsection{Routing Protocol Suites}
+
+Conventional routing protocol development has largely relied on comprehensive software suites. FRRouting \cite{frrouting2017}, an evolution of Quagga, provides a collection of IP routing protocols for Unix platforms, while XORP \cite{handley2003xorp} offers a programmable routing platform supporting multiple protocols. These suites, while offering stability and wide protocol support, lack the flexibility and modularity required for rapid prototyping of novel routing strategies.
+
+Recent efforts like ONOS~\cite{berde2014onos} have created more programmable environments, but they focus primarily on SDN scenarios rather than distributed routing protocols. xBGP~\cite{wirtgen2023xbgp} enhances BGP with custom code execution, aligning with \textsc{Romam}'s goals of modularity and extensibility. However, xBGP is limited to BGP-specific enhancements, whereas \textsc{Romam} provides a comprehensive framework applicable to a variety of intra-AS routing protocols.
+
+
+\subsection{SDN and Programmable Networking}
+
+The advent of Software-Defined Networking has introduced new paradigms in network programmability. OpenFlow~\cite{mckeown2008openflow} pioneered the separation of control and data planes, while P4~\cite{bosshart2014p4} enabled protocol-independent packet processors. These approaches primarily focus on centralized control and data plane programmability, which, while powerful, have limitations in distributed environments. Developments such as Intel Tofino chip~\cite{barefoot2018tofino}, have pushed the boundaries of programmable networking hardware. While these efforts have advanced hardware and programming languages, they lack a routing framework for rapid protocol development. \textsc{Romam} fills this gap by combining distributed routing with modular design principles, enabling the creation of adaptive, intelligent routing protocols that can operate effectively in both centralized and distributed environments.
+
+\subsection{Machine Learning in Routing}
+
+Recent years have seen growing interest in applying machine learning to networking problems. Mestres et al. \cite{mestres2017knowledge} introduced the concept of Knowledge-Defined Networking, proposing a new paradigm that incorporates machine learning in network operations. Klaine et al. \cite{klaine2017survey} surveyed machine learning techniques in self-organizing networks, highlighting the potential of AI in this domain.
+
+While these works demonstrate the promise of AI in networking, they often remain theoretical or limited in scope. For instance, RouteNet~\cite{rusek2020routenet} shows promising results in predicting network performance but doesn't provide a framework for implementing ML-driven routing protocols. \textsc{Romam} bridges this gap by providing native support for integrating machine learning algorithms into practical routing decisions, enabling the development and deployment of intelligent, adaptive routing protocols.

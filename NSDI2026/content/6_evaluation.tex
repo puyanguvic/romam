@@ -1,0 +1,95 @@
+\section{Evaluation}\label{sec:evaluation}
+
+\begin{figure*}[t]
+  \centering
+  \begin{subfigure}[b]{0.46\textwidth}
+    \includegraphics[width=\textwidth]{fig/exps/exp1_cpu.pdf}
+    \caption{CPU time for protocol initialization.}
+    \label{fig:rm:a}
+  \end{subfigure}
+  % \hfill % 
+  \hspace{12pt}
+  \begin{subfigure}[b]{0.46\textwidth}
+    \includegraphics[width=\textwidth]{fig/exps/exp1_memory.pdf}
+    \caption{Memory cost for RIB.}
+    \label{fig:rm:b}
+  \end{subfigure}
+  \caption{Resource Consumption Monitoring. The CPU and memory usage during the initialization of routing protocols across network topologies of Abilene, ATT, CERNET, and GEANT.  Fig.~\ref{fig:rm:a} displays the CPU time consumed from the installation of the routing protocol to the completion of the routing tables, indicating when routers are operational. Fig.~\ref{fig:rm:b} illustrates the memory utilization for maintaining the RIB and queue states.}
+  \label{fig:resource_monitoring}
+\end{figure*}
+
+
+We implemented the aforementioned five routing protocols using the \textsc{Romam} framework and deployed them on four well-known network topologies, Abilene, AT\&T, CERNET, and GEANT,  sourced from the Internet Topology Zoo dataset~\cite{knight2011internet}. The implementations and tests were run on ns-3~\cite{Riley2010} to facilitate evaluation on various networks. The evaluations were performed on a consumer-grade computer with an Ubuntu 22.04 operating system, an Intel i7-12700 CPU, and 32 GB of RAM. Using \textsc{Romam}'s monitoring tools we developed, we can observe the protocol cost metrics such as CPU usage and memory usage, and the network performance metrics such as packet delay.
+
+\subsection{CPU and Memory Usage}
+CPU and memory consumption are crucial metrics for assessing the deployment costs of routing protocols. Fig.~\ref{fig:resource_monitoring} illustrates the CPU time and memory consumption needed to initialize different routing protocols across four network topologies. Among the five algorithms evaluated, OSPF exhibits the lowest CPU and memory usage, attributed to its straightforward initialization process. Conversely, DDR, DGR, K-Shortest, and Octopus demonstrate higher CPU and memory consumption, with Octopus being slightly more resource-intensive than the others. This is primarily due to additional initialization requirements, such as calculating cumulative path losses, which necessitate greater computational resources.
+
+Compared to OSPF, advanced routing protocols consume approximately $2\times$ to $3\times$ more CPU and memory resources. This increased resource usage is necessary for discovering multiple routes and maintaining a larger RIB. Despite the heightened complexity, these protocols do not introduce significant computational overhead when compared to large-scale learning-based information processing. Moreover, they do not necessitate additional hardware such as GPUs, rendering them highly compatible with existing network equipment.
+
+\begin{figure}[htbp]
+\centerline{\includegraphics[width=0.9\columnwidth]{fig/exps/exp2_converge.pdf}}
+\caption{Convergence of the average packet delay of the Octopus protocol. This figure illustrates the dynamic adaptation of the Octopus protocol by showing the evolution of the average packet delay. Over time, the protocol's routing decisions increasingly favor paths with reduced delays, demonstrating its ability to learn and iteratively optimize routing efficiency.}
+\label{fig:converge}
+\end{figure}
+
+\begin{figure*}[t]
+  \centering
+  \begin{subfigure}[b]{0.47\textwidth}
+    \includegraphics[width=\textwidth]{fig/exps/exp3_abilene.pdf}
+    \caption{Packet delay distribution at Abilene}
+    \label{fig:cdf:a}
+  \end{subfigure}
+  % \hfill 
+  \hspace{2pt}
+  \begin{subfigure}[b]{0.47\textwidth}
+    \includegraphics[width=\textwidth]{fig/exps/exp3_att.pdf}
+    \caption{Packet delay distribution at AT\&T}
+    \label{fig:cdf:b}
+  \end{subfigure}
+  \newline
+  \begin{subfigure}[b]{0.47\textwidth}
+    \includegraphics[width=\textwidth]{fig/exps/exp3_cernet.pdf}
+    \caption{Packet delay distribution at CERNET}
+    \label{fig:cdf:c}
+  \end{subfigure}
+  % \hfill % 
+  \hspace{2pt}
+  \begin{subfigure}[b]{0.47\textwidth}
+    \includegraphics[width=\textwidth]{fig/exps/exp3_geant.pdf}
+    \caption{Packet delay distribution at GEANT}
+    \label{fig:cdf:d}
+  \end{subfigure}
+  \caption{Packet delay distribution under single-point congestion across different network topologies. This boxplot illustrates the impact of network congestion on packet delay across five routing protocols. Each protocol's response to congestion is depicted through median, quartiles, and outliers, highlighting their performance in terms of resilience and load balancing. OSPF experiences significant delay spikes under congestion, relying on a single path. In contrast, K-Shortest Path, DDR, DGR, and Octopus distribute traffic across multiple paths, enhancing network resilience. Particularly, Octopus, after training, shows superior performance by selecting paths with lower latencies through its MAB algorithm. DDR and DGR demonstrate the best performance by preemptively filtering out non-viable paths and exploring alternative optimal routes before congestion escalates, thus maintaining reliable and timely data transmission.}
+\label{fig:delay_cdf}
+\end{figure*}
+
+\subsection{Convergence of Octopus}
+For Octopus, its convergence performance is a key issue. In the conducted experiments, each topology entailed the selection of random source-destination pairs, and the protocol's performance was assessed by continuously measuring the end-to-end delay of each delivered packet. During the experiment, each router provided queuing delay reports to one-hop neighbors. This information was crucial for updating the cumulative loss associated with each routing choice for Octopus. 
+
+Fig.~\ref{fig:converge} shows how network performance evolves over time when Octopus is deployed. Throughout the experiment, Octopus demonstrates its adaptability and learning efficiency, as evidenced by the gradually decreasing trend in average packet delay. In other words, routers increasingly favor more efficient paths based on accumulated experiences.
+
+\textbf{Observations:} The gap introduced by the inherent uncertainties in real networks poses significant challenges in bridging theoretical models with their practical engineering deployment. This discrepancy is particularly relevant when training the Octopus protocol, where the feedback necessary for the learning algorithm ($d_{i'}$) is inherently delayed.
+
+To effectively implement the Octopus protocol in such conditions, it is essential to employ a strategy known as learning with delayed feedback model, as detailed in \cite{joulani2013online}. In this model, updates to the learning algorithm do not necessarily occur within the same iteration as the decision-making process. For example, if a routing decision for a packet must be made before feedback from the previous iteration is available, the current model's state is used to make the decision. 
+%Feedback, tagged with the packet ID and the probability of the chosen path, updates the model immediately upon receipt.
+
+However, as \cite{joulani2013online} highlights, the implications of delayed feedback vary based on the nature of the environment. In stochastic settings, separating decision-making and model updating incurs only an additive penalty. Conversely, in adversarial environments, delayed feedback can significantly impair the convergence of MAB, affecting it in a multiplicative manner. This remains an important further research issue. 
+
+
+\subsection{Packet Delay Comparison}
+
+In this set of experiments, we compare the five routing protocols by measuring the end-to-end delay of a source-destination pair for each network topology under single-point congestion. The single-point congestion was introduced by first determining the optimal routing path in an ideal network free of competing traffic, then randomly selecting a node along this path and imposing heavy background traffic to saturate the bandwidth of the node's outgoing link. This experiment aims to mimic a scenario where a bottleneck occurs along a routing path, testing whether the routing algorithms can intelligently reroute around the congested link.
+
+We collected the end-to-end delay of packets received at the destination. The measured delay distribution allowed us to analyze the effectiveness of each routing protocol under practical conditions. It is important to note that the performance statistics for the Octopus protocol shown in Fig.~\ref{fig:delay_cdf} are based on results after the protocol underwent an extensive training period of $10,000$ packets.
+
+Fig.~\ref{fig:delay_cdf} compares the delay distribution of the five routing protocols across four different network topologies with single-point congestion, presented as box plots. A box plot is a standardized way of displaying data distribution based on a five-number summary: minimum, first quartile (Q1), median, third quartile (Q3), and maximum, where the box is drawn from Q1 to Q3 with a horizontal line inside to denote the mean delay, and whiskers from the minimum to the maximum delay. Any data that are outside of the whiskers are outliers. 
+
+From Fig.~\ref{fig:delay_cdf}, across the four topologies, DDR, and DGR exhibit the best delay performance compared to OSPF, Octopus and K-Shortest. Their performance difference is mainly due to the different forwarding strategies employed by each protocol. OSPF suffers large delays, as the single-path routing protocol cannot adapt to network congestion. 
+
+Although K-Shortest can select multiple paths for packet delivery, its decisions are made randomly and lack responsiveness to real-time network conditions.  Consequently, while some packets may achieve low delay, the overall delay performance of K-Shortest tends to be suboptimal.
+
+Octopus outperforms K-Shortest. This is because, after training, the Exp3 algorithm tends to choose paths with lower latency, and it can keep track the neighborhood queue length reports to adapt to network dynamics accordingly. 
+
+DDR and DGR further outperform Octopus. This is because, based on their design, aiming to ensure the end-to-end delay is below the packet delay requirement (which is set to $50$~ms in our experiment), the forwarding function effectively filters out paths that do not meet the delay requirements, resulting in all packets with delay below the threshold.  DDR is better than DGR, as DGR uses the received neighborhood queue reports directly, while DDR further uses a traffic prediction function to estimate the future queue lengths of each node's one-hop neighbors. Such prediction can effectively help the node choose the most suitable paths. 
+
+Due to space limitations, we only report the results of a small set of experiments in this paper, and more experiments have been conducted that show a similar trend. The codes are available at \url{https://anonymous.4open.science/r/romam-7BC0/}, so the experiments can be reproduced with any setting.  Overall, when there is no congestion, single-path routing such as OSPF can achieve decent performance. When network congestion or link failure occurs, multi-path routing protocols are more advantageous, provided that the protocols (like DGR, DDR and Octopus) are aware of neighborhood situations and can adjust forwarding decisions accordingly. If the traffic hotspot changes over time, advanced traffic detection and prediction methods (e.g., the one used by DDR) are beneficial.

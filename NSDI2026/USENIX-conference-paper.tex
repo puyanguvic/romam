@@ -1,0 +1,160 @@
+% % \documentclass[10pt, journal, letterpaper]{IEEEtran}
+% \documentclass[journal]{IEEEtran}
+
+% % \documentclass[conference]{IEEEtran}
+% % \IEEEoverridecommandlockouts
+% % The preceding line is only needed to identify funding in the first footnote. If that is unneeded, please comment it out.
+% %Template version as of 6/27/2024
+
+% \usepackage{url}
+% \usepackage{tikz}
+% \usepackage{amsmath}
+% \usepackage{booktabs}
+% \usepackage{multirow}
+% \usepackage{arydshln}
+% \usepackage{svg}
+% \usepackage{graphicx}
+% \usepackage{subcaption}
+% \usepackage{algorithm}
+% \usepackage{algpseudocode}
+
+% \begin{document}
+
+% \title{\textsc{Romam}: A Traffic-aware Distributed Routing Framework}
+
+% % \author{\IEEEauthorblockN{1\textsuperscript{st} Given Name Surname}
+% % \IEEEauthorblockA{\textit{dept. name of organization (of Aff.)} \\
+% % City, Country}
+% % }
+
+% \maketitle
+
+% \input{0-abstract}
+% \input{1-introduction}
+% \input{2-design_principle}
+% \input{3-Design&Implement}
+% \input{5-use_cases}
+% \input{6_evaluation}
+% \input{related_work}
+% % \input{6-summary_and_future_work}
+% \input{7-conclusion}
+% \input{8-appendix}
+
+% \newpage
+% \bibliographystyle{IEEEtran}
+% \bibliography{ref}
+% \end{document}
+
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+% Template for USENIX papers.
+%
+% History:
+%
+% - TEMPLATE for Usenix papers, specifically to meet requirements of
+%   USENIX '05. originally a template for producing IEEE-format
+%   articles using LaTeX. written by Matthew Ward, CS Department,
+%   Worcester Polytechnic Institute. adapted by David Beazley for his
+%   excellent SWIG paper in Proceedings, Tcl 96. turned into a
+%   smartass generic template by De Clarke, with thanks to both the
+%   above pioneers. Use at your own risk. Complaints to /dev/null.
+%   Make it two column with no page numbering, default is 10 point.
+%
+% - Munged by Fred Douglis <douglis@research.att.com> 10/97 to
+%   separate the .sty file from the LaTeX source template, so that
+%   people can more easily include the .sty file into an existing
+%   document. Also changed to more closely follow the style guidelines
+%   as represented by the Word sample file.
+%
+% - Note that since 2010, USENIX does not require endnotes. If you
+%   want foot of page notes, don't include the endnotes package in the
+%   usepackage command, below.
+% - This version uses the latex2e styles, not the very ancient 2.09
+%   stuff.
+%
+% - Updated July 2018: Text block size changed from 6.5" to 7"
+%
+% - Updated Dec 2018 for ATC'19:
+%
+%   * Revised text to pass HotCRP's auto-formatting check, with
+%     hotcrp.settings.submission_form.body_font_size=10pt, and
+%     hotcrp.settings.submission_form.line_height=12pt
+%
+%   * Switched from \endnote-s to \footnote-s to match Usenix's policy.
+%
+%   * \section* => \begin{abstract} ... \end{abstract}
+%
+%   * Make template self-contained in terms of bibtex entires, to allow
+%     this file to be compiled. (And changing refs style to 'plain'.)
+%
+%   * Make template self-contained in terms of figures, to
+%     allow this file to be compiled. 
+%
+%   * Added packages for hyperref, embedding fonts, and improving
+%     appearance.
+%   
+%   * Removed outdated text.
+%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+\documentclass[letterpaper,twocolumn,10pt]{article}
+\usepackage{usenix2019_v3}
+
+% to be able to draw some self-contained figs
+\usepackage{tikz}
+\usepackage{amsmath}
+\usepackage{booktabs}
+\usepackage{url}
+\usepackage{multirow}
+\usepackage{arydshln}
+\usepackage{svg}
+\usepackage{graphicx}
+\usepackage{subcaption}
+\usepackage{algorithm}
+\usepackage{algpseudocode}
+
+%-------------------------------------------------------------------------------
+\begin{document}
+%-------------------------------------------------------------------------------
+
+%don't want date printed
+\date{}
+
+% make title bold and 14 pt font (Latex default is non-bold, 16 pt)
+\title{\Large \bf Formatting Submissions for a USENIX Conference:\\
+  An (Incomplete) Example}
+
+%for single author (just remove % characters)
+\author{
+{\rm Your N.\ Here}\\
+Your Institution
+\and
+{\rm Second Name}\\
+Second Institution
+% copy the following lines to add more authors
+% \and
+% {\rm Name}\\
+%Name Institution
+} % end author
+
+\maketitle
+
+\input{0-abstract}
+\input{1-introduction}
+\input{2-design_principle}
+\input{3-Design&Implement}
+\input{5-use_cases}
+\input{6_evaluation}
+\input{related_work}
+\input{7-conclusion}
+\input{8-appendix}
+
+\bibliographystyle{plain}
+\bibliography{ref}
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\end{document}
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+%%  LocalWords:  endnotes includegraphics fread ptr nobj noindent
+%%  LocalWords:  pdflatex acks

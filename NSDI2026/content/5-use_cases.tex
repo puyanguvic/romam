@@ -1,0 +1,39 @@
+\section{\textsc{Romam} Use Cases}\label{sec:usecases}
+
+This section outlines five use cases demonstrating the versatility of the \textsc{Romam} framework in developing, adapting, and enhancing routing protocols. These cases progressively introduce increasingly sophisticated routing strategies that exemplify the framework's ability to support and enhance Quality of Service (QoS) and adapt to dynamic network conditions.
+
+\subsection{Overview of Implemented Protocols}
+\subsubsection{OSPF: Open Shortest Path First Protocol}\label{subsec:ospf}
+
+OSPF~\cite{rfc2328}, is a foundational protocol that calculates efficient routing paths using link-state information. Within \textsc{Romam}, OSPF's core functionalities of link-state data collection and path computation are seamlessly integrated, showcasing efficient protocol replication.
+
+However, OSPF is essentially a static protocol that does not dynamically adjust to fluctuating network conditions. Its support for Equal-Cost Multi-Path (ECMP) routing, while useful, often falls short in dynamically congested networks due to the rarity of truly equal-cost paths.
+
+\subsubsection{K-Shortest Path Routing Protocols}\label{subsec:kshortest}
+
+Building on OSPF's capabilities, K-Shortest Path protocols~\cite{liu2017finding}, explore multiple shortest paths to enhance routing choices, particularly under congested network conditions. These protocols leverage \textsc{Romam}'s capabilities for path computation and dynamic path selection based on current traffic states. This integration allows for an adaptive routing response to real-time network conditions, showcasing an improvement in handling network dynamics compared to OSPF.
+
+\subsubsection{Octopus: A MAB-based Intelligent Forwarding}\label{subsec:octopus}
+
+Octopus advances the concept of adaptive routing by incorporating Multi-Armed Bandit (MAB) algorithms, specifically the lightweight Exp3 algorithm~\cite{auer2002nonstochastic}, for dynamic path selection. This protocol, developed under the \textsc{Romam} framework, utilizes route information combined with real-time traffic data. Octopus's design, detailed in the Appendix~\ref{apdx}, illustrates its ability to continuously refine its routing decisions based on ongoing network feedback, enhancing the adaptability of routing protocols to traffic dynamics.
+
+\subsubsection{DGR: Delay Guaranteed Routing Protocol}\label{subsec:dgr}
+
+DGR~\cite{pu2023dgr} protocol introduces delay sensitivity into routing decisions, prioritizing routes that meet specific packet delivery deadlines. It utilizes both static and dynamic network data to dynamically adjust routes in response to detected traffic conditions. The integration of a priority management function ensures that packets with critical deadlines are expedited, enhancing the QoS support over previous protocols.
+
+\subsubsection{DDR: Deadline-Driven Routing Protocol}\label{subsec:ddr}
+
+DDR~\cite{yang2024ddr} protocol addresses inaccuracies in traffic information due to delays in network data transmission, which can crucially impact routing decisions. By implementing a predictive traffic state function, DDR uses historical and current data to make more accurate routing decisions. This enhancement helps compensate for the latency issues inherent in dynamic network environments, significantly improving the reliability and performance of routing decisions under real-world conditions.
+
+\subsection{Coding Efficiency}
+
+The \textsc{Romam} framework allows developers to focus solely on the unique aspects of each protocol, eliminating the need to rewrite redundant code. This approach leads to remarkable efficiency in protocol development:
+
+\begin{itemize}
+    \item K-Shortest Path implementation primarily focuses on the routing algorithm and RIB format.
+    \item Octopus concentrates on the MAB-based intelligent route selection function design.
+    \item DGR's implementation centers on traffic information exchanges among neighbors and handling packet deadlines during route selection.
+    \item DDR introduces a Markov chain-based prediction model for traffic and related path selection functions.
+\end{itemize}
+
+Each protocol implementation required less than 500 lines of code changes to the existing \textsc{Romam} framework, whereas implementing these protocols from scratch or modifying non-\textsc{Romam} implementations typically requires over 10,000 lines of code per protocol~\cite{frrouting2017, jakma2014introduction}. This comparison demonstrates that \textsc{Romam} achieves more than a $90\%$ reduction in coding efforts.

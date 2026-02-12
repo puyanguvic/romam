@@ -1,0 +1,36 @@
+\section{\textsc{Romam} Design Principles}\label{sec:principle}
+
+The \textsc{Romam} framework is built upon two principles: the strategic utilization of both static and dynamic network information, and a modular system architecture. These principles are designed to address the complex challenges of modern network routing while providing a flexible and efficient development framework.
+
+\subsection{Leveraging Static and Dynamic Information}
+The primary objective of intelligent routing is to determine optimal paths for data packet delivery, aligning with specific QoS requirements at minimal cost. Achieving this goal within dynamic network environments involves navigating two critical trade-offs:
+
+
+\begin{itemize}
+    \item \textbf{Scope of Information Collection vs. Associated Cost:} Expanding the scope of information collection improves routing decision accuracy but increases computational and bandwidth overhead.
+
+    \item \textbf{Timeliness of Information vs. Inherent Collection Delays:} Timely information enables responsive routing, but data collection introduces delays, potentially leading to inaccurate or outdated information for decision-making.
+
+\end{itemize}
+
+To address these challenges, \textsc{Romam} employs a dual-information approach:
+
+\subsubsection{Static Information}
+This includes network topology, link capacities, and other infrequently changing attributes. Static information forms the basis for forwarding direction exploration, providing a stable framework for initial route computation and regular operations.
+
+\subsubsection{Dynamic Information}
+This encompasses rapidly changing network conditions such as traffic volumes, link statuses, and queue lengths. Dynamic information is vital for making real-time adjustments to routing decisions.
+
+By leveraging static and dynamic information, \textsc{Romam} give routing developers the flexibility to make a trade-off between information scope and cost, as well as timeliness and accuracy. This tradeoff provides adaptability of routing protocols, allowing them to meet diverse network demands efficiently. For instance, \textsc{Romam} might use static topology information for baseline path computation, while dynamically adjusting routes based on real-time congestion data. This methodology facilitates both proactive resource management and dynamic adaptation to current network conditions, thereby improving overall network efficiency and responsiveness.
+
+\subsection{Modularity Principle}
+
+Inspired by the open-closed principle in software engineering, \textsc{Romam} redefines routing protocol architecture by decomposing it into smaller, reconfigurable components. This modular approach significantly enhances development efficiency, enabling rapid and flexible protocol development.
+
+Key aspects of \textsc{Romam}'s modularity include:
+
+\begin{itemize}
+    \item \textbf{Component Isolation:} Each module (e.g., route discovery, traffic detection) functions independently yet interoperates seamlessly with others.
+    \item \textbf{Standardized Interfaces:} Well-defined interfaces between modules facilitate easy integration and replacement of components.
+    \item \textbf{Reusability:} Common functionalities are encapsulated in reusable modules, reducing redundant development efforts.
+\end{itemize}
