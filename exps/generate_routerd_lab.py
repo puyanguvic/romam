@@ -102,6 +102,17 @@ def parse_args() -> argparse.Namespace:
         help="Enable containerlab mgmt external access.",
     )
     parser.add_argument(
+        "--forwarding-enabled",
+        action="store_true",
+        help="Enable Linux FIB programming from protocol routes in routerd.",
+    )
+    parser.add_argument(
+        "--forwarding-dry-run",
+        action=argparse.BooleanOptionalAction,
+        default=True,
+        help="When forwarding is enabled, keep FIB operations in dry-run mode (default: enabled).",
+    )
+    parser.add_argument(
         "--sudo",
         action=argparse.BooleanOptionalAction,
         default=False,
@@ -138,6 +149,8 @@ def main() -> int:
         mgmt_ipv4_subnet=mgmt_ipv4_subnet,
         mgmt_ipv6_subnet=mgmt_ipv6_subnet,
         mgmt_external_access=bool(args.mgmt_external_access),
+        forwarding_enabled=bool(args.forwarding_enabled),
+        forwarding_dry_run=bool(args.forwarding_dry_run),
     )
     result = generate_routerd_lab(params)
     clab_bin = shutil.which("containerlab") or "containerlab"
@@ -153,6 +166,8 @@ def main() -> int:
     print(f"mgmt_network: {mgmt_network_name}")
     print(f"mgmt_ipv4_subnet: {mgmt_ipv4_subnet}")
     print(f"mgmt_ipv6_subnet: {mgmt_ipv6_subnet}")
+    print(f"forwarding_enabled: {bool(args.forwarding_enabled)}")
+    print(f"forwarding_dry_run: {bool(args.forwarding_dry_run)}")
     print()
     print(
         "Deploy:  "

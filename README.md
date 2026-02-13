@@ -218,6 +218,106 @@ For `spineleaf2x4` convergence tests:
 make run-ospf-convergence-exp EXP_TOPOLOGY_FILE=clab_topologies/spineleaf2x4.clab.yaml
 ```
 
+## Run Sender / Sink Apps On Routers (UDP + TCP)
+
+This repo includes a lightweight traffic app:
+- module: `irp.apps.traffic_app`
+- roles: `sink` and `send`
+- protocols: `udp` and `tcp`
+
+When lab is started via `run-routerd-lab`, source code is copied to `/irp/src` in each router container.
+
+### 1) Start sink on `r6` (UDP, port 9000)
+
+```bash
+make run-traffic-app \
+  TRAFFIC_LAB_NAME=<lab_name> \
+  TRAFFIC_NODE=r6 \
+  TRAFFIC_BACKGROUND=1 \
+  TRAFFIC_LOG_FILE=/tmp/udp_sink.log \
+  TRAFFIC_ARGS="sink --proto udp --bind 0.0.0.0 --port 9000 --report-interval-s 1"
+```
+
+### 2) Send UDP packets from `r1` to `r6`
+
+```bash
+make run-traffic-app \
+  TRAFFIC_LAB_NAME=<lab_name> \
+  TRAFFIC_NODE=r1 \
+  TRAFFIC_ARGS="send --proto udp --target <r6_reachable_ip> --port 9000 --packet-size 256 --count 1000 --pps 200"
+```
+
+### 3) TCP mode example
+
+Start TCP sink:
+
+```bash
+make run-traffic-app \
+  TRAFFIC_LAB_NAME=<lab_name> \
+  TRAFFIC_NODE=r6 \
+  TRAFFIC_BACKGROUND=1 \
+  TRAFFIC_LOG_FILE=/tmp/tcp_sink.log \
+  TRAFFIC_ARGS="sink --proto tcp --bind 0.0.0.0 --port 9001"
+```
+
+Run TCP sender:
+
+```bash
+make run-traffic-app \
+  TRAFFIC_LAB_NAME=<lab_name> \
+  TRAFFIC_NODE=r1 \
+  TRAFFIC_ARGS="send --proto tcp --target <r6_reachable_ip> --port 9001 --packet-size 1024 --duration-s 10 --pps 500 --tcp-nodelay"
+```
+
+Direct script usage is also supported:
+
+```bash
+python3 exps/run_traffic_app.py --lab-name <lab_name> --node r1 -- \
+  send --proto udp --target <ip> --port 9000 --count 100
+```
+
+### 4) One-command probe (auto start sink + run sender + collect report)
+
+```bash
+make run-traffic-probe \
+  PROBE_LAB_NAME=<lab_name> \
+  PROBE_SRC_NODE=r1 \
+  PROBE_DST_NODE=r6 \
+  PROBE_DST_IP=<r6_reachable_ip> \
+  PROBE_PROTO=udp \
+  PROBE_PACKET_SIZE=512 \
+  PROBE_COUNT=5000 \
+  PROBE_PPS=1000 \
+  PROBE_OUTPUT_JSON=results/runs/traffic_probe_r1_r6.json
+```
+
+It prints a JSON report with sender throughput and sink log tail.
+
+## Line Topology OSPF UDP Experiment (r1 -> rN)
+
+This experiment uses the line topology (`line5`) and OSPF, then sends UDP traffic from
+the first node to the last node (for `line5`: `r1 -> r5`).
+Before sending, it now runs an explicit convergence wait check (`check_routerd_lab`).
+
+```bash
+make run-line-ospf-udp-exp \
+  LINE_EXP_PACKET_SIZE=512 \
+  LINE_EXP_COUNT=5000 \
+  LINE_EXP_PPS=1000 \
+  LINE_EXP_OUTPUT_JSON=results/runs/line_ospf_udp_exp.json
+```
+
+Useful options:
+- `LINE_EXP_USE_SUDO=1` (default) for docker/containerlab operations.
+- `LINE_EXP_KEEP_LAB=1` to keep the lab after probe.
+- `LINE_EXP_TOPOLOGY_FILE=<path>` to override built-in `line5` topology.
+- This experiment enables routerd forwarding automatically (`--forwarding-enabled --no-forwarding-dry-run`).
+- `LINE_EXP_LAB_CHECK_MIN_ROUTES=0` (default) relaxes route-count gating in lab pre-check.
+- `LINE_EXP_LAB_CHECK_MAX_WAIT_S=20` controls OSPF pre-check wait window.
+- `LINE_EXP_CONVERGE_MAX_WAIT_S=60` controls explicit convergence wait before send.
+- `LINE_EXP_CONVERGE_MIN_ROUTES=-1` means `n_nodes-1` routes required before send.
+- `LINE_EXP_ALLOW_UNCONVERGED_SEND=1` can force-send even if convergence check fails.
+
 ## Outputs
 
 - Per-run artifacts: `results/runs/ospf_convergence_containerlab/`

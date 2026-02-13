@@ -40,8 +40,49 @@ RUNLAB_CHECK_MAX_WAIT_S ?= 10
 RUNLAB_CHECK_POLL_INTERVAL_S ?= 1
 RUNLAB_CHECK_MIN_ROUTES ?= -1
 RUNLAB_CHECK_OUTPUT_JSON ?=
+TRAFFIC_LAB_NAME ?=
+TRAFFIC_NODE ?=
+TRAFFIC_USE_SUDO ?= 1
+TRAFFIC_BACKGROUND ?= 0
+TRAFFIC_LOG_FILE ?= /tmp/traffic_app.log
+TRAFFIC_ARGS ?=
+PROBE_LAB_NAME ?=
+PROBE_SRC_NODE ?=
+PROBE_DST_NODE ?=
+PROBE_DST_IP ?=
+PROBE_PROTO ?= udp
+PROBE_PORT ?= 9000
+PROBE_PACKET_SIZE ?= 256
+PROBE_COUNT ?= 1000
+PROBE_DURATION_S ?= 0
+PROBE_PPS ?= 200
+PROBE_REPORT_INTERVAL_S ?= 1
+PROBE_WARMUP_S ?= 0.7
+PROBE_TIMEOUT_S ?= 120
+PROBE_OUTPUT_JSON ?=
+PROBE_USE_SUDO ?= 1
+LINE_EXP_TOPOLOGY_FILE ?=
+LINE_EXP_PORT ?= 9000
+LINE_EXP_PACKET_SIZE ?= 512
+LINE_EXP_COUNT ?= 5000
+LINE_EXP_DURATION_S ?= 0
+LINE_EXP_PPS ?= 1000
+LINE_EXP_REPORT_INTERVAL_S ?= 1
+LINE_EXP_WARMUP_S ?= 0.7
+LINE_EXP_TIMEOUT_S ?= 120
+LINE_EXP_LAB_CHECK_MIN_ROUTES ?= 0
+LINE_EXP_LAB_CHECK_MAX_WAIT_S ?= 20
+LINE_EXP_LAB_CHECK_POLL_INTERVAL_S ?= 1
+LINE_EXP_CONVERGE_TAIL_LINES ?= 120
+LINE_EXP_CONVERGE_MAX_WAIT_S ?= 60
+LINE_EXP_CONVERGE_POLL_INTERVAL_S ?= 1
+LINE_EXP_CONVERGE_MIN_ROUTES ?= -1
+LINE_EXP_ALLOW_UNCONVERGED_SEND ?= 0
+LINE_EXP_OUTPUT_JSON ?=
+LINE_EXP_USE_SUDO ?= 1
+LINE_EXP_KEEP_LAB ?= 0
 
-.PHONY: install test lint build-routerd-node-image run-containerlab-exp run-ospf-convergence-exp run-routerd gen-routerd-lab gen-classic-routerd-lab check-routerd-lab run-routerd-lab clean
+.PHONY: install test lint build-routerd-node-image run-containerlab-exp run-ospf-convergence-exp run-routerd gen-routerd-lab gen-classic-routerd-lab check-routerd-lab run-routerd-lab run-traffic-app run-traffic-probe run-line-ospf-udp-exp clean
 
 install:
 	$(PIP) install -e .[dev]
@@ -122,6 +163,63 @@ run-routerd-lab:
 		--check-poll-interval-s $(RUNLAB_CHECK_POLL_INTERVAL_S) \
 		--check-min-routes $(RUNLAB_CHECK_MIN_ROUTES) \
 		$(if $(strip $(RUNLAB_CHECK_OUTPUT_JSON)),--check-output-json $(RUNLAB_CHECK_OUTPUT_JSON),)
+
+run-traffic-app:
+	@test -n "$(TRAFFIC_LAB_NAME)" || (echo "TRAFFIC_LAB_NAME is required"; exit 2)
+	@test -n "$(TRAFFIC_NODE)" || (echo "TRAFFIC_NODE is required"; exit 2)
+	@test -n "$(TRAFFIC_ARGS)" || (echo "TRAFFIC_ARGS is required"; exit 2)
+	PYTHONPATH=$(PYTHONPATH) $(PYTHON) exps/run_traffic_app.py \
+		--lab-name $(TRAFFIC_LAB_NAME) \
+		--node $(TRAFFIC_NODE) \
+		$(if $(filter 1 yes true,$(TRAFFIC_USE_SUDO)),--sudo,--no-sudo) \
+		$(if $(filter 1 yes true,$(TRAFFIC_BACKGROUND)),--background,) \
+		--log-file $(TRAFFIC_LOG_FILE) \
+		-- $(TRAFFIC_ARGS)
+
+run-traffic-probe:
+	@test -n "$(PROBE_LAB_NAME)" || (echo "PROBE_LAB_NAME is required"; exit 2)
+	@test -n "$(PROBE_SRC_NODE)" || (echo "PROBE_SRC_NODE is required"; exit 2)
+	@test -n "$(PROBE_DST_NODE)" || (echo "PROBE_DST_NODE is required"; exit 2)
+	@test -n "$(PROBE_DST_IP)" || (echo "PROBE_DST_IP is required"; exit 2)
+	PYTHONPATH=$(PYTHONPATH) $(PYTHON) exps/run_traffic_probe.py \
+		--lab-name $(PROBE_LAB_NAME) \
+		--src-node $(PROBE_SRC_NODE) \
+		--dst-node $(PROBE_DST_NODE) \
+		--dst-ip $(PROBE_DST_IP) \
+		--proto $(PROBE_PROTO) \
+		--port $(PROBE_PORT) \
+		--packet-size $(PROBE_PACKET_SIZE) \
+		--count $(PROBE_COUNT) \
+		--duration-s $(PROBE_DURATION_S) \
+		--pps $(PROBE_PPS) \
+		--report-interval-s $(PROBE_REPORT_INTERVAL_S) \
+		--warmup-s $(PROBE_WARMUP_S) \
+		--sender-timeout-s $(PROBE_TIMEOUT_S) \
+		$(if $(strip $(PROBE_OUTPUT_JSON)),--output-json $(PROBE_OUTPUT_JSON),) \
+		$(if $(filter 1 yes true,$(PROBE_USE_SUDO)),--sudo,--no-sudo)
+
+run-line-ospf-udp-exp:
+	PYTHONPATH=$(PYTHONPATH) $(PYTHON) exps/run_line_ospf_udp_exp.py \
+		$(if $(strip $(LINE_EXP_TOPOLOGY_FILE)),--topology-file $(LINE_EXP_TOPOLOGY_FILE),) \
+		--port $(LINE_EXP_PORT) \
+		--packet-size $(LINE_EXP_PACKET_SIZE) \
+		--count $(LINE_EXP_COUNT) \
+		--duration-s $(LINE_EXP_DURATION_S) \
+		--pps $(LINE_EXP_PPS) \
+	--report-interval-s $(LINE_EXP_REPORT_INTERVAL_S) \
+	--warmup-s $(LINE_EXP_WARMUP_S) \
+	--sender-timeout-s $(LINE_EXP_TIMEOUT_S) \
+	--lab-check-min-routes $(LINE_EXP_LAB_CHECK_MIN_ROUTES) \
+	--lab-check-max-wait-s $(LINE_EXP_LAB_CHECK_MAX_WAIT_S) \
+	--lab-check-poll-interval-s $(LINE_EXP_LAB_CHECK_POLL_INTERVAL_S) \
+	--converge-tail-lines $(LINE_EXP_CONVERGE_TAIL_LINES) \
+	--converge-max-wait-s $(LINE_EXP_CONVERGE_MAX_WAIT_S) \
+	--converge-poll-interval-s $(LINE_EXP_CONVERGE_POLL_INTERVAL_S) \
+	--converge-min-routes $(LINE_EXP_CONVERGE_MIN_ROUTES) \
+	$(if $(filter 1 yes true,$(LINE_EXP_ALLOW_UNCONVERGED_SEND)),--allow-unconverged-send,) \
+	$(if $(strip $(LINE_EXP_OUTPUT_JSON)),--output-json $(LINE_EXP_OUTPUT_JSON),) \
+	$(if $(filter 1 yes true,$(LINE_EXP_USE_SUDO)),--sudo,--no-sudo) \
+	$(if $(filter 1 yes true,$(LINE_EXP_KEEP_LAB)),--keep-lab,)
 
 clean:
 	rm -rf .pytest_cache .ruff_cache dist build *.egg-info

@@ -32,6 +32,8 @@ class LabGenParams:
     mgmt_ipv4_subnet: str
     mgmt_ipv6_subnet: str
     mgmt_external_access: bool
+    forwarding_enabled: bool = False
+    forwarding_dry_run: bool = True
 
 
 def generate_routerd_lab(params: LabGenParams) -> Dict[str, str]:
@@ -66,9 +68,18 @@ def generate_routerd_lab(params: LabGenParams) -> Dict[str, str]:
                 }
             )
 
+        router_host_ips = _select_router_host_ips(node_names, iface_plans)
+
         for node_name in node_names:
             rid = rid_map[node_name]
-            cfg = _build_routerd_config(params, rid, iface_plans[node_name])
+            cfg = _build_routerd_config(
+                params=params,
+                router_id=rid,
+                local_ifaces=iface_plans[node_name],
+                all_node_names=node_names,
+                rid_map=rid_map,
+                router_host_ips=router_host_ips,
+            )
             config_path = configs_dir / f"{node_name}.yaml"
             with config_path.open("w", encoding="utf-8") as f:
                 yaml.safe_dump(cfg, f, sort_keys=False, width=4096)
@@ -95,6 +106,9 @@ def _build_routerd_config(
     params: LabGenParams,
     router_id: int,
     local_ifaces: List[Dict[str, Any]],
+    all_node_names: List[str],
+    rid_map: Dict[str, int],
+    router_host_ips: Dict[str, str],
 ) -> Dict[str, Any]:
     neighbors = [
         {
@@ -114,7 +128,13 @@ def _build_routerd_config(
             "dead_interval": float(params.dead_interval),
         },
         "neighbors": neighbors,
-        "forwarding": {"enabled": False, "dry_run": True},
+        "forwarding": _build_forwarding_cfg(
+            params=params,
+            local_ifaces=local_ifaces,
+            all_node_names=all_node_names,
+            rid_map=rid_map,
+            router_host_ips=router_host_ips,
+        ),
     }
     if params.protocol == "ospf":
         cfg["protocol_params"] = {
@@ -134,6 +154,50 @@ def _build_routerd_config(
             }
         }
     return cfg
+
+
+def _build_forwarding_cfg(
+    params: LabGenParams,
+    local_ifaces: List[Dict[str, Any]],
+    all_node_names: List[str],
+    rid_map: Dict[str, int],
+    router_host_ips: Dict[str, str],
+) -> Dict[str, Any]:
+    forwarding: Dict[str, Any] = {
+        "enabled": bool(params.forwarding_enabled),
+        "dry_run": bool(params.forwarding_dry_run),
+    }
+    if not params.forwarding_enabled:
+        return forwarding
+
+    destination_prefixes: Dict[int, str] = {}
+    for node_name in sorted(all_node_names, key=lambda name: int(rid_map[name])):
+        rid = int(rid_map[node_name])
+        destination_prefixes[rid] = f"{router_host_ips[node_name]}/32"
+
+    next_hop_ips: Dict[int, str] = {}
+    for item in sorted(local_ifaces, key=lambda x: int(x["neighbor_id"])):
+        next_hop_ips[int(item["neighbor_id"])] = str(item["neighbor_ip"])
+
+    forwarding["destination_prefixes"] = destination_prefixes
+    forwarding["next_hop_ips"] = next_hop_ips
+    return forwarding
+
+
+def _select_router_host_ips(
+    node_names: List[str],
+    iface_plans: Dict[str, List[Dict[str, Any]]],
+) -> Dict[str, str]:
+    out: Dict[str, str] = {}
+    for node_name in node_names:
+        local_ifaces = list(iface_plans.get(node_name, []))
+        if not local_ifaces:
+            raise ValueError(
+                f"Node '{node_name}' has no interfaces; cannot build forwarding prefixes."
+            )
+        first = sorted(local_ifaces, key=lambda x: str(x["iface"]))[0]
+        out[node_name] = str(first["local_ip"])
+    return out
 
 
 def _write_deploy_env(params: LabGenParams, output_dir: Path) -> Path:
