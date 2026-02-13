@@ -1,11 +1,8 @@
 PYTHON ?= python3
 PIP ?= $(PYTHON) -m pip
 PYTHONPATH ?= src
-EXP_N_NODES ?= 6
 EXP_REPEATS ?= 1
-EXP_TOPOLOGY ?= er
-EXP_ER_P ?= 0.12
-EXP_BA_M ?= 2
+EXP_TOPOLOGY_FILE ?= clab_topologies/ring6.clab.yaml
 EXP_LINK_DELAY_MS ?= 1.0
 EXP_NODE_IMAGE ?= ghcr.io/srl-labs/network-multitool:latest
 EXP_MGMT_NETWORK_NAME ?=
@@ -17,16 +14,14 @@ ROUTERD_CONFIG ?= exps/routerd_examples/ospf_router1.yaml
 ROUTERD_LOG_LEVEL ?= INFO
 LABGEN_PROTOCOL ?= ospf
 LABGEN_PROFILE ?=
-LABGEN_TOPOLOGY ?= ring
-LABGEN_N_NODES ?= 6
-LABGEN_N_SPINES ?= 2
-LABGEN_N_LEAVES ?= 4
-LABGEN_SEED ?= 42
+LABGEN_TOPOLOGY_FILE ?=
 LABGEN_MGMT_NETWORK_NAME ?=
 LABGEN_MGMT_IPV4_SUBNET ?=
 LABGEN_MGMT_IPV6_SUBNET ?=
 LABGEN_MGMT_EXTERNAL_ACCESS ?= 0
 CHECK_TOPOLOGY_FILE ?=
+CHECK_LAB_NAME ?=
+CHECK_CONFIG_DIR ?=
 CHECK_EXPECT_PROTOCOL ?= ospf
 CHECK_MIN_ROUTES ?= -1
 CHECK_OUTPUT_JSON ?=
@@ -65,11 +60,8 @@ run-containerlab-exp:
 
 run-ospf-convergence-exp:
 	PYTHONPATH=$(PYTHONPATH) $(PYTHON) exps/ospf_convergence_exp.py \
-		--n-nodes $(EXP_N_NODES) \
+		--topology-file $(EXP_TOPOLOGY_FILE) \
 		--repeats $(EXP_REPEATS) \
-		--topology $(EXP_TOPOLOGY) \
-		--er-p $(EXP_ER_P) \
-		--ba-m $(EXP_BA_M) \
 		--link-delay-ms $(EXP_LINK_DELAY_MS) \
 		--node-image $(EXP_NODE_IMAGE) \
 		$(if $(strip $(EXP_MGMT_NETWORK_NAME)),--mgmt-network-name $(EXP_MGMT_NETWORK_NAME),) \
@@ -87,11 +79,7 @@ gen-routerd-lab:
 	PYTHONPATH=$(PYTHONPATH) $(PYTHON) exps/generate_routerd_lab.py \
 		--protocol $(LABGEN_PROTOCOL) \
 		$(if $(strip $(LABGEN_PROFILE)),--profile $(LABGEN_PROFILE),) \
-		--topology $(LABGEN_TOPOLOGY) \
-		--n-nodes $(LABGEN_N_NODES) \
-		--n-spines $(LABGEN_N_SPINES) \
-		--n-leaves $(LABGEN_N_LEAVES) \
-		--seed $(LABGEN_SEED) \
+		$(if $(strip $(LABGEN_TOPOLOGY_FILE)),--topology-file $(LABGEN_TOPOLOGY_FILE),) \
 		$(if $(strip $(LABGEN_MGMT_NETWORK_NAME)),--mgmt-network-name $(LABGEN_MGMT_NETWORK_NAME),) \
 		$(if $(strip $(LABGEN_MGMT_IPV4_SUBNET)),--mgmt-ipv4-subnet $(LABGEN_MGMT_IPV4_SUBNET),) \
 		$(if $(strip $(LABGEN_MGMT_IPV6_SUBNET)),--mgmt-ipv6-subnet $(LABGEN_MGMT_IPV6_SUBNET),) \
@@ -109,6 +97,8 @@ check-routerd-lab:
 	@test -n "$(CHECK_TOPOLOGY_FILE)" || (echo "CHECK_TOPOLOGY_FILE is required"; exit 2)
 	PYTHONPATH=$(PYTHONPATH) $(PYTHON) exps/check_routerd_lab.py \
 		--topology-file $(CHECK_TOPOLOGY_FILE) \
+		$(if $(strip $(CHECK_LAB_NAME)),--lab-name $(CHECK_LAB_NAME),) \
+		$(if $(strip $(CHECK_CONFIG_DIR)),--config-dir $(CHECK_CONFIG_DIR),) \
 		--expect-protocol $(CHECK_EXPECT_PROTOCOL) \
 		--min-routes $(CHECK_MIN_ROUTES) \
 		--max-wait-s $(CHECK_MAX_WAIT_S) \
@@ -120,11 +110,7 @@ run-routerd-lab:
 	PYTHONPATH=$(PYTHONPATH) $(PYTHON) exps/run_routerd_lab.py \
 		--protocol $(LABGEN_PROTOCOL) \
 		$(if $(strip $(LABGEN_PROFILE)),--profile $(LABGEN_PROFILE),) \
-		--topology $(LABGEN_TOPOLOGY) \
-		--n-nodes $(LABGEN_N_NODES) \
-		--n-spines $(LABGEN_N_SPINES) \
-		--n-leaves $(LABGEN_N_LEAVES) \
-		--seed $(LABGEN_SEED) \
+		$(if $(strip $(LABGEN_TOPOLOGY_FILE)),--topology-file $(LABGEN_TOPOLOGY_FILE),) \
 		$(if $(strip $(LABGEN_MGMT_NETWORK_NAME)),--mgmt-network-name $(LABGEN_MGMT_NETWORK_NAME),) \
 		$(if $(strip $(LABGEN_MGMT_IPV4_SUBNET)),--mgmt-ipv4-subnet $(LABGEN_MGMT_IPV4_SUBNET),) \
 		$(if $(strip $(LABGEN_MGMT_IPV6_SUBNET)),--mgmt-ipv6-subnet $(LABGEN_MGMT_IPV6_SUBNET),) \

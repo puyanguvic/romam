@@ -13,7 +13,7 @@ The control plane is organized into four core parts:
 
 Code layout keeps protocol implementation and experiment topology tooling parallel:
 - device-side routing protocol/runtime: `src/irp/protocols/` + `src/irp/runtime/`
-- experiment-side topology/lab generation: `src/topology/`
+- experiment-side topology loading/lab tooling: `src/topology/`
 
 ## Main Components
 
@@ -22,7 +22,7 @@ Code layout keeps protocol implementation and experiment topology tooling parall
   - OSPF-like link-state: `src/irp/protocols/ospf.py`
   - RIP distance-vector: `src/irp/protocols/rip.py`
 - Config loader: `src/irp/runtime/config.py`
-- Topology model + lab generators: `src/topology/topology.py`, `src/topology/labgen.py`
+- Topology file loader + lab tools: `src/topology/clab_loader.py`, `src/topology/labgen.py`
 - Example daemon configs: `exps/routerd_examples/`
 - Experiment utilities: `exps/ospf_convergence_exp.py`
 
@@ -93,9 +93,10 @@ forwarding:
 `forwarding.enabled=true` enables Linux route programming (`ip route`) based on protocol output.
 You need `destination_prefixes` and `next_hop_ips` mappings in config to install concrete kernel routes.
 
-## Generate Containerlab Topology + Per-Router Configs
+## Generate Routerd Configs (File-Driven Topology)
 
-Use the generator to create one `.clab.yaml` and one `routerd` config per node:
+Use the generator to create per-node `routerd` configs and a deploy env file.
+Containerlab keeps using the original topology file directly:
 
 ```bash
 make gen-routerd-lab LABGEN_PROFILE=ring6 LABGEN_PROTOCOL=ospf
@@ -114,13 +115,15 @@ Built-in profiles (few common topologies, one-arg selection):
 - `fullmesh4`
 - `spineleaf2x4`
 
-For parameterized/random topologies, keep using `--topology` + size params, for example:
+For a custom topology file, use `--topology-file`:
 
 ```bash
-python3 exps/generate_routerd_lab.py --protocol rip --topology er --n-nodes 8 --seed 7
+python3 exps/generate_routerd_lab.py \
+  --protocol rip \
+  --topology-file clab_topologies/spineleaf2x4.clab.yaml
 ```
 
-`--protocol` is independent from topology, so the same topology can run either `ospf` or `rip`.
+`--protocol` is independent from topology file, so the same file can run either `ospf` or `rip`.
 
 ## One-Command Lab Run
 
@@ -137,16 +140,12 @@ make run-routerd-lab LABGEN_PROFILE=ring6 LABGEN_PROTOCOL=rip RUNLAB_KEEP_LAB=1
 ```
 
 Generated assets are written under:
-- `results/runs/routerd_labs/<lab_name>/<lab_name>.clab.yaml`
-- `results/runs/routerd_labs/<lab_name>/configs/r*.yaml`
+- `results/runs/routerd_labs/<lab_name>/configs/*.yaml`
+- `results/runs/routerd_labs/<lab_name>/deploy.env`
 
-The generator now writes a dedicated containerlab `mgmt` network block and auto-selects
-free subnets when possible, to avoid default `clab` subnet conflicts.
-
-The generated topology already includes node `exec` commands to:
-- bring up data interfaces,
-- assign /30 link IPs,
-- start `python3 -m irp.routerd` inside each router container.
+`deploy.env` carries containerlab variable overrides (`name/mgmt/image`) and is consumed by
+`run-routerd-lab`. Topology files in `clab_topologies/` are parameterized with environment
+variables, so the same source file can be reused across runs.
 
 ### Common Pitfalls
 
@@ -160,10 +159,10 @@ The generated topology already includes node `exec` commands to:
   your `sudo` PATH may not include `~/.local/bin`.
   Use absolute path:
   ```bash
-  sudo "$(which containerlab)" deploy -t <topology_file> --reconfigure
+  sudo "$(which containerlab)" deploy -t <topology_file> --name <lab_name> --reconfigure
   ```
 - Deploying the wrong run:
-  always deploy the same `topology_file` path printed by your latest `make gen-routerd-lab`.
+  always use the `lab_name` and `deploy_env_file` printed by your latest `make gen-routerd-lab`.
 
 ## Validate A Running Lab
 
@@ -171,7 +170,9 @@ After `containerlab deploy`, run:
 
 ```bash
 make check-routerd-lab \
-  CHECK_TOPOLOGY_FILE=results/runs/routerd_labs/<lab_name>/<lab_name>.clab.yaml \
+  CHECK_TOPOLOGY_FILE=clab_topologies/ring6.clab.yaml \
+  CHECK_LAB_NAME=<lab_name> \
+  CHECK_CONFIG_DIR=results/runs/routerd_labs/<lab_name>/configs \
   CHECK_USE_SUDO=1 \
   CHECK_EXPECT_PROTOCOL=ospf
 ```
@@ -187,13 +188,13 @@ By default checker waits up to `10s` for early convergence logs (`CHECK_MAX_WAIT
 ## Run OSPF Convergence Demo
 
 ```bash
-make run-ospf-convergence-exp EXP_N_NODES=6 EXP_REPEATS=1 EXP_TOPOLOGY=er EXP_ER_P=0.2
+make run-ospf-convergence-exp EXP_TOPOLOGY_FILE=clab_topologies/ring6.clab.yaml EXP_REPEATS=1
 ```
 
 Direct script usage:
 
 ```bash
-python3 exps/ospf_convergence_exp.py --n-nodes 6 --repeats 1 --topology er --er-p 0.2
+python3 exps/ospf_convergence_exp.py --topology-file clab_topologies/ring6.clab.yaml --repeats 1
 ```
 
 If your environment requires privilege escalation for Docker/containerlab:
@@ -211,7 +212,13 @@ make run-ospf-convergence-exp EXP_USE_SUDO=1 \
   EXP_MGMT_IPV6_SUBNET=fd00:fa:10::/64
 ```
 
+For `spineleaf2x4` convergence tests:
+
+```bash
+make run-ospf-convergence-exp EXP_TOPOLOGY_FILE=clab_topologies/spineleaf2x4.clab.yaml
+```
+
 ## Outputs
 
 - Per-run artifacts: `results/runs/ospf_convergence_containerlab/`
-- Aggregated results: `results/tables/ospf_convergence_containerlab_n*.json` and `.csv`
+- Aggregated results: `results/tables/ospf_convergence_containerlab_<topology>.json` and `.csv`

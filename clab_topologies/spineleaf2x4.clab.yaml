@@ -1,12 +1,13 @@
-name: spineleaf2x4
+name: ${CLAB_LAB_NAME:=spineleaf2x4}
 mgmt:
-  network: clab-mgmt-spineleaf2x4
-  ipv4-subnet: 10.240.14.0/24
-  ipv6-subnet: fd00:f0:14::/64
+  network: ${CLAB_MGMT_NETWORK:=clab-mgmt-spineleaf2x4}
+  ipv4-subnet: ${CLAB_MGMT_IPV4_SUBNET:=10.240.14.0/24}
+  ipv6-subnet: ${CLAB_MGMT_IPV6_SUBNET:=fd00:f0:14::/64}
+  external-access: ${CLAB_MGMT_EXTERNAL_ACCESS:=false}
 topology:
   kinds:
     linux:
-      image: ghcr.io/srl-labs/network-multitool:latest
+      image: ${CLAB_NODE_IMAGE:=ghcr.io/srl-labs/network-multitool:latest}
   nodes:
     s1:
       kind: linux

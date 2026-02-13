@@ -1,12 +1,13 @@
-name: ring6
+name: ${CLAB_LAB_NAME:=ring6}
 mgmt:
-  network: clab-mgmt-ring6
-  ipv4-subnet: 10.240.11.0/24
-  ipv6-subnet: fd00:f0:11::/64
+  network: ${CLAB_MGMT_NETWORK:=clab-mgmt-ring6}
+  ipv4-subnet: ${CLAB_MGMT_IPV4_SUBNET:=10.240.11.0/24}
+  ipv6-subnet: ${CLAB_MGMT_IPV6_SUBNET:=fd00:f0:11::/64}
+  external-access: ${CLAB_MGMT_EXTERNAL_ACCESS:=false}
 topology:
   kinds:
     linux:
-      image: ghcr.io/srl-labs/network-multitool:latest
+      image: ${CLAB_NODE_IMAGE:=ghcr.io/srl-labs/network-multitool:latest}
   nodes:
     r1:
       kind: linux

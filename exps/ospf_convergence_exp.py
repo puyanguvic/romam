@@ -19,15 +19,13 @@ from pathlib import Path
 from statistics import mean
 from typing import Any, Dict, List
 
-import yaml
-
 REPO_ROOT = Path(__file__).resolve().parents[1]
 SRC_DIR = REPO_ROOT / "src"
 if str(SRC_DIR) not in sys.path:
     sys.path.insert(0, str(SRC_DIR))
 
 from irp.utils.io import dump_json, ensure_dir, now_tag
-from topology.topology import Topology
+from topology.clab_loader import ClabTopology, load_clab_topology
 
 PING_SUMMARY_RE = re.compile(r"(\d+) packets transmitted, (\d+) (?:packets )?received")
 PING_RTT_RE = re.compile(r"(?:rtt|round-trip) min/avg/max(?:/mdev|/stddev)? = ([0-9.]+)/([0-9.]+)/")
@@ -38,27 +36,17 @@ def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(
         description="Run containerlab OSPF convergence demo experiment and export probe metrics."
     )
-    parser.add_argument("--n-nodes", type=int, default=6, help="Topology size. Default: 6.")
+    parser.add_argument(
+        "--topology-file",
+        default="clab_topologies/ring6.clab.yaml",
+        help="Source containerlab topology file.",
+    )
     parser.add_argument(
         "--repeats",
         type=int,
         default=1,
-        help="Number of repeated runs with different seeds.",
+        help="Number of repeated runs on the same topology file.",
     )
-    parser.add_argument(
-        "--seed",
-        type=int,
-        default=42,
-        help="Base random seed. Repeat i uses seed+i.",
-    )
-    parser.add_argument(
-        "--topology",
-        choices=["ring", "er", "ba"],
-        default="er",
-        help="Topology type.",
-    )
-    parser.add_argument("--er-p", type=float, default=0.12, help="ER topology edge probability.")
-    parser.add_argument("--ba-m", type=int, default=2, help="BA topology attachment degree.")
     parser.add_argument(
         "--ping-count",
         type=int,
@@ -136,26 +124,13 @@ def parse_args() -> argparse.Namespace:
     return parser.parse_args()
 
 
-def build_topology_cfg(args: argparse.Namespace) -> Dict[str, Any]:
-    cfg: Dict[str, Any] = {
-        "type": args.topology,
-        "n_nodes": int(args.n_nodes),
-        "default_metric": 1.0,
-    }
-    if args.topology == "er":
-        cfg["p"] = float(args.er_p)
-    elif args.topology == "ba":
-        cfg["m"] = int(args.ba_m)
-    return cfg
-
-
-def edge_ip_pair(edge_idx: int) -> tuple[str, str]:
-    second_octet = edge_idx // 256
-    third_octet = edge_idx % 256
-    if second_octet > 255:
-        raise ValueError("Too many edges for /30 IP allocation plan (max 65536 links).")
-    subnet = f"10.{second_octet}.{third_octet}"
-    return f"{subnet}.1", f"{subnet}.2"
+def resolve_topology_file_arg(path_text: str) -> Path:
+    path = Path(path_text).expanduser()
+    if not path.is_absolute():
+        path = (REPO_ROOT / path).resolve()
+    if not path.is_file():
+        raise FileNotFoundError(f"Topology file does not exist: {path}")
+    return path
 
 
 def parse_ping_output(output: str) -> tuple[int, int, float | None]:
@@ -197,7 +172,12 @@ def with_sudo(cmd: List[str], use_sudo: bool) -> List[str]:
     return cmd
 
 
-def run_cmd(cmd: List[str], capture_output: bool = True, check: bool = True) -> str:
+def run_cmd(
+    cmd: List[str],
+    capture_output: bool = True,
+    check: bool = True,
+    env: Dict[str, str] | None = None,
+) -> str:
     try:
         result = subprocess.run(
             cmd,
@@ -205,6 +185,7 @@ def run_cmd(cmd: List[str], capture_output: bool = True, check: bool = True) -> 
             text=True,
             stdout=subprocess.PIPE if capture_output else None,
             stderr=subprocess.STDOUT if capture_output else None,
+            env=env,
         )
     except subprocess.CalledProcessError as exc:
         output = (exc.stdout or "").strip()
@@ -281,9 +262,9 @@ def ensure_prerequisites(use_sudo: bool) -> None:
 
 
 def clab_command(
-    args: argparse.Namespace,
     action: str,
     topology_path: Path,
+    lab_name: str,
 ) -> List[str]:
     action_flag = "--reconfigure" if action == "deploy" else "--cleanup"
     local_bin = local_containerlab_path()
@@ -292,13 +273,26 @@ def clab_command(
             "Missing required command: containerlab.\n"
             "Install containerlab on host and rerun."
         )
-    return with_sudo([local_bin, action, "-t", str(topology_path), action_flag], args.sudo)
+    return [local_bin, action, "-t", str(topology_path), "--name", lab_name, action_flag]
 
 
-def run_clab_action(args: argparse.Namespace, action: str, topology_path: Path) -> None:
-    cmd = clab_command(args, action, topology_path)
+def run_clab_action(
+    args: argparse.Namespace,
+    action: str,
+    topology_path: Path,
+    lab_name: str,
+    env_overrides: Dict[str, str],
+) -> None:
+    base_cmd = clab_command(action, topology_path, lab_name)
+    if args.sudo:
+        export_vars = [f"{key}={value}" for key, value in env_overrides.items()]
+        cmd = ["sudo", "env", *export_vars, *base_cmd]
+        cmd_env = None
+    else:
+        cmd = base_cmd
+        cmd_env = {**os.environ, **env_overrides}
     try:
-        run_cmd(cmd)
+        run_cmd(cmd, env=cmd_env)
     except RuntimeError as exc:
         raise RuntimeError(
             f"containerlab action '{action}' failed.\n"
@@ -377,68 +371,43 @@ def choose_mgmt_subnets(args: argparse.Namespace, lab_name: str) -> tuple[str, s
     return mgmt_name, selected_v4, selected_v6
 
 
-def build_containerlab_topology(
-    topology: Topology,
+def build_probe_plan(source: ClabTopology) -> List[Dict[str, Any]]:
+    probes: List[Dict[str, Any]] = []
+    for link in source.links:
+        probes.append(
+            {
+                "src_node": link.left_node,
+                "dst_node": link.right_node,
+                "src_iface": link.left_iface,
+                "dst_iface": link.right_iface,
+                "src_ip": link.left_ip,
+                "dst_ip": link.right_ip,
+                "target_ip": link.right_ip,
+            }
+        )
+    return probes
+
+
+def build_clab_env(
     node_image: str,
     lab_name: str,
     mgmt_network_name: str,
     mgmt_ipv4_subnet: str,
     mgmt_ipv6_subnet: str,
     mgmt_external_access: bool,
-) -> tuple[Dict[str, Any], List[Dict[str, Any]]]:
-    node_ids = sorted(topology.nodes())
-    iface_counter = {node_id: 1 for node_id in node_ids}
-
-    nodes = {f"h{node_id}": {"kind": "linux"} for node_id in node_ids}
-    links: List[Dict[str, Any]] = []
-    probes: List[Dict[str, Any]] = []
-
-    for edge_idx, edge in enumerate(topology.edge_list()):
-        iface_u = f"eth{iface_counter[edge.u]}"
-        iface_v = f"eth{iface_counter[edge.v]}"
-        iface_counter[edge.u] += 1
-        iface_counter[edge.v] += 1
-
-        ip_u, ip_v = edge_ip_pair(edge_idx)
-        links.append(
-            {
-                "endpoints": [
-                    f"h{edge.u}:{iface_u}",
-                    f"h{edge.v}:{iface_v}",
-                ]
-            }
-        )
-        probes.append(
-            {
-                "u": edge.u,
-                "v": edge.v,
-                "src_iface": iface_u,
-                "dst_iface": iface_v,
-                "src_ip": ip_u,
-                "dst_ip": ip_v,
-                "target_ip": ip_v,
-            }
-        )
-
-    clab_topology = {
-        "name": lab_name,
-        "mgmt": {
-            "network": mgmt_network_name,
-            "ipv4-subnet": mgmt_ipv4_subnet,
-            "ipv6-subnet": mgmt_ipv6_subnet,
-            "external-access": bool(mgmt_external_access),
-        },
-        "topology": {
-            "kinds": {"linux": {"image": node_image}},
-            "nodes": nodes,
-            "links": links,
-        },
+) -> Dict[str, str]:
+    return {
+        "CLAB_NODE_IMAGE": str(node_image),
+        "CLAB_LAB_NAME": lab_name,
+        "CLAB_MGMT_NETWORK": mgmt_network_name,
+        "CLAB_MGMT_IPV4_SUBNET": mgmt_ipv4_subnet,
+        "CLAB_MGMT_IPV6_SUBNET": mgmt_ipv6_subnet,
+        "CLAB_MGMT_EXTERNAL_ACCESS": "true" if mgmt_external_access else "false",
     }
-    return clab_topology, probes
 
 
-def clab_container_name(lab_name: str, node_id: int) -> str:
-    return f"clab-{lab_name}-h{node_id}"
+def clab_container_name(lab_name: str, node_name: str) -> str:
+    return f"clab-{lab_name}-{node_name}"
 
 
 def configure_interfaces(
@@ -449,10 +418,10 @@ def configure_interfaces(
 ) -> None:
     tc_delay = format_delay(delay_ms)
     for probe in probes:
-        u = int(probe["u"])
-        v = int(probe["v"])
-        src_container = clab_container_name(lab_name, u)
-        dst_container = clab_container_name(lab_name, v)
+        src_node = str(probe["src_node"])
+        dst_node = str(probe["dst_node"])
+        src_container = clab_container_name(lab_name, src_node)
+        dst_container = clab_container_name(lab_name, dst_node)
         src_iface = str(probe["src_iface"])
         dst_iface = str(probe["dst_iface"])
         src_cidr = f"{probe['src_ip']}/30"
@@ -544,19 +513,21 @@ def configure_interfaces(
 
 def run_once(
     args: argparse.Namespace,
-    topology_cfg: Dict[str, Any],
+    source_topology: ClabTopology,
     run_idx: int,
 ) -> Dict[str, Any]:
     ensure_prerequisites(args.sudo)
 
-    seed = int(args.seed) + run_idx
-    topology = Topology.from_config(topology_cfg, seed=seed)
-    run_id = f"ospf_convergence_containerlab_n{args.n_nodes}_r{run_idx}_{now_tag()}"
-    lab_name = sanitize_label(f"{args.lab_name_prefix}-n{args.n_nodes}-r{run_idx}-{now_tag()}", 48)
+    node_count = len(source_topology.node_names)
+    run_id = f"ospf_convergence_containerlab_n{node_count}_r{run_idx}_{now_tag()}"
+    topology_tag = str(source_topology.source_path.name.removesuffix(".clab.yaml"))
+    lab_name = sanitize_label(
+        f"{args.lab_name_prefix}-{topology_tag}-r{run_idx}-{now_tag()}",
+        48,
+    )
     mgmt_network_name, mgmt_ipv4_subnet, mgmt_ipv6_subnet = choose_mgmt_subnets(args, lab_name)
-
-    clab_topology, probe_plan = build_containerlab_topology(
-        topology=topology,
+    probe_plan = build_probe_plan(source_topology)
+    clab_env = build_clab_env(
         node_image=str(args.node_image),
         lab_name=lab_name,
         mgmt_network_name=mgmt_network_name,
@@ -565,9 +536,6 @@ def run_once(
         mgmt_external_access=bool(args.mgmt_external_access),
     )
     run_dir = ensure_dir(REPO_ROOT / args.run_output_dir)
-    topology_path = run_dir / f"{run_id}.clab.yaml"
-    with topology_path.open("w", encoding="utf-8") as f:
-        yaml.safe_dump(clab_topology, f, sort_keys=False)
 
     successful_probes = 0
     failed_probes = 0
@@ -576,14 +544,20 @@ def run_once(
 
     lab_deployed = False
     try:
-        run_clab_action(args, "deploy", topology_path)
+        run_clab_action(
+            args,
+            "deploy",
+            source_topology.source_path,
+            lab_name,
+            clab_env,
+        )
         lab_deployed = True
         time.sleep(max(0.0, float(args.startup_wait_s)))
 
         configure_interfaces(lab_name, probe_plan, float(args.link_delay_ms), args.sudo)
 
         for probe in probe_plan:
-            src_node = int(probe["u"])
+            src_node = str(probe["src_node"])
             src_container = clab_container_name(lab_name, src_node)
             target_ip = str(probe["target_ip"])
             output = run_cmd(
@@ -616,8 +590,8 @@ def run_once(
 
             probe_details.append(
                 {
-                    "u": probe["u"],
-                    "v": probe["v"],
+                    "src_node": probe["src_node"],
+                    "dst_node": probe["dst_node"],
                     "target_ip": target_ip,
                     "packets_tx": tx,
                     "packets_rx": rx,
@@ -628,16 +602,22 @@ def run_once(
     finally:
         if lab_deployed and not args.keep_lab:
             try:
-                run_clab_action(args, "destroy", topology_path)
+                run_clab_action(
+                    args,
+                    "destroy",
+                    source_topology.source_path,
+                    lab_name,
+                    clab_env,
+                )
             except RuntimeError:
                 pass
 
     run_payload = {
         "run_id": run_id,
-        "name": f"ospf_convergence_containerlab_n{args.n_nodes}_r{run_idx}",
-        "seed": seed,
-        "n_nodes": args.n_nodes,
-        "topology": args.topology,
+        "name": f"ospf_convergence_containerlab_n{node_count}_r{run_idx}",
+        "run_idx": run_idx,
+        "n_nodes": node_count,
+        "topology": topology_tag,
         "edge_count": len(probe_plan),
         "link_delay_ms": float(args.link_delay_ms),
         "node_image": args.node_image,
@@ -647,7 +627,8 @@ def run_once(
         "mgmt_ipv4_subnet": mgmt_ipv4_subnet,
         "mgmt_ipv6_subnet": mgmt_ipv6_subnet,
         "mgmt_external_access": bool(args.mgmt_external_access),
-        "topology_file": str(topology_path),
+        "source_topology_file": str(source_topology.source_path),
+        "topology_file": str(source_topology.source_path),
         "successful_probes": successful_probes,
         "failed_probes": failed_probes,
         "probe_success_ratio": round(successful_probes / max(1, len(probe_plan)), 6),
@@ -664,9 +645,10 @@ def summarize(metrics_rows: List[Dict[str, Any]], args: argparse.Namespace) -> D
     return {
         "experiment": "ospf_convergence_exp",
         "created_at_utc": datetime.now(timezone.utc).isoformat(),
-        "n_nodes": args.n_nodes,
+        "n_nodes": metrics_rows[0]["n_nodes"] if metrics_rows else None,
         "repeats": args.repeats,
-        "topology": args.topology,
+        "topology": metrics_rows[0]["topology"] if metrics_rows else None,
+        "source_topology_file": metrics_rows[0]["source_topology_file"] if metrics_rows else None,
         "link_delay_ms": float(args.link_delay_ms),
         "node_image": args.node_image,
         "clab_mode": "host-binary",
@@ -722,9 +704,10 @@ def save_outputs(summary: Dict[str, Any], prefix: str) -> tuple[Path, Path]:
     fields = [
         "run_id",
         "name",
-        "seed",
+        "run_idx",
         "n_nodes",
         "topology",
+        "source_topology_file",
         "edge_count",
         "link_delay_ms",
         "node_image",
@@ -752,17 +735,23 @@ def save_outputs(summary: Dict[str, Any], prefix: str) -> tuple[Path, Path]:
 
 def main() -> None:
     args = parse_args()
-    topology_cfg = build_topology_cfg(args)
+    source_topology_file = resolve_topology_file_arg(str(args.topology_file))
+    source_topology = load_clab_topology(source_topology_file)
 
-    rows = [run_once(args, topology_cfg, i) for i in range(args.repeats)]
+    rows = [run_once(args, source_topology, i) for i in range(args.repeats)]
     summary = summarize(rows, args)
-    prefix = args.result_prefix or f"results/tables/ospf_convergence_containerlab_n{args.n_nodes}"
+    prefix = (
+        args.result_prefix
+        or "results/tables/ospf_convergence_containerlab_"
+        + source_topology.source_path.name.removesuffix(".clab.yaml")
+    )
     json_path, csv_path = save_outputs(summary, prefix)
 
     print("=== OSPF Convergence Containerlab Experiment ===")
     print(f"n_nodes: {summary['n_nodes']}")
     print(f"repeats: {summary['repeats']}")
     print(f"topology: {summary['topology']}")
+    print(f"source_topology_file: {summary['source_topology_file']}")
     print(f"link_delay_ms: {summary['link_delay_ms']}")
     print(f"avg_probe_success_ratio: {summary['avg_probe_success_ratio']}")
     print(f"convergence_success_rate: {summary['convergence_success_rate']}")

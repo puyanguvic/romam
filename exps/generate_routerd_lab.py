@@ -20,42 +20,31 @@ if str(SRC_DIR) not in sys.path:
 from irp.utils.io import now_tag
 from topology.labgen import LabGenParams, generate_routerd_lab
 
-PROFILE_PRESETS: dict[str, dict[str, int | str]] = {
-    "line5": {"topology": "line", "n_nodes": 5},
-    "ring6": {"topology": "ring", "n_nodes": 6},
-    "star6": {"topology": "star", "n_nodes": 6},
-    "fullmesh4": {"topology": "fullmesh", "n_nodes": 4},
-    "spineleaf2x4": {"topology": "spineleaf", "n_nodes": 6, "n_spines": 2, "n_leaves": 4},
+PROFILE_TO_TOPOLOGY_FILE: dict[str, str] = {
+    "line5": "clab_topologies/line5.clab.yaml",
+    "ring6": "clab_topologies/ring6.clab.yaml",
+    "star6": "clab_topologies/star6.clab.yaml",
+    "fullmesh4": "clab_topologies/fullmesh4.clab.yaml",
+    "spineleaf2x4": "clab_topologies/spineleaf2x4.clab.yaml",
 }
 
 
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(
-        description="Generate containerlab topology and per-router routerd configs."
+        description="Generate routerd-enabled containerlab topology and per-node configs."
     )
     parser.add_argument("--protocol", choices=["ospf", "rip"], default="ospf")
     parser.add_argument(
         "--profile",
-        choices=sorted(PROFILE_PRESETS.keys()),
-        default="",
-        help=(
-            "Use a built-in topology template. When set, it overrides related topology-size "
-            "arguments while keeping --protocol configurable."
-        ),
+        choices=sorted(PROFILE_TO_TOPOLOGY_FILE.keys()),
+        default="ring6",
+        help="Built-in topology profile under clab_topologies/.",
     )
     parser.add_argument(
-        "--topology",
-        choices=["line", "ring", "star", "fullmesh", "spineleaf", "er", "ba", "grid"],
-        default="ring",
+        "--topology-file",
+        default="",
+        help="Path to source .clab.yaml file. Overrides --profile when provided.",
     )
-    parser.add_argument("--n-nodes", type=int, default=6)
-    parser.add_argument("--n-spines", type=int, default=2)
-    parser.add_argument("--n-leaves", type=int, default=4)
-    parser.add_argument("--seed", type=int, default=42)
-    parser.add_argument("--er-p", type=float, default=0.2)
-    parser.add_argument("--ba-m", type=int, default=2)
-    parser.add_argument("--rows", type=int, default=3)
-    parser.add_argument("--cols", type=int, default=3)
     parser.add_argument(
         "--node-image",
         default="ghcr.io/srl-labs/network-multitool:latest",
@@ -112,25 +101,25 @@ def parse_args() -> argparse.Namespace:
         action="store_true",
         help="Enable containerlab mgmt external access.",
     )
+    parser.add_argument(
+        "--sudo",
+        action=argparse.BooleanOptionalAction,
+        default=False,
+        help="Use sudo when probing Docker networks for free mgmt subnets.",
+    )
     return parser.parse_args()
 
 
 def main() -> int:
     args = parse_args()
-    topology_type, n_nodes, n_spines, n_leaves = resolve_topology_shape(args)
-    topology_label = str(args.profile) if args.profile else topology_type
+    source_topology_file = resolve_source_topology_file(args)
+    topology_label = source_topology_file.name.removesuffix(".clab.yaml")
     lab_name = args.lab_name or f"routerd-{args.protocol}-{topology_label}-{now_tag().lower()}"
     output_dir = REPO_ROOT / args.output_dir / lab_name
     mgmt_network_name, mgmt_ipv4_subnet, mgmt_ipv6_subnet = resolve_mgmt_settings(args, lab_name)
     params = LabGenParams(
         protocol=str(args.protocol),
-        topology_type=topology_type,
-        n_nodes=n_nodes,
-        seed=int(args.seed),
-        er_p=float(args.er_p),
-        ba_m=int(args.ba_m),
-        rows=int(args.rows),
-        cols=int(args.cols),
+        topology_file=source_topology_file,
         node_image=str(args.node_image),
         bind_port=int(args.bind_port),
         tick_interval=float(args.tick_interval),
@@ -145,35 +134,49 @@ def main() -> int:
         output_dir=output_dir,
         lab_name=lab_name,
         log_level=str(args.log_level),
-        source_dir=SRC_DIR,
         mgmt_network_name=mgmt_network_name,
         mgmt_ipv4_subnet=mgmt_ipv4_subnet,
         mgmt_ipv6_subnet=mgmt_ipv6_subnet,
         mgmt_external_access=bool(args.mgmt_external_access),
-        n_spines=n_spines,
-        n_leaves=n_leaves,
     )
     result = generate_routerd_lab(params)
     clab_bin = shutil.which("containerlab") or "containerlab"
     print("Generated routerd lab assets")
     print(f"lab_name: {result['lab_name']}")
-    if args.profile:
+    if not args.topology_file:
         print(f"profile: {args.profile}")
     print(f"protocol: {args.protocol}")
-    print(f"topology: {topology_type}")
-    if topology_type == "spineleaf":
-        print(f"shape: n_spines={n_spines}, n_leaves={n_leaves}")
-    else:
-        print(f"shape: n_nodes={n_nodes}")
+    print(f"source_topology_file: {source_topology_file}")
     print(f"topology_file: {result['topology_file']}")
     print(f"configs_dir: {result['configs_dir']}")
+    print(f"deploy_env_file: {result['deploy_env_file']}")
     print(f"mgmt_network: {mgmt_network_name}")
     print(f"mgmt_ipv4_subnet: {mgmt_ipv4_subnet}")
     print(f"mgmt_ipv6_subnet: {mgmt_ipv6_subnet}")
     print()
-    print(f"Deploy:  sudo {clab_bin} deploy -t {result['topology_file']} --reconfigure")
-    print(f"Destroy: sudo {clab_bin} destroy -t {result['topology_file']} --cleanup")
+    print(
+        "Deploy:  "
+        f"sudo env $(cat {result['deploy_env_file']} | xargs) "
+        f"{clab_bin} deploy -t {result['topology_file']} --name {result['lab_name']} --reconfigure"
+    )
+    print(
+        "Destroy: "
+        f"sudo env $(cat {result['deploy_env_file']} | xargs) "
+        f"{clab_bin} destroy -t {result['topology_file']} --name {result['lab_name']} --cleanup"
+    )
     return 0
+
+
+def resolve_source_topology_file(args: argparse.Namespace) -> Path:
+    if args.topology_file:
+        path = Path(str(args.topology_file)).expanduser()
+        if not path.is_absolute():
+            path = (REPO_ROOT / path).resolve()
+    else:
+        path = (REPO_ROOT / PROFILE_TO_TOPOLOGY_FILE[str(args.profile)]).resolve()
+    if not path.is_file():
+        raise FileNotFoundError(f"Topology file does not exist: {path}")
+    return path
 
 
 def resolve_mgmt_settings(args: argparse.Namespace, lab_name: str) -> tuple[str, str, str]:
@@ -183,13 +186,12 @@ def resolve_mgmt_settings(args: argparse.Namespace, lab_name: str) -> tuple[str,
     if ipv4 and ipv6:
         return name, ipv4, ipv6
 
-    used_v4, used_v6 = list_docker_network_subnets()
+    used_v4, used_v6 = list_docker_network_subnets(use_sudo=bool(args.sudo))
     selected_v4 = ipv4 or first_free_v4(used_v4)
     selected_v6 = ipv6 or first_free_v6(used_v6)
     if selected_v4 and selected_v6:
         return name, selected_v4, selected_v6
 
-    # deterministic fallback even when docker network inspect is unavailable
     token = hashlib.sha256(lab_name.encode("utf-8")).hexdigest()
     fallback_octet = int(token[:2], 16)
     fallback_v4 = f"10.250.{fallback_octet}.0/24"
@@ -197,28 +199,16 @@ def resolve_mgmt_settings(args: argparse.Namespace, lab_name: str) -> tuple[str,
     return name, selected_v4 or fallback_v4, selected_v6 or fallback_v6
 
 
-def resolve_topology_shape(args: argparse.Namespace) -> tuple[str, int, int, int]:
-    topology_type = str(args.topology)
-    n_nodes = int(args.n_nodes)
-    n_spines = int(args.n_spines)
-    n_leaves = int(args.n_leaves)
-    if not args.profile:
-        return topology_type, n_nodes, n_spines, n_leaves
-
-    preset = PROFILE_PRESETS[str(args.profile)]
-    topology_type = str(preset["topology"])
-    n_nodes = int(preset.get("n_nodes", n_nodes))
-    n_spines = int(preset.get("n_spines", n_spines))
-    n_leaves = int(preset.get("n_leaves", n_leaves))
-    return topology_type, n_nodes, n_spines, n_leaves
+def with_sudo(cmd: list[str], use_sudo: bool) -> list[str]:
+    return ["sudo", *cmd] if use_sudo else cmd
 
 
-def list_docker_network_subnets() -> tuple[
+def list_docker_network_subnets(use_sudo: bool) -> tuple[
     List[ipaddress.IPv4Network],
     List[ipaddress.IPv6Network],
 ]:
     ids_proc = subprocess.run(
-        ["docker", "network", "ls", "-q"],
+        with_sudo(["docker", "network", "ls", "-q"], use_sudo),
         check=False,
         text=True,
         stdout=subprocess.PIPE,
@@ -231,7 +221,7 @@ def list_docker_network_subnets() -> tuple[
         return [], []
 
     inspect_proc = subprocess.run(
-        ["docker", "network", "inspect", *network_ids],
+        with_sudo(["docker", "network", "inspect", *network_ids], use_sudo),
         check=False,
         text=True,
         stdout=subprocess.PIPE,

@@ -17,25 +17,20 @@ def _load_module():
     return module
 
 
-def test_resolve_topology_shape_without_profile() -> None:
+def test_resolve_source_topology_file_from_profile() -> None:
     module = _load_module()
-    args = argparse.Namespace(
-        profile="",
-        topology="fullmesh",
-        n_nodes=4,
-        n_spines=2,
-        n_leaves=4,
-    )
-    assert module.resolve_topology_shape(args) == ("fullmesh", 4, 2, 4)
+    args = argparse.Namespace(profile="ring6", topology_file="")
+    resolved = module.resolve_source_topology_file(args)
+    assert resolved.name == "ring6.clab.yaml"
+    assert resolved.parent.name == "clab_topologies"
 
 
-def test_resolve_topology_shape_profile_overrides_shape_fields() -> None:
+def test_resolve_source_topology_file_prefers_explicit_file(tmp_path: Path) -> None:
     module = _load_module()
-    args = argparse.Namespace(
-        profile="spineleaf2x4",
-        topology="ring",
-        n_nodes=100,
-        n_spines=10,
-        n_leaves=10,
+    source = tmp_path / "x.clab.yaml"
+    source.write_text(
+        "name: x\ntopology:\n  nodes: {a: {kind: linux}}\n  links: []\n",
+        encoding="utf-8",
     )
-    assert module.resolve_topology_shape(args) == ("spineleaf", 6, 2, 4)
+    args = argparse.Namespace(profile="ring6", topology_file=str(source))
+    assert module.resolve_source_topology_file(args) == source.resolve()

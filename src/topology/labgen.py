@@ -2,24 +2,18 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Any, Dict, List, Tuple
+from typing import Any, Dict, List
 
 import yaml
 
 from irp.utils.io import ensure_dir
-from topology.topology import Topology
+from topology.clab_loader import load_clab_topology
 
 
 @dataclass(frozen=True)
 class LabGenParams:
     protocol: str
-    topology_type: str
-    n_nodes: int
-    seed: int
-    er_p: float
-    ba_m: int
-    rows: int
-    cols: int
+    topology_file: Path
     node_image: str
     bind_port: int
     tick_interval: float
@@ -34,81 +28,59 @@ class LabGenParams:
     output_dir: Path
     lab_name: str
     log_level: str
-    source_dir: Path
     mgmt_network_name: str
     mgmt_ipv4_subnet: str
     mgmt_ipv6_subnet: str
     mgmt_external_access: bool
-    n_spines: int = 2
-    n_leaves: int = 4
 
 
 def generate_routerd_lab(params: LabGenParams) -> Dict[str, str]:
     try:
-        topology = _build_topology(params)
+        source = load_clab_topology(params.topology_file)
         output_dir = ensure_dir(params.output_dir)
         configs_dir = ensure_dir(output_dir / "configs")
 
-        node_ids = sorted(topology.nodes())
-        rid_map = {node_id: node_id + 1 for node_id in node_ids}
-        iface_index = {node_id: 1 for node_id in node_ids}
+        node_names = list(source.node_names)
+        rid_map = {node_name: idx + 1 for idx, node_name in enumerate(node_names)}
+        iface_plans: Dict[str, List[Dict[str, Any]]] = {node_name: [] for node_name in node_names}
 
-        links: List[Dict[str, Any]] = []
-        iface_plans: Dict[int, List[Dict[str, Any]]] = {node_id: [] for node_id in node_ids}
-
-        for edge_idx, edge in enumerate(topology.edge_list()):
-            u = edge.u
-            v = edge.v
-            iface_u = f"eth{iface_index[u]}"
-            iface_v = f"eth{iface_index[v]}"
-            iface_index[u] += 1
-            iface_index[v] += 1
-
-            ip_u, ip_v = _edge_ip_pair(edge_idx)
-            links.append({"endpoints": [f"r{rid_map[u]}:{iface_u}", f"r{rid_map[v]}:{iface_v}"]})
-
-            iface_plans[u].append(
+        for link in source.links:
+            left_rid = rid_map[link.left_node]
+            right_rid = rid_map[link.right_node]
+            iface_plans[link.left_node].append(
                 {
-                    "iface": iface_u,
-                    "local_ip": ip_u,
-                    "neighbor_ip": ip_v,
-                    "neighbor_id": rid_map[v],
-                    "cost": float(edge.metric),
+                    "iface": link.left_iface,
+                    "local_ip": link.left_ip,
+                    "neighbor_ip": link.right_ip,
+                    "neighbor_id": right_rid,
+                    "cost": float(link.cost),
                 }
             )
-            iface_plans[v].append(
+            iface_plans[link.right_node].append(
                 {
-                    "iface": iface_v,
-                    "local_ip": ip_v,
-                    "neighbor_ip": ip_u,
-                    "neighbor_id": rid_map[u],
-                    "cost": float(edge.metric),
+                    "iface": link.right_iface,
+                    "local_ip": link.right_ip,
+                    "neighbor_ip": link.left_ip,
+                    "neighbor_id": left_rid,
+                    "cost": float(link.cost),
                 }
             )
 
-        for node_id in node_ids:
-            rid = rid_map[node_id]
-            cfg = _build_routerd_config(params, rid, iface_plans[node_id])
-            config_path = configs_dir / f"r{rid}.yaml"
+        for node_name in node_names:
+            rid = rid_map[node_name]
+            cfg = _build_routerd_config(params, rid, iface_plans[node_name])
+            config_path = configs_dir / f"{node_name}.yaml"
             with config_path.open("w", encoding="utf-8") as f:
                 yaml.safe_dump(cfg, f, sort_keys=False, width=4096)
 
-        topology_data = _build_clab_topology(
-            params=params,
-            node_ids=node_ids,
-            rid_map=rid_map,
-            iface_plans=iface_plans,
-            links=links,
-            configs_dir=configs_dir,
-        )
-        topology_path = output_dir / f"{params.lab_name}.clab.yaml"
-        with topology_path.open("w", encoding="utf-8") as f:
-            yaml.safe_dump(topology_data, f, sort_keys=False, width=4096)
+        deploy_env_file = _write_deploy_env(params, output_dir)
 
         return {
-            "topology_file": str(topology_path),
+            "topology_file": str(source.source_path),
             "configs_dir": str(configs_dir),
             "lab_name": params.lab_name,
+            "source_topology_file": str(source.source_path),
+            "deploy_env_file": str(deploy_env_file),
         }
     except PermissionError as exc:
         output_base = params.output_dir
@@ -117,25 +89,6 @@ def generate_routerd_lab(params: LabGenParams) -> Dict[str, str]:
             "This is usually caused by previous root-owned files. "
             "Run: sudo chown -R $USER:$USER results/runs/routerd_labs"
         ) from exc
-
-
-def _build_topology(params: LabGenParams) -> Topology:
-    cfg: Dict[str, Any] = {
-        "type": params.topology_type,
-        "n_nodes": params.n_nodes,
-        "default_metric": 1.0,
-    }
-    if params.topology_type == "er":
-        cfg["p"] = params.er_p
-    elif params.topology_type == "ba":
-        cfg["m"] = params.ba_m
-    elif params.topology_type == "grid":
-        cfg["rows"] = params.rows
-        cfg["cols"] = params.cols
-    elif params.topology_type == "spineleaf":
-        cfg["n_spines"] = params.n_spines
-        cfg["n_leaves"] = params.n_leaves
-    return Topology.from_config(cfg, seed=params.seed)
 
 
 def _build_routerd_config(
@@ -183,71 +136,18 @@ def _build_routerd_config(
     return cfg
 
 
-def _build_clab_topology(
-    params: LabGenParams,
-    node_ids: List[int],
-    rid_map: Dict[int, int],
-    iface_plans: Dict[int, List[Dict[str, Any]]],
-    links: List[Dict[str, Any]],
-    configs_dir: Path,
-) -> Dict[str, Any]:
-    nodes: Dict[str, Dict[str, Any]] = {}
-    src_bind = str(params.source_dir.resolve())
-    configs_bind = str(configs_dir.resolve())
-
-    for node_id in node_ids:
-        rid = rid_map[node_id]
-        node_name = f"r{rid}"
-        exec_cmds = []
-        for item in sorted(iface_plans[node_id], key=lambda x: _iface_index(str(x["iface"]))):
-            iface = str(item["iface"])
-            local_ip = str(item["local_ip"])
-            exec_cmds.append(f"ip link set {iface} up")
-            exec_cmds.append(f"ip addr replace {local_ip}/30 dev {iface}")
-        exec_cmds.append("sysctl -w net.ipv4.ip_forward=1")
-        daemon_cmd = (
-            "sh -lc "
-            f"'PYTHONPATH=/irp/src nohup python3 -m irp.routerd "
-            f"--config /irp/configs/{node_name}.yaml "
-            f"--log-level {params.log_level} >/tmp/routerd.log 2>&1 &'"
-        )
-        exec_cmds.append(
-            daemon_cmd
-        )
-        nodes[node_name] = {
-            "kind": "linux",
-            "binds": [f"{src_bind}:/irp/src:ro", f"{configs_bind}:/irp/configs:ro"],
-            "exec": exec_cmds,
-        }
-
-    return {
-        "name": params.lab_name,
-        "mgmt": {
-            "network": params.mgmt_network_name,
-            "ipv4-subnet": params.mgmt_ipv4_subnet,
-            "ipv6-subnet": params.mgmt_ipv6_subnet,
-            "external-access": bool(params.mgmt_external_access),
-        },
-        "topology": {
-            "kinds": {"linux": {"image": params.node_image}},
-            "nodes": nodes,
-            "links": links,
-        },
+def _write_deploy_env(params: LabGenParams, output_dir: Path) -> Path:
+    env_path = output_dir / "deploy.env"
+    entries = {
+        "CLAB_LAB_NAME": params.lab_name,
+        "CLAB_NODE_IMAGE": params.node_image,
+        "CLAB_MGMT_NETWORK": params.mgmt_network_name,
+        "CLAB_MGMT_IPV4_SUBNET": params.mgmt_ipv4_subnet,
+        "CLAB_MGMT_IPV6_SUBNET": params.mgmt_ipv6_subnet,
+        "CLAB_MGMT_EXTERNAL_ACCESS": "true" if params.mgmt_external_access else "false",
+        "ROMAM_LOG_LEVEL": params.log_level,
     }
-
-
-def _iface_index(iface: str) -> int:
-    if iface.startswith("eth"):
-        suffix = iface[3:]
-        if suffix.isdigit():
-            return int(suffix)
-    return 1 << 30
-
-
-def _edge_ip_pair(edge_idx: int) -> Tuple[str, str]:
-    second_octet = edge_idx // 256
-    third_octet = edge_idx % 256
-    if second_octet > 255:
-        raise ValueError("Too many edges for /30 IP allocation plan (max 65536 links).")
-    subnet = f"10.{second_octet}.{third_octet}"
-    return f"{subnet}.1", f"{subnet}.2"
+    with env_path.open("w", encoding="utf-8") as f:
+        for key, value in entries.items():
+            f.write(f"{key}={value}\n")
+    return env_path

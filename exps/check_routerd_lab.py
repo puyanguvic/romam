@@ -38,7 +38,17 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument(
         "--topology-file",
         required=True,
-        help="Path to generated .clab.yaml file.",
+        help="Path to source .clab.yaml file.",
+    )
+    parser.add_argument(
+        "--lab-name",
+        default="",
+        help="Containerlab lab name. Defaults to topology `name` when omitted.",
+    )
+    parser.add_argument(
+        "--config-dir",
+        default="",
+        help="Directory of per-node routerd configs. Auto-detected from topology binds if omitted.",
     )
     parser.add_argument("--sudo", action="store_true", help="Prefix docker commands with sudo.")
     parser.add_argument(
@@ -170,14 +180,7 @@ def inspect_node(
         report["errors"].append("container not running")
         return report
 
-    pgrep = run_cmd(
-        with_sudo(
-            ["docker", "exec", container, "sh", "-lc", "pgrep -af irp.routerd || true"],
-            use_sudo,
-        ),
-        check=False,
-    )
-    report["daemon_running"] = bool(pgrep.strip())
+    report["daemon_running"] = _check_daemon_running(use_sudo, container)
     if not report["daemon_running"]:
         report["errors"].append("routerd process not found")
 
@@ -204,6 +207,9 @@ def inspect_node(
     report["route_count"] = route_count
     if route_count is None:
         report["errors"].append("no RIB/FIB update log found")
+        lowered = log_tail.lower()
+        if "traceback" in lowered or "module not found" in lowered:
+            report["errors"].append("routerd log shows exception")
     elif route_count < min_routes:
         report["errors"].append(f"route_count too small: {route_count} < {min_routes}")
 
@@ -260,12 +266,41 @@ def parse_last_route_count(log_text: str) -> int | None:
     return None
 
 
+def _check_daemon_running(use_sudo: bool, container: str) -> bool:
+    pid_text = run_cmd(
+        with_sudo(
+            ["docker", "exec", container, "sh", "-lc", "cat /tmp/routerd.pid 2>/dev/null || true"],
+            use_sudo,
+        ),
+        check=False,
+    ).strip()
+    if pid_text.isdigit():
+        cmdline = run_cmd(
+            with_sudo(
+                ["docker", "exec", container, "sh", "-lc", f"ps -p {pid_text} -o args= || true"],
+                use_sudo,
+            ),
+            check=False,
+        ).strip()
+        if "python3 -m irp.routerd" in cmdline:
+            return True
+
+    pgrep_out = run_cmd(
+        with_sudo(
+            ["docker", "exec", container, "pgrep", "-af", "python3 -m irp.routerd"],
+            use_sudo,
+        ),
+        check=False,
+    ).strip()
+    return bool(pgrep_out)
+
+
 def main() -> int:
     args = parse_args()
     topology_file = Path(args.topology_file).expanduser().resolve()
     topo = load_topology(topology_file)
 
-    lab_name = str(topo["name"])
+    lab_name = str(args.lab_name or topo["name"])
     nodes = dict(topo.get("topology", {}).get("nodes", {}))
     if not nodes:
         raise RuntimeError("No nodes found in topology.")
@@ -273,8 +308,11 @@ def main() -> int:
     if min_routes < 0:
         min_routes = max(0, len(nodes) - 1)
 
-    first_node = next(iter(nodes.values()))
-    config_dir = parse_config_bind(first_node, topology_file)
+    if args.config_dir:
+        config_dir = Path(str(args.config_dir)).expanduser().resolve()
+    else:
+        first_node = next(iter(nodes.values()))
+        config_dir = parse_config_bind(first_node, topology_file)
 
     def collect_reports() -> Dict[str, Any]:
         reports: Dict[str, Any] = {}
