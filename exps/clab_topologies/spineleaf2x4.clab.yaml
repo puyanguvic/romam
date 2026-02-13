@@ -1,0 +1,75 @@
+name: spineleaf2x4
+mgmt:
+  network: clab-mgmt-spineleaf2x4
+  ipv4-subnet: 10.240.14.0/24
+  ipv6-subnet: fd00:f0:14::/64
+topology:
+  kinds:
+    linux:
+      image: ghcr.io/srl-labs/network-multitool:latest
+  nodes:
+    s1:
+      kind: linux
+      exec:
+        - ip link set eth1 up
+        - ip addr replace 10.14.1.1/30 dev eth1
+        - ip link set eth2 up
+        - ip addr replace 10.14.2.1/30 dev eth2
+        - ip link set eth3 up
+        - ip addr replace 10.14.3.1/30 dev eth3
+        - ip link set eth4 up
+        - ip addr replace 10.14.4.1/30 dev eth4
+        - sysctl -w net.ipv4.ip_forward=1
+    s2:
+      kind: linux
+      exec:
+        - ip link set eth1 up
+        - ip addr replace 10.14.5.1/30 dev eth1
+        - ip link set eth2 up
+        - ip addr replace 10.14.6.1/30 dev eth2
+        - ip link set eth3 up
+        - ip addr replace 10.14.7.1/30 dev eth3
+        - ip link set eth4 up
+        - ip addr replace 10.14.8.1/30 dev eth4
+        - sysctl -w net.ipv4.ip_forward=1
+    l1:
+      kind: linux
+      exec:
+        - ip link set eth1 up
+        - ip addr replace 10.14.1.2/30 dev eth1
+        - ip link set eth2 up
+        - ip addr replace 10.14.5.2/30 dev eth2
+        - sysctl -w net.ipv4.ip_forward=1
+    l2:
+      kind: linux
+      exec:
+        - ip link set eth1 up
+        - ip addr replace 10.14.2.2/30 dev eth1
+        - ip link set eth2 up
+        - ip addr replace 10.14.6.2/30 dev eth2
+        - sysctl -w net.ipv4.ip_forward=1
+    l3:
+      kind: linux
+      exec:
+        - ip link set eth1 up
+        - ip addr replace 10.14.3.2/30 dev eth1
+        - ip link set eth2 up
+        - ip addr replace 10.14.7.2/30 dev eth2
+        - sysctl -w net.ipv4.ip_forward=1
+    l4:
+      kind: linux
+      exec:
+        - ip link set eth1 up
+        - ip addr replace 10.14.4.2/30 dev eth1
+        - ip link set eth2 up
+        - ip addr replace 10.14.8.2/30 dev eth2
+        - sysctl -w net.ipv4.ip_forward=1
+  links:
+    - endpoints: ["s1:eth1", "l1:eth1"]
+    - endpoints: ["s1:eth2", "l2:eth1"]
+    - endpoints: ["s1:eth3", "l3:eth1"]
+    - endpoints: ["s1:eth4", "l4:eth1"]
+    - endpoints: ["s2:eth1", "l1:eth2"]
+    - endpoints: ["s2:eth2", "l2:eth2"]
+    - endpoints: ["s2:eth3", "l3:eth2"]
+    - endpoints: ["s2:eth4", "l4:eth2"]

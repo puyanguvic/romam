@@ -31,3 +31,22 @@ def test_parse_protocol_from_log() -> None:
 2026-02-11 INFO irp.routerd: routerd start: router_id=1 protocol=ospf bind=0.0.0.0:5500
 """.strip()
     assert module.parse_protocol_from_log(text) == "ospf"
+
+
+def test_parse_config_bind_resolves_relative_to_topology_file(tmp_path: Path) -> None:
+    module = _load_module()
+    topology_file = tmp_path / "exps" / "clab_topologies" / "ring6-routerd.clab.yaml"
+    topology_file.parent.mkdir(parents=True, exist_ok=True)
+    topology_file.write_text("name: dummy\n", encoding="utf-8")
+
+    node = {"binds": ["./routerd_configs/ring6:/irp/configs:ro"]}
+    resolved = module.parse_config_bind(node, topology_file)
+    assert resolved == (topology_file.parent / "routerd_configs" / "ring6").resolve()
+
+
+def test_parse_config_bind_keeps_absolute_path() -> None:
+    module = _load_module()
+    topology_file = Path("/tmp/any/topology.clab.yaml")
+    node = {"binds": ["/opt/configs:/irp/configs:ro"]}
+    resolved = module.parse_config_bind(node, topology_file)
+    assert resolved == Path("/opt/configs")

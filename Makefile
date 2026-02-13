@@ -30,6 +30,7 @@ CHECK_OUTPUT_JSON ?=
 CHECK_USE_SUDO ?= 0
 CHECK_MAX_WAIT_S ?= 10
 CHECK_POLL_INTERVAL_S ?= 1
+ROUTERD_NODE_IMAGE ?= romam/network-multitool-routerd:latest
 RUNLAB_USE_SUDO ?= 1
 RUNLAB_KEEP_LAB ?= 0
 RUNLAB_CHECK_TAIL_LINES ?= 60
@@ -38,7 +39,7 @@ RUNLAB_CHECK_POLL_INTERVAL_S ?= 1
 RUNLAB_CHECK_MIN_ROUTES ?= -1
 RUNLAB_CHECK_OUTPUT_JSON ?=
 
-.PHONY: install test lint run-containerlab-exp run-ospf-convergence-exp run-routerd gen-routerd-lab check-routerd-lab run-routerd-lab clean
+.PHONY: install test lint build-routerd-node-image run-containerlab-exp run-ospf-convergence-exp run-routerd gen-routerd-lab check-routerd-lab run-routerd-lab clean
 
 install:
 	$(PIP) install -e .[dev]
@@ -48,6 +49,9 @@ test:
 
 lint:
 	ruff check src tests scripts exps
+
+build-routerd-node-image:
+	docker build -t $(ROUTERD_NODE_IMAGE) -f exps/container_images/routerd-multitool/Dockerfile .
 
 run-containerlab-exp:
 	$(MAKE) run-ospf-convergence-exp

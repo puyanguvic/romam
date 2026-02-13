@@ -115,12 +115,21 @@ def clab_container_name(lab_name: str, node_name: str) -> str:
     return f"clab-{lab_name}-{node_name}"
 
 
-def parse_config_bind(node: Dict[str, Any]) -> Path:
+def parse_config_bind(node: Dict[str, Any], topology_file: Path) -> Path:
+    topology_dir = topology_file.parent
     for bind in node.get("binds", []):
         bind_text = str(bind)
+        host_path = ""
         if ":/irp/configs:ro" in bind_text:
             host_path = bind_text.split(":/irp/configs:ro", maxsplit=1)[0]
-            return Path(host_path)
+        elif ":/irp/configs" in bind_text:
+            host_path = bind_text.split(":/irp/configs", maxsplit=1)[0]
+        if host_path:
+            candidate = Path(host_path).expanduser()
+            if candidate.is_absolute():
+                return candidate
+            # Keep the same base-path semantics as containerlab bind parsing.
+            return (topology_dir / candidate).resolve()
     raise ValueError("node bind does not include /irp/configs:ro mapping")
 
 
@@ -265,7 +274,7 @@ def main() -> int:
         min_routes = max(0, len(nodes) - 1)
 
     first_node = next(iter(nodes.values()))
-    config_dir = parse_config_bind(first_node)
+    config_dir = parse_config_bind(first_node, topology_file)
 
     def collect_reports() -> Dict[str, Any]:
         reports: Dict[str, Any] = {}

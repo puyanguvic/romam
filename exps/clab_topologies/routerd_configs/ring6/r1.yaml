@@ -1,0 +1,25 @@
+router_id: 1
+protocol: ospf
+bind:
+  address: 0.0.0.0
+  port: 5500
+timers:
+  tick_interval: 1.0
+  dead_interval: 4.0
+neighbors:
+- router_id: 2
+  address: 10.11.1.2
+  port: 5500
+  cost: 1.0
+- router_id: 6
+  address: 10.11.6.1
+  port: 5500
+  cost: 1.0
+protocol_params:
+  ospf:
+    hello_interval: 1.0
+    lsa_interval: 3.0
+    lsa_max_age: 15.0
+forwarding:
+  enabled: false
+  dry_run: true
