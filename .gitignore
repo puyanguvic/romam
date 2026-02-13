@@ -15,3 +15,5 @@ experiment/
 results/runs/
 results/tables/
 results/figs/
+clab_topologies/generated/
+clab_topologies/clab-*/

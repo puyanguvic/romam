@@ -16,8 +16,11 @@ EXP_USE_SUDO ?= 0
 ROUTERD_CONFIG ?= exps/routerd_examples/ospf_router1.yaml
 ROUTERD_LOG_LEVEL ?= INFO
 LABGEN_PROTOCOL ?= ospf
+LABGEN_PROFILE ?=
 LABGEN_TOPOLOGY ?= ring
 LABGEN_N_NODES ?= 6
+LABGEN_N_SPINES ?= 2
+LABGEN_N_LEAVES ?= 4
 LABGEN_SEED ?= 42
 LABGEN_MGMT_NETWORK_NAME ?=
 LABGEN_MGMT_IPV4_SUBNET ?=
@@ -31,6 +34,10 @@ CHECK_USE_SUDO ?= 0
 CHECK_MAX_WAIT_S ?= 10
 CHECK_POLL_INTERVAL_S ?= 1
 ROUTERD_NODE_IMAGE ?= romam/network-multitool-routerd:latest
+CLASSIC_PROFILE ?= ring6
+CLASSIC_PROTOCOL ?= ospf
+CLASSIC_OUTPUT_DIR ?= clab_topologies/generated
+CLASSIC_LAB_NAME ?= $(CLASSIC_PROFILE)-routerd-$(CLASSIC_PROTOCOL)
 RUNLAB_USE_SUDO ?= 1
 RUNLAB_KEEP_LAB ?= 0
 RUNLAB_CHECK_TAIL_LINES ?= 60
@@ -39,7 +46,7 @@ RUNLAB_CHECK_POLL_INTERVAL_S ?= 1
 RUNLAB_CHECK_MIN_ROUTES ?= -1
 RUNLAB_CHECK_OUTPUT_JSON ?=
 
-.PHONY: install test lint build-routerd-node-image run-containerlab-exp run-ospf-convergence-exp run-routerd gen-routerd-lab check-routerd-lab run-routerd-lab clean
+.PHONY: install test lint build-routerd-node-image run-containerlab-exp run-ospf-convergence-exp run-routerd gen-routerd-lab gen-classic-routerd-lab check-routerd-lab run-routerd-lab clean
 
 install:
 	$(PIP) install -e .[dev]
@@ -79,13 +86,24 @@ run-routerd:
 gen-routerd-lab:
 	PYTHONPATH=$(PYTHONPATH) $(PYTHON) exps/generate_routerd_lab.py \
 		--protocol $(LABGEN_PROTOCOL) \
+		$(if $(strip $(LABGEN_PROFILE)),--profile $(LABGEN_PROFILE),) \
 		--topology $(LABGEN_TOPOLOGY) \
 		--n-nodes $(LABGEN_N_NODES) \
+		--n-spines $(LABGEN_N_SPINES) \
+		--n-leaves $(LABGEN_N_LEAVES) \
 		--seed $(LABGEN_SEED) \
 		$(if $(strip $(LABGEN_MGMT_NETWORK_NAME)),--mgmt-network-name $(LABGEN_MGMT_NETWORK_NAME),) \
 		$(if $(strip $(LABGEN_MGMT_IPV4_SUBNET)),--mgmt-ipv4-subnet $(LABGEN_MGMT_IPV4_SUBNET),) \
 		$(if $(strip $(LABGEN_MGMT_IPV6_SUBNET)),--mgmt-ipv6-subnet $(LABGEN_MGMT_IPV6_SUBNET),) \
 		$(if $(filter 1 yes true,$(LABGEN_MGMT_EXTERNAL_ACCESS)),--mgmt-external-access,)
+
+gen-classic-routerd-lab:
+	PYTHONPATH=$(PYTHONPATH) $(PYTHON) exps/generate_routerd_lab.py \
+		--profile $(CLASSIC_PROFILE) \
+		--protocol $(CLASSIC_PROTOCOL) \
+		--node-image $(ROUTERD_NODE_IMAGE) \
+		--output-dir $(CLASSIC_OUTPUT_DIR) \
+		--lab-name $(CLASSIC_LAB_NAME)
 
 check-routerd-lab:
 	@test -n "$(CHECK_TOPOLOGY_FILE)" || (echo "CHECK_TOPOLOGY_FILE is required"; exit 2)
@@ -101,8 +119,11 @@ check-routerd-lab:
 run-routerd-lab:
 	PYTHONPATH=$(PYTHONPATH) $(PYTHON) exps/run_routerd_lab.py \
 		--protocol $(LABGEN_PROTOCOL) \
+		$(if $(strip $(LABGEN_PROFILE)),--profile $(LABGEN_PROFILE),) \
 		--topology $(LABGEN_TOPOLOGY) \
 		--n-nodes $(LABGEN_N_NODES) \
+		--n-spines $(LABGEN_N_SPINES) \
+		--n-leaves $(LABGEN_N_LEAVES) \
 		--seed $(LABGEN_SEED) \
 		$(if $(strip $(LABGEN_MGMT_NETWORK_NAME)),--mgmt-network-name $(LABGEN_MGMT_NETWORK_NAME),) \
 		$(if $(strip $(LABGEN_MGMT_IPV4_SUBNET)),--mgmt-ipv4-subnet $(LABGEN_MGMT_IPV4_SUBNET),) \

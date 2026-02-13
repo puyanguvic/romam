@@ -39,6 +39,8 @@ class LabGenParams:
     mgmt_ipv4_subnet: str
     mgmt_ipv6_subnet: str
     mgmt_external_access: bool
+    n_spines: int = 2
+    n_leaves: int = 4
 
 
 def generate_routerd_lab(params: LabGenParams) -> Dict[str, str]:
@@ -130,6 +132,9 @@ def _build_topology(params: LabGenParams) -> Topology:
     elif params.topology_type == "grid":
         cfg["rows"] = params.rows
         cfg["cols"] = params.cols
+    elif params.topology_type == "spineleaf":
+        cfg["n_spines"] = params.n_spines
+        cfg["n_leaves"] = params.n_leaves
     return Topology.from_config(cfg, seed=params.seed)
 
 

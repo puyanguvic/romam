@@ -9,8 +9,14 @@ from topology.topology import Topology
 
 def main() -> None:
     parser = argparse.ArgumentParser(description="Generate topology JSON")
-    parser.add_argument("--type", required=True, choices=["ring", "grid", "er", "ba"])
+    parser.add_argument(
+        "--type",
+        required=True,
+        choices=["line", "ring", "star", "fullmesh", "spineleaf", "grid", "er", "ba"],
+    )
     parser.add_argument("--n", type=int, default=20, help="Node count for ring/er/ba")
+    parser.add_argument("--n-spines", type=int, default=2)
+    parser.add_argument("--n-leaves", type=int, default=4)
     parser.add_argument("--rows", type=int, default=4)
     parser.add_argument("--cols", type=int, default=4)
     parser.add_argument("--p", type=float, default=0.05)
@@ -20,8 +26,16 @@ def main() -> None:
     parser.add_argument("--out", required=True)
     args = parser.parse_args()
 
-    if args.type == "ring":
+    if args.type == "line":
+        topo = Topology.line(args.n, args.metric)
+    elif args.type == "ring":
         topo = Topology.ring(args.n, args.metric)
+    elif args.type == "star":
+        topo = Topology.star(args.n, args.metric)
+    elif args.type == "fullmesh":
+        topo = Topology.fullmesh(args.n, args.metric)
+    elif args.type == "spineleaf":
+        topo = Topology.spineleaf(args.n_spines, args.n_leaves, args.metric)
     elif args.type == "grid":
         topo = Topology.grid(args.rows, args.cols, args.metric)
     elif args.type == "er":

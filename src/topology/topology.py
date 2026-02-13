@@ -80,12 +80,62 @@ class Topology:
         return t
 
     @classmethod
+    def line(cls, n_nodes: int, metric: float = 1.0) -> "Topology":
+        t = cls()
+        if n_nodes <= 0:
+            return t
+        for i in range(n_nodes):
+            t.add_node(i)
+        for i in range(n_nodes - 1):
+            t.add_link(i, i + 1, metric)
+        return t
+
+    @classmethod
     def ring(cls, n_nodes: int, metric: float = 1.0) -> "Topology":
         t = cls()
         if n_nodes <= 0:
             return t
         for i in range(n_nodes):
             t.add_link(i, (i + 1) % n_nodes, metric)
+        return t
+
+    @classmethod
+    def star(cls, n_nodes: int, metric: float = 1.0, center: int = 0) -> "Topology":
+        t = cls()
+        if n_nodes <= 0:
+            return t
+        center = max(0, min(center, n_nodes - 1))
+        for i in range(n_nodes):
+            t.add_node(i)
+        for i in range(n_nodes):
+            if i == center:
+                continue
+            t.add_link(center, i, metric)
+        return t
+
+    @classmethod
+    def fullmesh(cls, n_nodes: int, metric: float = 1.0) -> "Topology":
+        t = cls()
+        if n_nodes <= 0:
+            return t
+        for i in range(n_nodes):
+            t.add_node(i)
+        for u in range(n_nodes):
+            for v in range(u + 1, n_nodes):
+                t.add_link(u, v, metric)
+        return t
+
+    @classmethod
+    def spineleaf(cls, n_spines: int, n_leaves: int, metric: float = 1.0) -> "Topology":
+        t = cls()
+        n_spines = max(0, n_spines)
+        n_leaves = max(0, n_leaves)
+        n_nodes = n_spines + n_leaves
+        for i in range(n_nodes):
+            t.add_node(i)
+        for spine in range(n_spines):
+            for leaf in range(n_spines, n_nodes):
+                t.add_link(spine, leaf, metric)
         return t
 
     @classmethod
@@ -146,8 +196,20 @@ class Topology:
     def from_config(cls, cfg: Dict, seed: int = 0) -> "Topology":
         tp = cfg.get("type", "ring")
         metric = float(cfg.get("default_metric", 1.0))
+        if tp == "line":
+            return cls.line(int(cfg.get("n_nodes", 8)), metric)
         if tp == "ring":
             return cls.ring(int(cfg.get("n_nodes", 8)), metric)
+        if tp == "star":
+            return cls.star(int(cfg.get("n_nodes", 8)), metric, int(cfg.get("center", 0)))
+        if tp == "fullmesh":
+            return cls.fullmesh(int(cfg.get("n_nodes", 8)), metric)
+        if tp in {"spineleaf", "spineleaf2x4"}:
+            return cls.spineleaf(
+                int(cfg.get("n_spines", 2)),
+                int(cfg.get("n_leaves", 4)),
+                metric,
+            )
         if tp == "grid":
             return cls.grid(int(cfg.get("rows", 4)), int(cfg.get("cols", 4)), metric)
         if tp == "er":

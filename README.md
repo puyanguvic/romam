@@ -98,27 +98,42 @@ You need `destination_prefixes` and `next_hop_ips` mappings in config to install
 Use the generator to create one `.clab.yaml` and one `routerd` config per node:
 
 ```bash
-make gen-routerd-lab LABGEN_PROTOCOL=ospf LABGEN_TOPOLOGY=ring LABGEN_N_NODES=6
+make gen-routerd-lab LABGEN_PROFILE=ring6 LABGEN_PROTOCOL=ospf
 ```
 
 Or run directly:
 
 ```bash
+python3 exps/generate_routerd_lab.py --profile star6 --protocol rip
+```
+
+Built-in profiles (few common topologies, one-arg selection):
+- `line5`
+- `ring6`
+- `star6`
+- `fullmesh4`
+- `spineleaf2x4`
+
+For parameterized/random topologies, keep using `--topology` + size params, for example:
+
+```bash
 python3 exps/generate_routerd_lab.py --protocol rip --topology er --n-nodes 8 --seed 7
 ```
+
+`--protocol` is independent from topology, so the same topology can run either `ospf` or `rip`.
 
 ## One-Command Lab Run
 
 For a quick end-to-end run (generate + deploy + health-check + destroy):
 
 ```bash
-make run-routerd-lab LABGEN_PROTOCOL=rip LABGEN_TOPOLOGY=ring LABGEN_N_NODES=4
+make run-routerd-lab LABGEN_PROFILE=ring6 LABGEN_PROTOCOL=rip
 ```
 
 Keep the lab after checks:
 
 ```bash
-make run-routerd-lab LABGEN_PROTOCOL=rip LABGEN_TOPOLOGY=ring LABGEN_N_NODES=4 RUNLAB_KEEP_LAB=1
+make run-routerd-lab LABGEN_PROFILE=ring6 LABGEN_PROTOCOL=rip RUNLAB_KEEP_LAB=1
 ```
 
 Generated assets are written under:

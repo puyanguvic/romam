@@ -20,14 +20,37 @@ if str(SRC_DIR) not in sys.path:
 from irp.utils.io import now_tag
 from topology.labgen import LabGenParams, generate_routerd_lab
 
+PROFILE_PRESETS: dict[str, dict[str, int | str]] = {
+    "line5": {"topology": "line", "n_nodes": 5},
+    "ring6": {"topology": "ring", "n_nodes": 6},
+    "star6": {"topology": "star", "n_nodes": 6},
+    "fullmesh4": {"topology": "fullmesh", "n_nodes": 4},
+    "spineleaf2x4": {"topology": "spineleaf", "n_nodes": 6, "n_spines": 2, "n_leaves": 4},
+}
+
 
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(
         description="Generate containerlab topology and per-router routerd configs."
     )
     parser.add_argument("--protocol", choices=["ospf", "rip"], default="ospf")
-    parser.add_argument("--topology", choices=["ring", "er", "ba", "grid"], default="ring")
+    parser.add_argument(
+        "--profile",
+        choices=sorted(PROFILE_PRESETS.keys()),
+        default="",
+        help=(
+            "Use a built-in topology template. When set, it overrides related topology-size "
+            "arguments while keeping --protocol configurable."
+        ),
+    )
+    parser.add_argument(
+        "--topology",
+        choices=["line", "ring", "star", "fullmesh", "spineleaf", "er", "ba", "grid"],
+        default="ring",
+    )
     parser.add_argument("--n-nodes", type=int, default=6)
+    parser.add_argument("--n-spines", type=int, default=2)
+    parser.add_argument("--n-leaves", type=int, default=4)
     parser.add_argument("--seed", type=int, default=42)
     parser.add_argument("--er-p", type=float, default=0.2)
     parser.add_argument("--ba-m", type=int, default=2)
@@ -94,13 +117,15 @@ def parse_args() -> argparse.Namespace:
 
 def main() -> int:
     args = parse_args()
-    lab_name = args.lab_name or f"routerd-{args.protocol}-{args.topology}-{now_tag().lower()}"
+    topology_type, n_nodes, n_spines, n_leaves = resolve_topology_shape(args)
+    topology_label = str(args.profile) if args.profile else topology_type
+    lab_name = args.lab_name or f"routerd-{args.protocol}-{topology_label}-{now_tag().lower()}"
     output_dir = REPO_ROOT / args.output_dir / lab_name
     mgmt_network_name, mgmt_ipv4_subnet, mgmt_ipv6_subnet = resolve_mgmt_settings(args, lab_name)
     params = LabGenParams(
         protocol=str(args.protocol),
-        topology_type=str(args.topology),
-        n_nodes=int(args.n_nodes),
+        topology_type=topology_type,
+        n_nodes=n_nodes,
         seed=int(args.seed),
         er_p=float(args.er_p),
         ba_m=int(args.ba_m),
@@ -125,11 +150,21 @@ def main() -> int:
         mgmt_ipv4_subnet=mgmt_ipv4_subnet,
         mgmt_ipv6_subnet=mgmt_ipv6_subnet,
         mgmt_external_access=bool(args.mgmt_external_access),
+        n_spines=n_spines,
+        n_leaves=n_leaves,
     )
     result = generate_routerd_lab(params)
     clab_bin = shutil.which("containerlab") or "containerlab"
     print("Generated routerd lab assets")
     print(f"lab_name: {result['lab_name']}")
+    if args.profile:
+        print(f"profile: {args.profile}")
+    print(f"protocol: {args.protocol}")
+    print(f"topology: {topology_type}")
+    if topology_type == "spineleaf":
+        print(f"shape: n_spines={n_spines}, n_leaves={n_leaves}")
+    else:
+        print(f"shape: n_nodes={n_nodes}")
     print(f"topology_file: {result['topology_file']}")
     print(f"configs_dir: {result['configs_dir']}")
     print(f"mgmt_network: {mgmt_network_name}")
@@ -160,6 +195,22 @@ def resolve_mgmt_settings(args: argparse.Namespace, lab_name: str) -> tuple[str,
     fallback_v4 = f"10.250.{fallback_octet}.0/24"
     fallback_v6 = f"fd00:fa:{fallback_octet:02x}::/64"
     return name, selected_v4 or fallback_v4, selected_v6 or fallback_v6
+
+
+def resolve_topology_shape(args: argparse.Namespace) -> tuple[str, int, int, int]:
+    topology_type = str(args.topology)
+    n_nodes = int(args.n_nodes)
+    n_spines = int(args.n_spines)
+    n_leaves = int(args.n_leaves)
+    if not args.profile:
+        return topology_type, n_nodes, n_spines, n_leaves
+
+    preset = PROFILE_PRESETS[str(args.profile)]
+    topology_type = str(preset["topology"])
+    n_nodes = int(preset.get("n_nodes", n_nodes))
+    n_spines = int(preset.get("n_spines", n_spines))
+    n_leaves = int(preset.get("n_leaves", n_leaves))
+    return topology_type, n_nodes, n_spines, n_leaves
 
 
 def list_docker_network_subnets() -> tuple[

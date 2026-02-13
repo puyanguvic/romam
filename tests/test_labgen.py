@@ -64,3 +64,49 @@ def test_generate_routerd_lab_outputs_topology_and_configs(tmp_path: Path) -> No
     assert cfg_r1["router_id"] == 1
     assert cfg_r1["protocol"] == "ospf"
     assert cfg_r1["neighbors"]
+
+
+def test_generate_routerd_lab_supports_star_with_rip(tmp_path: Path) -> None:
+    out_dir = tmp_path / "lab-rip-star"
+    params = LabGenParams(
+        protocol="rip",
+        topology_type="star",
+        n_nodes=5,
+        seed=1,
+        er_p=0.2,
+        ba_m=2,
+        rows=2,
+        cols=2,
+        node_image="ghcr.io/srl-labs/network-multitool:latest",
+        bind_port=5500,
+        tick_interval=1.0,
+        dead_interval=4.0,
+        ospf_hello_interval=1.0,
+        ospf_lsa_interval=3.0,
+        ospf_lsa_max_age=15.0,
+        rip_update_interval=5.0,
+        rip_neighbor_timeout=15.0,
+        rip_infinity_metric=16.0,
+        rip_poison_reverse=True,
+        output_dir=out_dir,
+        lab_name="testlab-rip-star",
+        log_level="INFO",
+        source_dir=Path.cwd() / "src",
+        mgmt_network_name="testlab-rip-star-mgmt",
+        mgmt_ipv4_subnet="10.250.11.0/24",
+        mgmt_ipv6_subnet="fd00:fa:11::/64",
+        mgmt_external_access=False,
+    )
+
+    result = generate_routerd_lab(params)
+    topology_path = Path(result["topology_file"])
+    configs_dir = Path(result["configs_dir"])
+
+    topo = yaml.safe_load(topology_path.read_text(encoding="utf-8"))
+    assert len(topo["topology"]["nodes"]) == 5
+    assert len(topo["topology"]["links"]) == 4
+
+    cfg_r1 = yaml.safe_load((configs_dir / "r1.yaml").read_text(encoding="utf-8"))
+    assert cfg_r1["protocol"] == "rip"
+    assert "rip" in cfg_r1["protocol_params"]
+    assert cfg_r1["neighbors"]

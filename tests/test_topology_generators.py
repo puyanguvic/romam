@@ -3,9 +3,33 @@ from __future__ import annotations
 from topology.topology import Topology
 
 
+def test_line_topology_edge_count() -> None:
+    topo = Topology.line(5)
+    assert len(topo.nodes()) == 5
+    assert len(topo.edge_list()) == 4
+
+
 def test_ring_topology_edge_count() -> None:
     topo = Topology.ring(8)
     assert len(topo.nodes()) == 8
+    assert len(topo.edge_list()) == 8
+
+
+def test_star_topology_edge_count() -> None:
+    topo = Topology.star(6)
+    assert len(topo.nodes()) == 6
+    assert len(topo.edge_list()) == 5
+
+
+def test_fullmesh_topology_edge_count() -> None:
+    topo = Topology.fullmesh(4)
+    assert len(topo.nodes()) == 4
+    assert len(topo.edge_list()) == 6
+
+
+def test_spineleaf_topology_from_config() -> None:
+    topo = Topology.from_config({"type": "spineleaf", "n_spines": 2, "n_leaves": 4})
+    assert len(topo.nodes()) == 6
     assert len(topo.edge_list()) == 8
 
 

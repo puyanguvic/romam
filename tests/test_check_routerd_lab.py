@@ -35,7 +35,7 @@ def test_parse_protocol_from_log() -> None:
 
 def test_parse_config_bind_resolves_relative_to_topology_file(tmp_path: Path) -> None:
     module = _load_module()
-    topology_file = tmp_path / "exps" / "clab_topologies" / "ring6-routerd.clab.yaml"
+    topology_file = tmp_path / "clab_topologies" / "ring6-routerd.clab.yaml"
     topology_file.parent.mkdir(parents=True, exist_ok=True)
     topology_file.write_text("name: dummy\n", encoding="utf-8")
 
