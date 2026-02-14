@@ -79,6 +79,14 @@ def parse_args() -> argparse.Namespace:
     return parser.parse_args()
 
 
+def build_traffic_app_cmd(app_args: list[str]) -> str:
+    app_arg_text = shlex.join(app_args)
+    return (
+        "test -x /irp/bin/traffic_app || { echo 'missing /irp/bin/traffic_app' >&2; exit 127; }; "
+        f"/irp/bin/traffic_app {app_arg_text}"
+    )
+
+
 def _with_sudo(cmd: list[str], use_sudo: bool) -> list[str]:
     return ["sudo", *cmd] if use_sudo else cmd
 
@@ -144,10 +152,21 @@ def main() -> int:
     dst_container = _container_name(str(args.lab_name), str(args.dst_node))
     sink_pid_file = "/tmp/traffic_probe_sink.pid"
 
+    sink_cmd = build_traffic_app_cmd(
+        app_args=[
+            "sink",
+            "--proto",
+            str(args.proto),
+            "--bind",
+            "0.0.0.0",
+            "--port",
+            str(int(args.port)),
+            "--report-interval-s",
+            str(float(args.report_interval_s)),
+        ]
+    )
     sink_inner = (
-        "PYTHONPATH=/irp/src nohup python3 -m applications.traffic_app "
-        f"sink --proto {args.proto} --bind 0.0.0.0 --port {int(args.port)} "
-        f"--report-interval-s {float(args.report_interval_s)} "
+        f"nohup sh -lc {shlex.quote(sink_cmd)} "
         f">{shlex.quote(str(args.sink_log_file))} 2>&1 & "
         f"echo $! >{sink_pid_file} && cat {sink_pid_file}"
     )
@@ -156,12 +175,26 @@ def main() -> int:
         bool(args.sudo),
     )
 
-    sender_inner = (
-        "PYTHONPATH=/irp/src python3 -m applications.traffic_app "
-        f"send --proto {args.proto} --target {args.dst_ip} --port {int(args.port)} "
-        f"--packet-size {int(args.packet_size)} --count {int(args.count)} "
-        f"--duration-s {float(args.duration_s)} --pps {float(args.pps)} "
-        f"--report-interval-s {float(args.report_interval_s)}"
+    sender_inner = build_traffic_app_cmd(
+        app_args=[
+            "send",
+            "--proto",
+            str(args.proto),
+            "--target",
+            str(args.dst_ip),
+            "--port",
+            str(int(args.port)),
+            "--packet-size",
+            str(int(args.packet_size)),
+            "--count",
+            str(int(args.count)),
+            "--duration-s",
+            str(float(args.duration_s)),
+            "--pps",
+            str(float(args.pps)),
+            "--report-interval-s",
+            str(float(args.report_interval_s)),
+        ]
     )
     sender_cmd = _with_sudo(
         ["docker", "exec", src_container, "sh", "-lc", sender_inner],
@@ -208,6 +241,7 @@ def main() -> int:
             and sink_stats is not None
             and sink_stats.packets > 0
         ),
+        "engine": "go",
         "proto": args.proto,
         "lab_name": args.lab_name,
         "src_node": args.src_node,

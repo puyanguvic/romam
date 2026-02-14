@@ -221,11 +221,33 @@ make run-ospf-convergence-exp EXP_TOPOLOGY_FILE=clab_topologies/spineleaf2x4.cla
 ## Run Sender / Sink Apps On Routers (UDP + TCP)
 
 This repo includes a lightweight traffic app:
-- module: `applications.traffic_app`
+- go binary: `/irp/bin/traffic_app`
 - roles: `sink` and `send`
 - protocols: `udp` and `tcp`
+- patterns: `bulk` and `onoff` (for sender)
 
-When lab is started via `run-routerd-lab`, source code is copied to `/irp/src` in each router container.
+When lab is started via `run-routerd-lab`, source code is copied to `/irp/src`. If host has Go toolchain,
+the data-plane binary is built and copied to `/irp/bin/traffic_app` for each container.
+`run-traffic-app` and `run-traffic-probe` use `/irp/bin/traffic_app` directly.
+
+### Go data-plane setup on host (recommended)
+
+Install Go on host and ensure `go` is in `PATH`, then build and install binary:
+
+```bash
+make build-traffic-app-go
+make install-traffic-app-bin \
+  INSTALL_TRAFFIC_BIN_LAB_NAME=<lab_name>
+```
+
+Optional architecture overrides (if needed):
+
+```bash
+make build-traffic-app-go TRAFFIC_GOOS=linux TRAFFIC_GOARCH=amd64 TRAFFIC_CGO_ENABLED=0
+```
+
+If lab is started via `run-routerd-lab`, it already attempts this build+copy step automatically
+(using env overrides `ROMAM_TRAFFIC_GOOS`, `ROMAM_TRAFFIC_GOARCH`, `ROMAM_TRAFFIC_CGO_ENABLED`).
 
 ### 1) Start sink on `r6` (UDP, port 9000)
 
@@ -267,6 +289,15 @@ make run-traffic-app \
   TRAFFIC_LAB_NAME=<lab_name> \
   TRAFFIC_NODE=r1 \
   TRAFFIC_ARGS="send --proto tcp --target <r6_reachable_ip> --port 9001 --packet-size 1024 --duration-s 10 --pps 500 --tcp-nodelay"
+```
+
+### 3.1) OnOff pattern example (orthogonal to transport)
+
+```bash
+make run-traffic-app \
+  TRAFFIC_LAB_NAME=<lab_name> \
+  TRAFFIC_NODE=r1 \
+  TRAFFIC_ARGS="send --proto udp --target <r6_reachable_ip> --port 9000 --pattern onoff --on-ms 2000 --off-ms 1000 --packet-size 1200 --duration-s 30 --pps 1000"
 ```
 
 Direct script usage is also supported:

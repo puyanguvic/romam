@@ -81,8 +81,16 @@ LINE_EXP_ALLOW_UNCONVERGED_SEND ?= 0
 LINE_EXP_OUTPUT_JSON ?=
 LINE_EXP_USE_SUDO ?= 1
 LINE_EXP_KEEP_LAB ?= 0
+TRAFFIC_GO_BIN ?= bin/traffic_app
+TRAFFIC_GOOS ?= linux
+TRAFFIC_GOARCH ?= amd64
+TRAFFIC_CGO_ENABLED ?= 0
+INSTALL_TRAFFIC_BIN_LAB_NAME ?=
+INSTALL_TRAFFIC_BIN_TOPOLOGY_FILE ?=
+INSTALL_TRAFFIC_BIN_NODES ?=
+INSTALL_TRAFFIC_BIN_USE_SUDO ?= 1
 
-.PHONY: install test lint build-routerd-node-image run-containerlab-exp run-ospf-convergence-exp run-routerd gen-routerd-lab gen-classic-routerd-lab check-routerd-lab run-routerd-lab run-traffic-app run-traffic-probe run-line-ospf-udp-exp clean
+.PHONY: install test lint build-routerd-node-image build-traffic-app-go install-traffic-app-bin run-containerlab-exp run-ospf-convergence-exp run-routerd gen-routerd-lab gen-classic-routerd-lab check-routerd-lab run-routerd-lab run-traffic-app run-traffic-probe run-line-ospf-udp-exp clean
 
 install:
 	$(PIP) install -e .[dev]
@@ -95,6 +103,25 @@ lint:
 
 build-routerd-node-image:
 	docker build -t $(ROUTERD_NODE_IMAGE) -f exps/container_images/routerd-multitool/Dockerfile .
+
+build-traffic-app-go:
+	@command -v go >/dev/null 2>&1 || (echo "go not found in PATH"; exit 127)
+	@mkdir -p $(dir $(TRAFFIC_GO_BIN))
+	@cd src/applications_go && \
+		GOOS=$(TRAFFIC_GOOS) GOARCH=$(TRAFFIC_GOARCH) CGO_ENABLED=$(TRAFFIC_CGO_ENABLED) \
+		go build -o ../../$(TRAFFIC_GO_BIN) ./cmd/traffic_app
+	@chmod +x $(TRAFFIC_GO_BIN)
+	@echo "built $(TRAFFIC_GO_BIN) (GOOS=$(TRAFFIC_GOOS) GOARCH=$(TRAFFIC_GOARCH) CGO_ENABLED=$(TRAFFIC_CGO_ENABLED))"
+
+install-traffic-app-bin:
+	@test -n "$(INSTALL_TRAFFIC_BIN_LAB_NAME)" || (echo "INSTALL_TRAFFIC_BIN_LAB_NAME is required"; exit 2)
+	@test -f "$(TRAFFIC_GO_BIN)" || (echo "binary missing: $(TRAFFIC_GO_BIN) (run make build-traffic-app-go)"; exit 2)
+	PYTHONPATH=$(PYTHONPATH) $(PYTHON) exps/install_traffic_app_bin.py \
+		--lab-name $(INSTALL_TRAFFIC_BIN_LAB_NAME) \
+		--bin-path $(TRAFFIC_GO_BIN) \
+		$(if $(strip $(INSTALL_TRAFFIC_BIN_TOPOLOGY_FILE)),--topology-file $(INSTALL_TRAFFIC_BIN_TOPOLOGY_FILE),) \
+		$(if $(strip $(INSTALL_TRAFFIC_BIN_NODES)),--nodes $(INSTALL_TRAFFIC_BIN_NODES),) \
+		$(if $(filter 1 yes true,$(INSTALL_TRAFFIC_BIN_USE_SUDO)),--sudo,--no-sudo)
 
 run-containerlab-exp:
 	$(MAKE) run-ospf-convergence-exp

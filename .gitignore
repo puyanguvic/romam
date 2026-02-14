@@ -1,5 +1,6 @@
 build-standalone/
 build/
+bin/traffic_app
 
 *.pyc
 __pycache__/

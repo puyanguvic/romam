@@ -32,7 +32,7 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument(
         "app_args",
         nargs=argparse.REMAINDER,
-        help="Arguments forwarded to `python3 -m applications.traffic_app`.",
+        help="Arguments forwarded to /irp/bin/traffic_app.",
     )
     return parser.parse_args()
 
@@ -50,12 +50,15 @@ def main() -> int:
         return 2
 
     container = f"clab-{args.lab_name}-{args.node}"
-    inner_cmd = "PYTHONPATH=/irp/src python3 -m applications.traffic_app " + shlex.join(
-        app_args
+    app_cmd = "/irp/bin/traffic_app " + shlex.join(app_args)
+    check_cmd = (
+        "test -x /irp/bin/traffic_app || "
+        "{ echo 'missing /irp/bin/traffic_app' >&2; exit 127; }"
     )
+    inner_cmd = f"{check_cmd}; {app_cmd}"
     if bool(args.background):
         log_file = shlex.quote(str(args.log_file))
-        inner_cmd = f"nohup {inner_cmd} >{log_file} 2>&1 & echo $!"
+        inner_cmd = f"nohup sh -lc {shlex.quote(inner_cmd)} >{log_file} 2>&1 & echo $!"
 
     cmd = ["docker", "exec", container, "sh", "-lc", inner_cmd]
     if bool(args.sudo):
