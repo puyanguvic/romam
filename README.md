@@ -221,7 +221,7 @@ make run-ospf-convergence-exp EXP_TOPOLOGY_FILE=clab_topologies/spineleaf2x4.cla
 ## Run Sender / Sink Apps On Routers (UDP + TCP)
 
 This repo includes a lightweight traffic app:
-- module: `irp.apps.traffic_app`
+- module: `applications.traffic_app`
 - roles: `sink` and `send`
 - protocols: `udp` and `tcp`
 

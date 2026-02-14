@@ -32,7 +32,7 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument(
         "app_args",
         nargs=argparse.REMAINDER,
-        help="Arguments forwarded to `python3 -m irp.apps.traffic_app`.",
+        help="Arguments forwarded to `python3 -m applications.traffic_app`.",
     )
     return parser.parse_args()
 
@@ -50,7 +50,9 @@ def main() -> int:
         return 2
 
     container = f"clab-{args.lab_name}-{args.node}"
-    inner_cmd = "PYTHONPATH=/irp/src python3 -m irp.apps.traffic_app " + shlex.join(app_args)
+    inner_cmd = "PYTHONPATH=/irp/src python3 -m applications.traffic_app " + shlex.join(
+        app_args
+    )
     if bool(args.background):
         log_file = shlex.quote(str(args.log_file))
         inner_cmd = f"nohup {inner_cmd} >{log_file} 2>&1 & echo $!"
@@ -78,4 +80,3 @@ def main() -> int:
 
 if __name__ == "__main__":
     raise SystemExit(main())
-

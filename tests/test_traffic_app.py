@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import pytest
 
-from irp.apps.traffic_app import _build_parser, _payload, _validate_args
+from applications.traffic_app import _build_parser, _payload, _validate_args
 
 
 def test_payload_size_matches_request() -> None:
@@ -43,4 +43,3 @@ def test_validate_args_rejects_bad_port() -> None:
     )
     with pytest.raises(ValueError):
         _validate_args(args)
-

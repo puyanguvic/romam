@@ -145,7 +145,7 @@ def main() -> int:
     sink_pid_file = "/tmp/traffic_probe_sink.pid"
 
     sink_inner = (
-        "PYTHONPATH=/irp/src nohup python3 -m irp.apps.traffic_app "
+        "PYTHONPATH=/irp/src nohup python3 -m applications.traffic_app "
         f"sink --proto {args.proto} --bind 0.0.0.0 --port {int(args.port)} "
         f"--report-interval-s {float(args.report_interval_s)} "
         f">{shlex.quote(str(args.sink_log_file))} 2>&1 & "
@@ -157,7 +157,7 @@ def main() -> int:
     )
 
     sender_inner = (
-        "PYTHONPATH=/irp/src python3 -m irp.apps.traffic_app "
+        "PYTHONPATH=/irp/src python3 -m applications.traffic_app "
         f"send --proto {args.proto} --target {args.dst_ip} --port {int(args.port)} "
         f"--packet-size {int(args.packet_size)} --count {int(args.count)} "
         f"--duration-s {float(args.duration_s)} --pps {float(args.pps)} "
