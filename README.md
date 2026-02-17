@@ -6,22 +6,22 @@ This project now follows a routing-suite style architecture:
 - containerlab only manages containers/links/namespaces/lifecycle/fault injection.
 
 The control plane is organized into four core parts:
-- control messages (`src/irp/model/messages.py`)
-- local protocol state (`src/irp/model/state.py`)
-- routing table / RIB (`src/irp/model/routing.py`)
-- forwarding / FIB apply layer (`src/irp/runtime/forwarding.py`)
+- control messages (`src/irp_rust/src/model/messages.rs`)
+- local protocol state (`src/irp_rust/src/model/state.rs`)
+- routing table / RIB (`src/irp_rust/src/model/routing.rs`)
+- forwarding / FIB apply layer (`src/irp_rust/src/runtime/forwarding.rs`)
 
 Code layout keeps protocol implementation and experiment topology tooling parallel:
-- device-side routing protocol/runtime: `src/irp/protocols/` + `src/irp/runtime/`
+- device-side routing protocol/runtime: `src/irp_rust/src/protocols/` + `src/irp_rust/src/runtime/`
 - experiment-side topology loading/lab tooling: `src/topology/`
 
 ## Main Components
 
-- Router daemon runtime: `src/irp/routerd.py`, `src/irp/runtime/daemon.py`
+- Router daemon runtime (extensible core): `src/irp_rust/src/runtime/daemon.rs`
 - Protocol engines:
-  - OSPF-like link-state: `src/irp/protocols/ospf.py`
-  - RIP distance-vector: `src/irp/protocols/rip.py`
-- Config loader: `src/irp/runtime/config.py`
+  - OSPF-like link-state: `src/irp_rust/src/protocols/ospf.rs`
+  - RIP distance-vector: `src/irp_rust/src/protocols/rip.rs`
+- Config loader: `src/irp_rust/src/runtime/config.rs`
 - Topology file loader + lab tools: `src/topology/clab_loader.py`, `src/topology/labgen.py`
 - Example daemon configs: `exps/routerd_examples/`
 - Experiment utilities: `exps/ospf_convergence_exp.py`
@@ -59,8 +59,14 @@ export PATH="$HOME/.local/bin:$PATH"
 Per container (router) run one daemon:
 
 ```bash
-python3 -m irp.routerd --config /path/to/router.yaml --log-level INFO
+make build-routerd-rs
+make run-routerd-rs ROUTERD_RS_CONFIG=/path/to/router.yaml ROUTERD_RS_LOG_LEVEL=INFO
 ```
+
+Rust extensibility points:
+- protocol abstraction: `src/irp_rust/src/protocols/base.rs`
+- decision/policy hook (default passthrough): `src/irp_rust/src/algo/mod.rs`
+- rust core notes: `src/irp_rust/README.md`
 
 OSPF example config: `exps/routerd_examples/ospf_router1.yaml`  
 RIP example config: `exps/routerd_examples/rip_router1.yaml`
@@ -179,7 +185,7 @@ make check-routerd-lab \
 
 What it checks per node:
 - container is running,
-- `irp.routerd` process exists,
+- `irp_routerd_rs` process exists,
 - neighbor IP ping (from generated config) succeeds,
 - latest `RIB/FIB updated` route count is at least `n_nodes-1` (or `CHECK_MIN_ROUTES`).
 
@@ -226,8 +232,8 @@ This repo includes a lightweight traffic app:
 - protocols: `udp` and `tcp`
 - patterns: `bulk` and `onoff` (for sender)
 
-When lab is started via `run-routerd-lab`, source code is copied to `/irp/src`. If host has Go toolchain,
-the data-plane binary is built and copied to `/irp/bin/traffic_app` for each container.
+When lab is started via `run-routerd-lab`, Rust routerd binary (`/irp/bin/irp_routerd_rs`)
+and the data-plane binary (`/irp/bin/traffic_app`) are copied into each container.
 `run-traffic-app` and `run-traffic-probe` use `/irp/bin/traffic_app` directly.
 
 ### Go data-plane setup on host (recommended)

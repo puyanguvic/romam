@@ -18,18 +18,20 @@ def _load_module():
 
 def test_parse_last_route_count() -> None:
     module = _load_module()
-    text = """
-2026-02-11 INFO irp.routerd: something
-2026-02-11 INFO irp.routerd: RIB/FIB updated: [(2, 2, 1.0), (3, 2, 2.0), (4, 4, 1.0)]
-""".strip()
+    text = (
+        "2026-02-11T10:00:00Z  INFO irp_rust::runtime::daemon: something\n"
+        "2026-02-11T10:00:01Z  INFO irp_rust::runtime::daemon: "
+        "RIB/FIB updated: [(2, 2, 1.0), (3, 2, 2.0), (4, 4, 1.0)]"
+    )
     assert module.parse_last_route_count(text) == 3
 
 
 def test_parse_protocol_from_log() -> None:
     module = _load_module()
-    text = """
-2026-02-11 INFO irp.routerd: routerd start: router_id=1 protocol=ospf bind=0.0.0.0:5500
-""".strip()
+    text = (
+        "2026-02-11T10:00:00Z  INFO irp_rust::runtime::daemon: "
+        "routerd start: router_id=1 protocol=ospf bind=0.0.0.0:5500"
+    )
     assert module.parse_protocol_from_log(text) == "ospf"
 
 
@@ -50,3 +52,19 @@ def test_parse_config_bind_keeps_absolute_path() -> None:
     node = {"binds": ["/opt/configs:/irp/configs:ro"]}
     resolved = module.parse_config_bind(node, topology_file)
     assert resolved == Path("/opt/configs")
+
+
+def test_check_daemon_running_matches_rust_process(monkeypatch) -> None:
+    module = _load_module()
+    outputs = iter(
+        [
+            "123\n",
+            "/irp/bin/irp_routerd_rs --config /irp/configs/r1.yaml --log-level INFO\n",
+        ]
+    )
+
+    def fake_run_cmd(_cmd, check=True):  # type: ignore[no-untyped-def]
+        return next(outputs)
+
+    monkeypatch.setattr(module, "run_cmd", fake_run_cmd)
+    assert module._check_daemon_running(use_sudo=False, container="dummy") is True

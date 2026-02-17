@@ -15,6 +15,8 @@ REPO_ROOT = Path(__file__).resolve().parents[1]
 SRC_DIR = REPO_ROOT / "src"
 GO_TRAFFIC_SRC_DIR = REPO_ROOT / "src" / "applications_go"
 GO_TRAFFIC_BIN_PATH = REPO_ROOT / "bin" / "traffic_app"
+RUST_ROUTERD_CRATE_DIR = REPO_ROOT / "src" / "irp_rust"
+RUST_ROUTERD_BIN_PATH = REPO_ROOT / "bin" / "irp_routerd_rs"
 if str(SRC_DIR) not in sys.path:
     sys.path.insert(0, str(SRC_DIR))
 
@@ -248,12 +250,60 @@ def build_traffic_app_binary() -> Path | None:
     return GO_TRAFFIC_BIN_PATH
 
 
+def build_routerd_rs_binary() -> Path:
+    if not RUST_ROUTERD_CRATE_DIR.exists():
+        raise RuntimeError(f"rust routerd crate dir not found: {RUST_ROUTERD_CRATE_DIR}")
+
+    cargo_bin = shutil.which("cargo")
+    if cargo_bin is None:
+        if RUST_ROUTERD_BIN_PATH.exists():
+            print("[warn] `cargo` not found; using existing prebuilt irp_routerd_rs binary")
+            return RUST_ROUTERD_BIN_PATH
+        raise RuntimeError(
+            "`cargo` not found in PATH and no prebuilt binary at bin/irp_routerd_rs; "
+            "install Rust toolchain or run `make build-routerd-rs` first"
+        )
+
+    target_profile = os.environ.get("ROMAM_ROUTERD_RS_PROFILE", "release").strip() or "release"
+    build_cmd = [cargo_bin, "build", f"--{target_profile}"]
+    try:
+        output = run_cmd(
+            build_cmd,
+            check=True,
+            capture_output=True,
+            cwd=RUST_ROUTERD_CRATE_DIR,
+        )
+    except subprocess.CalledProcessError as exc:
+        if RUST_ROUTERD_BIN_PATH.exists():
+            print("[warn] rust routerd build failed; using existing prebuilt irp_routerd_rs binary")
+            return RUST_ROUTERD_BIN_PATH
+        build_output = (exc.stdout or "").strip()
+        raise RuntimeError(
+            "rust routerd build failed.\n"
+            f"{build_output}\n"
+            "fix build errors or run `make build-routerd-rs` first"
+        ) from exc
+
+    if output:
+        print(output)
+
+    built_path = RUST_ROUTERD_CRATE_DIR / "target" / target_profile / "irp_rust"
+    if not built_path.exists():
+        raise RuntimeError(f"expected rust routerd binary missing after build: {built_path}")
+    RUST_ROUTERD_BIN_PATH.parent.mkdir(parents=True, exist_ok=True)
+    shutil.copy2(built_path, RUST_ROUTERD_BIN_PATH)
+    RUST_ROUTERD_BIN_PATH.chmod(0o755)
+    print(f"rust routerd build profile: {target_profile}")
+    return RUST_ROUTERD_BIN_PATH
+
+
 def bootstrap_routerd(
     topology_file: Path,
     configs_dir: Path,
     lab_name: str,
     log_level: str,
     use_sudo: bool,
+    routerd_rs_bin: Path,
     traffic_app_bin: Path | None,
 ) -> None:
     node_names = list_node_names(topology_file)
@@ -267,17 +317,11 @@ def bootstrap_routerd(
                     container,
                     "mkdir",
                     "-p",
-                    "/irp/src",
                     "/irp/configs",
                     "/irp/bin",
                 ],
                 use_sudo,
             ),
-            check=True,
-            capture_output=False,
-        )
-        run_cmd(
-            with_sudo(["docker", "cp", f"{SRC_DIR}/.", f"{container}:/irp/src"], use_sudo),
             check=True,
             capture_output=False,
         )
@@ -289,6 +333,27 @@ def bootstrap_routerd(
                     str((configs_dir / f"{node_name}.yaml").resolve()),
                     f"{container}:/irp/configs/{node_name}.yaml",
                 ],
+                use_sudo,
+            ),
+            check=True,
+            capture_output=False,
+        )
+        run_cmd(
+            with_sudo(
+                [
+                    "docker",
+                    "cp",
+                    str(routerd_rs_bin.resolve()),
+                    f"{container}:/irp/bin/irp_routerd_rs",
+                ],
+                use_sudo,
+            ),
+            check=True,
+            capture_output=False,
+        )
+        run_cmd(
+            with_sudo(
+                ["docker", "exec", container, "chmod", "+x", "/irp/bin/irp_routerd_rs"],
                 use_sudo,
             ),
             check=True,
@@ -316,18 +381,8 @@ def bootstrap_routerd(
                 check=True,
                 capture_output=False,
             )
-        ensure_yaml_cmd = (
-            "python3 -c 'import yaml' >/dev/null 2>&1 || "
-            "(python3 -m ensurepip --upgrade >/dev/null 2>&1; "
-            "python3 -m pip install --no-cache-dir pyyaml >/tmp/routerd_pip.log 2>&1)"
-        )
-        run_cmd(
-            with_sudo(["docker", "exec", container, "sh", "-lc", ensure_yaml_cmd], use_sudo),
-            check=True,
-            capture_output=False,
-        )
         daemon_cmd = (
-            "PYTHONPATH=/irp/src nohup python3 -m irp.routerd "
+            "nohup /irp/bin/irp_routerd_rs "
             f"--config /irp/configs/{node_name}.yaml --log-level {log_level} "
             ">/tmp/routerd.log 2>&1 & echo $! >/tmp/routerd.pid"
         )
@@ -350,7 +405,7 @@ def main() -> int:
     if args.sudo:
         gen_cmd.append("--sudo")
 
-    print(f"[1/6] Generate lab configs: {' '.join(gen_cmd)}")
+    print(f"[1/7] Generate lab configs: {' '.join(gen_cmd)}")
     generated_text = run_cmd(gen_cmd, check=True, capture_output=True)
     print(generated_text)
 
@@ -368,21 +423,26 @@ def main() -> int:
         lab_name,
         "--reconfigure",
     ]
-    print(f"[2/6] Deploy lab: {' '.join(with_sudo(deploy_cmd, args.sudo))}")
+    print(f"[2/7] Deploy lab: {' '.join(with_sudo(deploy_cmd, args.sudo))}")
     run_containerlab(deploy_cmd, use_sudo=bool(args.sudo), env_overrides=deploy_env, check=True)
 
     log_level = deploy_env.get("ROMAM_LOG_LEVEL", "INFO")
-    print("[3/6] Build traffic app data plane binary")
+    print("[3/7] Build rust routerd binary")
+    routerd_rs_bin = build_routerd_rs_binary()
+    print(f"rust routerd ready: {routerd_rs_bin}")
+
+    print("[4/7] Build traffic app data plane binary")
     traffic_app_bin = build_traffic_app_binary()
     print(f"go traffic app ready: {traffic_app_bin}")
 
-    print("[4/6] Bootstrap routerd inside each container")
+    print("[5/7] Bootstrap routerd inside each container")
     bootstrap_routerd(
         topology_file=topology_file,
         configs_dir=configs_dir,
         lab_name=lab_name,
         log_level=log_level,
         use_sudo=bool(args.sudo),
+        routerd_rs_bin=routerd_rs_bin,
         traffic_app_bin=traffic_app_bin,
     )
 
@@ -412,11 +472,11 @@ def main() -> int:
         check_cmd.append("--sudo")
 
     try:
-        print(f"[5/6] Check lab: {' '.join(check_cmd)}")
+        print(f"[6/7] Check lab: {' '.join(check_cmd)}")
         run_cmd(check_cmd, check=True, capture_output=False)
     finally:
         if args.keep_lab:
-            print("[6/6] Keep lab: skipping destroy (--keep-lab).")
+            print("[7/7] Keep lab: skipping destroy (--keep-lab).")
             print(f"topology_file: {topology_file}")
             print(f"lab_name: {lab_name}")
             print(f"deploy_env_file: {deploy_env_file}")
@@ -430,7 +490,7 @@ def main() -> int:
                 lab_name,
                 "--cleanup",
             ]
-            print(f"[6/6] Destroy lab: {' '.join(with_sudo(destroy_cmd, args.sudo))}")
+            print(f"[7/7] Destroy lab: {' '.join(with_sudo(destroy_cmd, args.sudo))}")
             run_containerlab(
                 destroy_cmd,
                 use_sudo=bool(args.sudo),

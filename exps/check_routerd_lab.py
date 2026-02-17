@@ -282,12 +282,12 @@ def _check_daemon_running(use_sudo: bool, container: str) -> bool:
             ),
             check=False,
         ).strip()
-        if "python3 -m irp.routerd" in cmdline:
+        if "/irp/bin/irp_routerd_rs" in cmdline or "irp_routerd_rs --config" in cmdline:
             return True
 
     pgrep_out = run_cmd(
         with_sudo(
-            ["docker", "exec", container, "pgrep", "-af", "python3 -m irp.routerd"],
+            ["docker", "exec", container, "pgrep", "-af", "irp_routerd_rs"],
             use_sudo,
         ),
         check=False,

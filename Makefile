@@ -1,6 +1,10 @@
 PYTHON ?= python3
 PIP ?= $(PYTHON) -m pip
 PYTHONPATH ?= src
+RUST_CARGO ?= cargo
+RUST_ROUTERD_CRATE ?= src/irp_rust
+RUST_ROUTERD_BIN ?= bin/irp_routerd_rs
+RUST_ROUTERD_BUILD_MODE ?= release
 EXP_REPEATS ?= 1
 EXP_TOPOLOGY_FILE ?= clab_topologies/ring6.clab.yaml
 EXP_LINK_DELAY_MS ?= 1.0
@@ -10,8 +14,8 @@ EXP_MGMT_IPV4_SUBNET ?=
 EXP_MGMT_IPV6_SUBNET ?=
 EXP_MGMT_EXTERNAL_ACCESS ?= 0
 EXP_USE_SUDO ?= 0
-ROUTERD_CONFIG ?= exps/routerd_examples/ospf_router1.yaml
-ROUTERD_LOG_LEVEL ?= INFO
+ROUTERD_RS_CONFIG ?= exps/routerd_examples/ospf_router1.yaml
+ROUTERD_RS_LOG_LEVEL ?= INFO
 LABGEN_PROTOCOL ?= ospf
 LABGEN_PROFILE ?=
 LABGEN_TOPOLOGY_FILE ?=
@@ -90,7 +94,7 @@ INSTALL_TRAFFIC_BIN_TOPOLOGY_FILE ?=
 INSTALL_TRAFFIC_BIN_NODES ?=
 INSTALL_TRAFFIC_BIN_USE_SUDO ?= 1
 
-.PHONY: install test lint build-routerd-node-image build-traffic-app-go install-traffic-app-bin run-containerlab-exp run-ospf-convergence-exp run-routerd gen-routerd-lab gen-classic-routerd-lab check-routerd-lab run-routerd-lab run-traffic-app run-traffic-probe run-line-ospf-udp-exp clean
+.PHONY: install test lint build-routerd-rs run-routerd-rs build-routerd-node-image build-traffic-app-go install-traffic-app-bin run-containerlab-exp run-ospf-convergence-exp gen-routerd-lab gen-classic-routerd-lab check-routerd-lab run-routerd-lab run-traffic-app run-traffic-probe run-line-ospf-udp-exp clean
 
 install:
 	$(PIP) install -e .[dev]
@@ -138,10 +142,17 @@ run-ospf-convergence-exp:
 		$(if $(filter 1 yes true,$(EXP_MGMT_EXTERNAL_ACCESS)),--mgmt-external-access,) \
 		$(if $(filter 1 yes true,$(EXP_USE_SUDO)),--sudo,)
 
-run-routerd:
-	PYTHONPATH=$(PYTHONPATH) $(PYTHON) -m irp.routerd \
-		--config $(ROUTERD_CONFIG) \
-		--log-level $(ROUTERD_LOG_LEVEL)
+build-routerd-rs:
+	@command -v $(RUST_CARGO) >/dev/null 2>&1 || (echo "cargo not found in PATH"; exit 127)
+	@mkdir -p $(dir $(RUST_ROUTERD_BIN))
+	@cd $(RUST_ROUTERD_CRATE) && $(RUST_CARGO) build --$(RUST_ROUTERD_BUILD_MODE)
+	@cp $(RUST_ROUTERD_CRATE)/target/$(RUST_ROUTERD_BUILD_MODE)/irp_rust $(RUST_ROUTERD_BIN)
+	@chmod +x $(RUST_ROUTERD_BIN)
+	@echo "built $(RUST_ROUTERD_BIN) from $(RUST_ROUTERD_CRATE) ($(RUST_ROUTERD_BUILD_MODE))"
+
+run-routerd-rs:
+	@test -x "$(RUST_ROUTERD_BIN)" || (echo "binary missing: $(RUST_ROUTERD_BIN) (run make build-routerd-rs)"; exit 2)
+	$(RUST_ROUTERD_BIN) --config $(ROUTERD_RS_CONFIG) --log-level $(ROUTERD_RS_LOG_LEVEL)
 
 gen-routerd-lab:
 	PYTHONPATH=$(PYTHONPATH) $(PYTHON) exps/generate_routerd_lab.py \
@@ -249,4 +260,4 @@ run-line-ospf-udp-exp:
 	$(if $(filter 1 yes true,$(LINE_EXP_KEEP_LAB)),--keep-lab,)
 
 clean:
-	rm -rf .pytest_cache .ruff_cache dist build *.egg-info
+	rm -rf .pytest_cache .ruff_cache dist build *.egg-info src/irp_rust/target bin/irp_routerd_rs

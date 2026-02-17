@@ -1,6 +1,8 @@
 build-standalone/
 build/
 bin/traffic_app
+bin/irp_routerd_rs
+src/irp_rust/target/
 
 *.pyc
 __pycache__/
