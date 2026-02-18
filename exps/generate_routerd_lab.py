@@ -21,6 +21,7 @@ from irp.utils.io import now_tag
 from topology.labgen import LabGenParams, generate_routerd_lab
 
 PROFILE_TO_TOPOLOGY_FILE: dict[str, str] = {
+    "line3": "clab_topologies/line3.clab.yaml",
     "line5": "clab_topologies/line5.clab.yaml",
     "ring6": "clab_topologies/ring6.clab.yaml",
     "star6": "clab_topologies/star6.clab.yaml",
@@ -33,7 +34,19 @@ def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(
         description="Generate routerd-enabled containerlab topology and per-node configs."
     )
-    parser.add_argument("--protocol", choices=["ospf", "rip"], default="ospf")
+    parser.add_argument("--protocol", choices=["ospf", "rip", "irp"], default="ospf")
+    parser.add_argument(
+        "--routing-alpha",
+        type=float,
+        default=1.0,
+        help="IRP routing weight alpha (used when --protocol irp).",
+    )
+    parser.add_argument(
+        "--routing-beta",
+        type=float,
+        default=2.0,
+        help="IRP routing weight beta (used when --protocol irp).",
+    )
     parser.add_argument(
         "--profile",
         choices=sorted(PROFILE_TO_TOPOLOGY_FILE.keys()),
@@ -47,7 +60,7 @@ def parse_args() -> argparse.Namespace:
     )
     parser.add_argument(
         "--node-image",
-        default="ghcr.io/srl-labs/network-multitool:latest",
+        default="romam/network-multitool-routerd:latest",
         help="Container image used for each linux node.",
     )
     parser.add_argument("--bind-port", type=int, default=5500)
@@ -113,6 +126,40 @@ def parse_args() -> argparse.Namespace:
         help="When forwarding is enabled, keep FIB operations in dry-run mode (default: enabled).",
     )
     parser.add_argument(
+        "--mgmt-http-enabled",
+        action=argparse.BooleanOptionalAction,
+        default=True,
+        help="Enable routingd HTTP management API (default: enabled).",
+    )
+    parser.add_argument(
+        "--mgmt-http-bind",
+        default="0.0.0.0",
+        help="Bind address for routingd HTTP management API.",
+    )
+    parser.add_argument(
+        "--mgmt-http-port-base",
+        type=int,
+        default=18000,
+        help="Base HTTP management port; actual node port = base + router_id.",
+    )
+    parser.add_argument(
+        "--mgmt-grpc-enabled",
+        action=argparse.BooleanOptionalAction,
+        default=True,
+        help="Enable routingd gRPC management listener (default: enabled).",
+    )
+    parser.add_argument(
+        "--mgmt-grpc-bind",
+        default="0.0.0.0",
+        help="Bind address for routingd gRPC management listener.",
+    )
+    parser.add_argument(
+        "--mgmt-grpc-port-base",
+        type=int,
+        default=19000,
+        help="Base gRPC management port; actual node port = base + router_id.",
+    )
+    parser.add_argument(
         "--sudo",
         action=argparse.BooleanOptionalAction,
         default=False,
@@ -130,6 +177,8 @@ def main() -> int:
     mgmt_network_name, mgmt_ipv4_subnet, mgmt_ipv6_subnet = resolve_mgmt_settings(args, lab_name)
     params = LabGenParams(
         protocol=str(args.protocol),
+        routing_alpha=float(args.routing_alpha),
+        routing_beta=float(args.routing_beta),
         topology_file=source_topology_file,
         node_image=str(args.node_image),
         bind_port=int(args.bind_port),
@@ -151,6 +200,12 @@ def main() -> int:
         mgmt_external_access=bool(args.mgmt_external_access),
         forwarding_enabled=bool(args.forwarding_enabled),
         forwarding_dry_run=bool(args.forwarding_dry_run),
+        mgmt_http_enabled=bool(args.mgmt_http_enabled),
+        mgmt_http_bind=str(args.mgmt_http_bind),
+        mgmt_http_port_base=int(args.mgmt_http_port_base),
+        mgmt_grpc_enabled=bool(args.mgmt_grpc_enabled),
+        mgmt_grpc_bind=str(args.mgmt_grpc_bind),
+        mgmt_grpc_port_base=int(args.mgmt_grpc_port_base),
     )
     result = generate_routerd_lab(params)
     clab_bin = shutil.which("containerlab") or "containerlab"
@@ -159,6 +214,9 @@ def main() -> int:
     if not args.topology_file:
         print(f"profile: {args.profile}")
     print(f"protocol: {args.protocol}")
+    if str(args.protocol) == "irp":
+        print(f"routing_alpha: {float(args.routing_alpha)}")
+        print(f"routing_beta: {float(args.routing_beta)}")
     print(f"source_topology_file: {source_topology_file}")
     print(f"topology_file: {result['topology_file']}")
     print(f"configs_dir: {result['configs_dir']}")
@@ -168,6 +226,12 @@ def main() -> int:
     print(f"mgmt_ipv6_subnet: {mgmt_ipv6_subnet}")
     print(f"forwarding_enabled: {bool(args.forwarding_enabled)}")
     print(f"forwarding_dry_run: {bool(args.forwarding_dry_run)}")
+    print(f"mgmt_http_enabled: {bool(args.mgmt_http_enabled)}")
+    print(f"mgmt_http_bind: {args.mgmt_http_bind}")
+    print(f"mgmt_http_port_base: {int(args.mgmt_http_port_base)}")
+    print(f"mgmt_grpc_enabled: {bool(args.mgmt_grpc_enabled)}")
+    print(f"mgmt_grpc_bind: {args.mgmt_grpc_bind}")
+    print(f"mgmt_grpc_port_base: {int(args.mgmt_grpc_port_base)}")
     print()
     print(
         "Deploy:  "

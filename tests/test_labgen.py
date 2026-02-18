@@ -11,6 +11,8 @@ def test_generate_routerd_lab_outputs_configs_and_env(tmp_path: Path) -> None:
     out_dir = tmp_path / "lab"
     params = LabGenParams(
         protocol="ospf",
+        routing_alpha=1.0,
+        routing_beta=2.0,
         topology_file=Path("clab_topologies/ring6.clab.yaml"),
         node_image="ghcr.io/srl-labs/network-multitool:latest",
         bind_port=5500,
@@ -59,12 +61,17 @@ def test_generate_routerd_lab_outputs_configs_and_env(tmp_path: Path) -> None:
     assert cfg_r1["router_id"] == 1
     assert cfg_r1["protocol"] == "ospf"
     assert cfg_r1["neighbors"][0]["address"] == "10.11.1.2"
+    assert cfg_r1["management"]["http"]["enabled"] is True
+    assert cfg_r1["management"]["grpc"]["enabled"] is True
+    assert cfg_r1["management"]["http"]["port"] == 18001
 
 
 def test_generate_routerd_lab_supports_named_nodes_with_rip(tmp_path: Path) -> None:
     out_dir = tmp_path / "lab-rip-spineleaf"
     params = LabGenParams(
         protocol="rip",
+        routing_alpha=1.0,
+        routing_beta=2.0,
         topology_file=Path("clab_topologies/spineleaf2x4.clab.yaml"),
         node_image="ghcr.io/srl-labs/network-multitool:latest",
         bind_port=5500,
@@ -106,6 +113,8 @@ def test_generate_routerd_lab_can_enable_forwarding_config(tmp_path: Path) -> No
     out_dir = tmp_path / "lab-forwarding"
     params = LabGenParams(
         protocol="ospf",
+        routing_alpha=1.0,
+        routing_beta=2.0,
         topology_file=Path("clab_topologies/line5.clab.yaml"),
         node_image="ghcr.io/srl-labs/network-multitool:latest",
         bind_port=5500,

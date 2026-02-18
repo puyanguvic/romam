@@ -1,0 +1,24 @@
+topology: line_3
+protocol: irp
+
+routing:
+  alpha: 1.0
+  beta: 2.0
+
+traffic:
+  enabled: true
+  proto: udp
+  model: onoff
+  flows: 200
+  rate_mbps: 50
+  packet_size: 512
+  port: 9000
+  on_ms: 2000
+  off_ms: 1000
+
+faults:
+  - time_s: 30
+    type: link_down
+    link: [r2, r3]
+
+duration_s: 90

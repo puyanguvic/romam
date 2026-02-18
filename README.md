@@ -1,27 +1,28 @@
-# Intelligent Routing Protocol (IRP) Framework (Containerlab + Per-Router Daemon)
+# Intelligent Routing Protocol (IRP) Routing Suite
 
-This project now follows a routing-suite style architecture:
-- one `routerd` process per router container,
-- protocol engines (OSPF / RIP) running inside that daemon,
-- containerlab only manages containers/links/namespaces/lifecycle/fault injection.
+This repo uses a layered architecture:
+- `routingd` (Rust daemon) is the protocol and route-computation core.
+- `node_supervisor` (Rust) is the node-local process manager for `routingd` and optional apps.
+- containerlab only manages topology/container lifecycle.
+- Go traffic apps are experiment tools and are configured/injected per node.
 
-The control plane is organized into four core parts:
-- control messages (`src/irp_rust/src/model/messages.rs`)
-- local protocol state (`src/irp_rust/src/model/state.rs`)
-- routing table / RIB (`src/irp_rust/src/model/routing.rs`)
-- forwarding / FIB apply layer (`src/irp_rust/src/runtime/forwarding.rs`)
-
-Code layout keeps protocol implementation and experiment topology tooling parallel:
-- device-side routing protocol/runtime: `src/irp_rust/src/protocols/` + `src/irp_rust/src/runtime/`
-- experiment-side topology loading/lab tooling: `src/topology/`
+Control/observability paths:
+- route computation + RIB/FIB snapshot: `src/irp/src/runtime/daemon.rs`
+- kernel route install/readback (netlink via `ip route`): `src/irp/src/runtime/forwarding.rs`
+- HTTP management API (`/v1/status`, `/v1/routes`, `/v1/fib`, `/v1/kernel-routes`): `src/irp/src/runtime/mgmt.rs`
+- node-level process state (`/tmp/node_supervisor_state.json`): `src/irp/src/bin/node_supervisor.rs`
 
 ## Main Components
 
-- Router daemon runtime (extensible core): `src/irp_rust/src/runtime/daemon.rs`
+- Router daemon runtime (extensible core): `src/irp/src/runtime/daemon.rs`
 - Protocol engines:
-  - OSPF-like link-state: `src/irp_rust/src/protocols/ospf.rs`
-  - RIP distance-vector: `src/irp_rust/src/protocols/rip.rs`
-- Config loader: `src/irp_rust/src/runtime/config.rs`
+  - OSPF-like link-state: `src/irp/src/protocols/ospf.rs`
+  - RIP distance-vector: `src/irp/src/protocols/rip.rs`
+  - IRP mode entry: `protocol: irp` (currently routed through the OSPF-style core with IRP params)
+- Decision/policy hook: `src/irp/src/algo/mod.rs`
+- Management API: `src/irp/src/runtime/mgmt.rs` (HTTP + gRPC placeholder)
+- Runtime entrypoint: `src/irp/src/main.rs` (`routingd` binary)
+- Node process supervisor: `src/irp/src/bin/node_supervisor.rs`
 - Topology file loader + lab tools: `src/topology/clab_loader.py`, `src/topology/labgen.py`
 - Example daemon configs: `exps/routerd_examples/`
 - Experiment utilities: `exps/ospf_convergence_exp.py`
@@ -36,7 +37,13 @@ make install
 
 2. Ensure Docker is installed and running.
 
-3. Install `containerlab` locally (example):
+3. Install Rust musl target (required for router binaries running in router container image):
+
+```bash
+rustup target add x86_64-unknown-linux-musl
+```
+
+4. Install `containerlab` locally (example):
 
 ```bash
 mkdir -p "$HOME/.local/bin"
@@ -54,6 +61,12 @@ If needed:
 export PATH="$HOME/.local/bin:$PATH"
 ```
 
+If musl link tools are missing on Debian/Ubuntu:
+
+```bash
+sudo apt-get update && sudo apt-get install -y musl-tools
+```
+
 ## Run Router Daemon (Inside Each Router Container)
 
 Per container (router) run one daemon:
@@ -64,9 +77,9 @@ make run-routerd-rs ROUTERD_RS_CONFIG=/path/to/router.yaml ROUTERD_RS_LOG_LEVEL=
 ```
 
 Rust extensibility points:
-- protocol abstraction: `src/irp_rust/src/protocols/base.rs`
-- decision/policy hook (default passthrough): `src/irp_rust/src/algo/mod.rs`
-- rust core notes: `src/irp_rust/README.md`
+- protocol abstraction: `src/irp/src/protocols/base.rs`
+- decision/policy hook: `src/irp/src/algo/mod.rs`
+- rust core notes: `src/irp/README.md`
 
 OSPF example config: `exps/routerd_examples/ospf_router1.yaml`  
 RIP example config: `exps/routerd_examples/rip_router1.yaml`
@@ -94,6 +107,15 @@ protocol_params:
 forwarding:
   enabled: false
   dry_run: true
+management:
+  http:
+    enabled: true
+    bind: 0.0.0.0
+    port: 18001
+  grpc:
+    enabled: true
+    bind: 0.0.0.0
+    port: 19001
 ```
 
 `forwarding.enabled=true` enables Linux route programming (`ip route`) based on protocol output.
@@ -115,6 +137,7 @@ python3 exps/generate_routerd_lab.py --profile star6 --protocol rip
 ```
 
 Built-in profiles (few common topologies, one-arg selection):
+- `line3`
 - `line5`
 - `ring6`
 - `star6`
@@ -129,7 +152,7 @@ python3 exps/generate_routerd_lab.py \
   --topology-file clab_topologies/spineleaf2x4.clab.yaml
 ```
 
-`--protocol` is independent from topology file, so the same file can run either `ospf` or `rip`.
+`--protocol` is independent from topology file, so the same file can run `ospf`, `rip`, or `irp`.
 
 ## One-Command Lab Run
 
@@ -169,6 +192,13 @@ variables, so the same source file can be reused across runs.
   ```
 - Deploying the wrong run:
   always use the `lab_name` and `deploy_env_file` printed by your latest `make gen-routerd-lab`.
+- `nohup: can't execute '/irp/bin/node_supervisor': No such file or directory` inside container:
+  host-built Rust binary is not compatible with container libc.
+  Rebuild with musl target:
+  ```bash
+  rustup target add x86_64-unknown-linux-musl
+  make build-routerd-rs
+  ```
 
 ## Validate A Running Lab
 
@@ -185,7 +215,10 @@ make check-routerd-lab \
 
 What it checks per node:
 - container is running,
-- `irp_routerd_rs` process exists,
+- `routingd` process exists (`/irp/bin/routingd` or compatibility alias),
+- `node_supervisor` process exists and state file can be collected (`/tmp/node_supervisor_state.json`),
+- management HTTP API (`/v1/status`) is reachable when configured,
+- management kernel-route API (`/v1/kernel-routes`) can be queried,
 - neighbor IP ping (from generated config) succeeds,
 - latest `RIB/FIB updated` route count is at least `n_nodes-1` (or `CHECK_MIN_ROUTES`).
 
@@ -232,9 +265,15 @@ This repo includes a lightweight traffic app:
 - protocols: `udp` and `tcp`
 - patterns: `bulk` and `onoff` (for sender)
 
-When lab is started via `run-routerd-lab`, Rust routerd binary (`/irp/bin/irp_routerd_rs`)
-and the data-plane binary (`/irp/bin/traffic_app`) are copied into each container.
-`run-traffic-app` and `run-traffic-probe` use `/irp/bin/traffic_app` directly.
+Recommended workflow:
+- build router image once: `make build-routerd-node-image`
+- run lab with generated topology (default image `romam/network-multitool-routerd:latest`)
+
+`run-routerd-lab` now prefers binaries already baked in image:
+- `/irp/bin/routingd` (or compatibility alias `/irp/bin/irp_routerd_rs`)
+- `/irp/bin/traffic_app`
+
+If image is missing binaries, script falls back to host build + copy.
 
 ### Go data-plane setup on host (recommended)
 
@@ -254,6 +293,79 @@ make build-traffic-app-go TRAFFIC_GOOS=linux TRAFFIC_GOARCH=amd64 TRAFFIC_CGO_EN
 
 If lab is started via `run-routerd-lab`, it already attempts this build+copy step automatically
 (using env overrides `ROMAM_TRAFFIC_GOOS`, `ROMAM_TRAFFIC_GOARCH`, `ROMAM_TRAFFIC_CGO_ENABLED`).
+
+### Traffic plan (config-driven)
+
+```bash
+make run-traffic-plan TRAFFIC_PLAN_FILE=exps/routerd_examples/traffic_plans/line5_udp.yaml
+```
+
+Plan runner:
+- optional install step (`install_traffic_app_bin.py`)
+- ordered per-node task launch (`run_traffic_app.py`)
+- supports background sink and delayed sender start
+
+## Unified Experiment YAML (Deploy + Apps + Poll)
+
+Use one top-level YAML to run the full loop:
+- deploy topology + inject protocol config,
+- write app specs into each node's `node_supervisor` config and restart supervisor,
+- launch app processes from config (same node can run multiple sender/sink),
+- poll `/v1/routes` + `/v1/metrics` every second and compute convergence.
+
+Examples:
+- `exps/routerd_examples/unified_experiments/line3_irp_onoff_fault.yaml`
+- `exps/routerd_examples/unified_experiments/line3_irp_multi_apps.yaml`
+
+Recommended run flow (verified on this repo):
+
+```bash
+make build-routerd-rs
+make run-unified-experiment \
+  UNIFIED_CONFIG_FILE=exps/routerd_examples/unified_experiments/line3_irp_multi_apps.yaml \
+  UNIFIED_USE_SUDO=1
+```
+
+Equivalent direct script run:
+
+```bash
+PYTHONPATH=src python3 exps/run_unified_experiment.py \
+  --config exps/routerd_examples/unified_experiments/line3_irp_multi_apps.yaml \
+  --poll-interval-s 1 \
+  --sudo
+```
+
+Default report output path:
+- `results/runs/unified_experiments/<lab_name>/report_<timestamp>.json`
+
+The unified config supports fault injection, e.g.:
+- `link_down` with `faults[].link: [r2, r3]`
+- `app_stop` / `app_start` with `faults[].node` + `faults[].app` (applied via `node_supervisor`)
+
+Cleanup command (when you keep lab running or need manual cleanup):
+
+```bash
+sudo containerlab destroy -t clab_topologies/line3.clab.yaml --name <lab_name> --cleanup
+```
+
+### Multi-app AppSpec schema
+
+`run_unified_experiment.py` supports:
+- `node_apps`: list of `{node_id, apps[]}`
+- `apps`: flat list where each app includes `node` or `node_id`
+
+Each app entry supports:
+- `name`, `kind` (`sender` / `sink` / `custom`)
+- `bin`, `args`, `env`
+- `restart` (`never` / `on-failure` / `always`) and `max_restarts`
+- `delay_s`, `log_file`, optional `cpu_affinity`
+
+Built-in guardrails:
+- sink port conflict check on same node for `traffic_app` sink endpoints
+- sender target guard (`localhost/127.0.0.1/::1` rejected)
+- app lifecycle supervision + restart events included in report
+- app env defaults: `APP_ID`, `NODE_ID`, `APP_ROLE`
+- traffic app periodic stats can emit JSON when `TRAFFIC_LOG_JSON=1`
 
 ### 1) Start sink on `r6` (UDP, port 9000)
 

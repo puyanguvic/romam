@@ -18,6 +18,7 @@ use crate::runtime::config::DaemonConfig;
 use crate::runtime::forwarding::{
     ForwardingApplier, LinuxForwardingApplier, NullForwardingApplier,
 };
+use crate::runtime::mgmt::{DaemonSnapshot, MgmtServer};
 use crate::runtime::transport::UdpTransport;
 
 pub struct RouterDaemon {
@@ -29,6 +30,7 @@ pub struct RouterDaemon {
     forwarding_table: ForwardingTable,
     applier: Box<dyn ForwardingApplier>,
     policy: Box<dyn DecisionEngine>,
+    mgmt: MgmtServer,
     running: Arc<AtomicBool>,
     epoch: Instant,
 }
@@ -55,6 +57,20 @@ impl RouterDaemon {
         } else {
             Box::new(NullForwardingApplier)
         };
+        let initial_snapshot = DaemonSnapshot::from_parts(
+            cfg.router_id,
+            &cfg.protocol,
+            &cfg.bind_address,
+            cfg.bind_port,
+            cfg.tick_interval,
+            cfg.dead_interval,
+            &cfg.forwarding,
+            0.0,
+            neighbors.clone(),
+            Vec::new(),
+            Vec::new(),
+        );
+        let mgmt = MgmtServer::start(initial_snapshot, &cfg.management)?;
 
         Ok(Self {
             cfg,
@@ -65,6 +81,7 @@ impl RouterDaemon {
             forwarding_table: ForwardingTable::default(),
             applier,
             policy: Box::new(PassthroughDecisionEngine),
+            mgmt,
             running: Arc::new(AtomicBool::new(true)),
             epoch: Instant::now(),
         })
@@ -88,6 +105,7 @@ impl RouterDaemon {
 
         let start_outputs = self.protocol.start(&self.context(self.now_secs()));
         self.apply_outputs(start_outputs)?;
+        self.publish_snapshot();
 
         let mut next_tick = self.now_secs() + self.cfg.tick_interval;
 
@@ -106,8 +124,12 @@ impl RouterDaemon {
 
             let now = self.now_secs();
             if now >= next_tick {
-                self.neighbor_table
+                let changed = self
+                    .neighbor_table
                     .refresh_liveness(now, self.cfg.dead_interval);
+                if !changed.is_empty() {
+                    self.publish_snapshot();
+                }
                 let timer_outputs = self.protocol.on_timer(&self.context(now));
                 self.apply_outputs(timer_outputs)?;
                 next_tick = now + self.cfg.tick_interval;
@@ -148,6 +170,7 @@ impl RouterDaemon {
         }
 
         self.neighbor_table.mark_seen(message.src_router_id, now);
+        self.publish_snapshot();
 
         let outputs = self.protocol.on_message(&self.context(now), &message);
         self.apply_outputs(outputs)
@@ -203,6 +226,7 @@ impl RouterDaemon {
             .map(|entry| (entry.destination, entry.next_hop, entry.metric))
             .collect();
         info!("RIB/FIB updated: {:?}", summary);
+        self.publish_snapshot();
 
         Ok(())
     }
@@ -236,6 +260,33 @@ impl RouterDaemon {
         self.epoch.elapsed().as_secs_f64()
     }
 
+    fn publish_snapshot(&self) {
+        self.mgmt.publish(self.build_snapshot(self.now_secs()));
+    }
+
+    fn build_snapshot(&self, now: f64) -> DaemonSnapshot {
+        let neighbors = self
+            .neighbor_table
+            .iter()
+            .map(|(_, item)| item.clone())
+            .collect::<Vec<_>>();
+        let routes = self.route_table.snapshot();
+        let fib = self.forwarding_table.snapshot();
+        DaemonSnapshot::from_parts(
+            self.cfg.router_id,
+            self.protocol.name(),
+            &self.cfg.bind_address,
+            self.cfg.bind_port,
+            self.cfg.tick_interval,
+            self.cfg.dead_interval,
+            &self.cfg.forwarding,
+            now,
+            neighbors,
+            routes,
+            fib,
+        )
+    }
+
     fn build_protocol(cfg: &DaemonConfig) -> Result<Box<dyn ProtocolEngine>> {
         let params = &cfg.protocol_params;
         match cfg.protocol.as_str() {
@@ -266,6 +317,23 @@ impl RouterDaemon {
                     infinity_metric,
                     poison_reverse,
                 )))
+            }
+            "irp" => {
+                let alpha = param_f64(params, "alpha", 1.0);
+                let beta = param_f64(params, "beta", 2.0);
+                let hello_interval = param_f64(params, "hello_interval", 1.0);
+                let lsa_interval = param_f64(params, "lsa_interval", 3.0);
+                let lsa_max_age =
+                    param_f64(params, "lsa_max_age", (cfg.dead_interval * 3.0).max(10.0));
+                info!(
+                    "IRP mode enabled (current engine: OSPF base), alpha={}, beta={}",
+                    alpha, beta
+                );
+                Ok(Box::new(OspfProtocol::new(OspfTimers {
+                    hello_interval,
+                    lsa_interval,
+                    lsa_max_age,
+                })))
             }
             _ => anyhow::bail!("unsupported protocol: {}", cfg.protocol),
         }

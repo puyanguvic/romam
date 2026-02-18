@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import argparse
 import ast
+import json
 import re
 import subprocess
 import sys
@@ -59,7 +60,7 @@ def parse_args() -> argparse.Namespace:
     )
     parser.add_argument(
         "--expect-protocol",
-        choices=["ospf", "rip"],
+        choices=["ospf", "rip", "irp"],
         default="",
         help="If set, fail when daemon protocol differs.",
     )
@@ -153,11 +154,22 @@ def load_neighbors(config_dir: Path, node_name: str) -> List[NeighborSpec]:
     ]
 
 
+def load_management_http_port(config_dir: Path, node_name: str) -> int:
+    cfg_path = config_dir / f"{node_name}.yaml"
+    with cfg_path.open("r", encoding="utf-8") as f:
+        cfg = yaml.safe_load(f) or {}
+    try:
+        return int(cfg.get("management", {}).get("http", {}).get("port", 0))
+    except (TypeError, ValueError):
+        return 0
+
+
 def inspect_node(
     use_sudo: bool,
     container: str,
     tail_lines: int,
     neighbors: List[NeighborSpec],
+    management_http_port: int,
     expect_protocol: str,
     min_routes: int,
 ) -> Dict[str, Any]:
@@ -165,9 +177,14 @@ def inspect_node(
         "container": container,
         "running": False,
         "daemon_running": False,
+        "node_supervisor_running": False,
         "protocol": "",
+        "management_api_ok": False,
+        "management_route_count": None,
+        "kernel_route_count": None,
         "route_count": None,
         "neighbor_ping": [],
+        "routingd_state": {},
         "errors": [],
     }
 
@@ -183,6 +200,24 @@ def inspect_node(
     report["daemon_running"] = _check_daemon_running(use_sudo, container)
     if not report["daemon_running"]:
         report["errors"].append("routerd process not found")
+    report["node_supervisor_running"] = _check_node_supervisor_running(use_sudo, container)
+    if not report["node_supervisor_running"]:
+        report["errors"].append("node_supervisor process not found")
+    supervisor_state_text = run_cmd(
+        with_sudo(
+            [
+                "docker",
+                "exec",
+                container,
+                "sh",
+                "-lc",
+                "cat /tmp/node_supervisor_state.json 2>/dev/null || true",
+            ],
+            use_sudo,
+        ),
+        check=False,
+    )
+    _attach_supervisor_state(report, supervisor_state_text)
 
     log_tail = run_cmd(
         with_sudo(
@@ -203,7 +238,72 @@ def inspect_node(
     if expect_protocol and protocol and protocol != expect_protocol:
         report["errors"].append(f"protocol mismatch: got={protocol} expect={expect_protocol}")
 
+    if management_http_port > 0:
+        status_text = run_cmd(
+            with_sudo(
+                [
+                    "docker",
+                    "exec",
+                    container,
+                    "sh",
+                    "-lc",
+                    (
+                        f"wget -qO- http://127.0.0.1:{management_http_port}/v1/status 2>/dev/null "
+                        f"|| curl -fsS http://127.0.0.1:{management_http_port}/v1/status "
+                        "2>/dev/null "
+                        "|| true"
+                    ),
+                ],
+                use_sudo,
+            ),
+            check=False,
+        )
+        if status_text.strip():
+            try:
+                status_obj = json.loads(status_text)
+                report["management_api_ok"] = True
+                routes = list(status_obj.get("routes", []))
+                report["management_route_count"] = len(routes)
+            except json.JSONDecodeError:
+                report["errors"].append("management status API returned non-JSON")
+        else:
+            if _has_http_probe_tool(use_sudo, container):
+                report["errors"].append("management status API unreachable")
+            else:
+                report["errors"].append(
+                    "management status probe unavailable: neither wget nor curl found"
+                )
+
+        kernel_text = run_cmd(
+            with_sudo(
+                [
+                    "docker",
+                    "exec",
+                    container,
+                    "sh",
+                    "-lc",
+                    (
+                        f"wget -qO- http://127.0.0.1:{management_http_port}/v1/kernel-routes "
+                        "2>/dev/null "
+                        f"|| curl -fsS http://127.0.0.1:{management_http_port}/v1/kernel-routes "
+                        "2>/dev/null "
+                        "|| true"
+                    ),
+                ],
+                use_sudo,
+            ),
+            check=False,
+        )
+        if kernel_text.strip():
+            try:
+                kernel_obj = json.loads(kernel_text)
+                report["kernel_route_count"] = len(list(kernel_obj.get("routes", [])))
+            except json.JSONDecodeError:
+                report["errors"].append("management kernel-routes API returned non-JSON")
+
     route_count = parse_last_route_count(log_tail)
+    if report["management_route_count"] is not None:
+        route_count = int(report["management_route_count"])
     report["route_count"] = route_count
     if route_count is None:
         report["errors"].append("no RIB/FIB update log found")
@@ -241,6 +341,42 @@ def inspect_node(
     if not all(item["ok"] for item in ping_results):
         report["errors"].append("neighbor ping failed on one or more links")
 
+    if report["errors"]:
+        supervisor_tail = run_cmd(
+            with_sudo(
+                [
+                    "docker",
+                    "exec",
+                    container,
+                    "sh",
+                    "-lc",
+                    "tail -n 30 /tmp/node_supervisor.log 2>/dev/null || true",
+                ],
+                use_sudo,
+            ),
+            check=False,
+        )
+        if supervisor_tail.strip():
+            report["errors"].append(
+                f"node_supervisor.log last: {_last_nonempty_line(supervisor_tail)}"
+            )
+        routerd_tail = run_cmd(
+            with_sudo(
+                [
+                    "docker",
+                    "exec",
+                    container,
+                    "sh",
+                    "-lc",
+                    "tail -n 30 /tmp/routerd.log 2>/dev/null || true",
+                ],
+                use_sudo,
+            ),
+            check=False,
+        )
+        if routerd_tail.strip():
+            report["errors"].append(f"routerd.log last: {_last_nonempty_line(routerd_tail)}")
+
     return report
 
 
@@ -266,6 +402,85 @@ def parse_last_route_count(log_text: str) -> int | None:
     return None
 
 
+def _attach_supervisor_state(report: Dict[str, Any], state_text: str) -> None:
+    payload = state_text.strip()
+    if not payload:
+        return
+    try:
+        state_obj = json.loads(payload)
+    except json.JSONDecodeError:
+        report["errors"].append("node_supervisor_state.json is invalid JSON")
+        return
+    if not isinstance(state_obj, dict):
+        report["errors"].append("node_supervisor_state.json is not an object")
+        return
+
+    processes = state_obj.get("processes", [])
+    if not isinstance(processes, list):
+        report["errors"].append("node_supervisor_state.json missing processes list")
+        return
+
+    routingd = None
+    for item in processes:
+        if not isinstance(item, dict):
+            continue
+        name = str(item.get("name", "")).strip().lower()
+        kind = str(item.get("kind", "")).strip().lower()
+        if name == "routingd" or kind == "routingd":
+            routingd = item
+            break
+    if routingd is None:
+        report["errors"].append("routingd entry missing in node_supervisor_state")
+        return
+
+    state = {
+        "running": bool(routingd.get("running", False)),
+        "pid": routingd.get("pid"),
+        "restart_count": routingd.get("restart_count"),
+        "launch_count": routingd.get("launch_count"),
+        "last_exit_code": routingd.get("last_exit_code"),
+        "last_error": str(routingd.get("last_error", "")).strip(),
+        "pending_restart": bool(routingd.get("pending_restart", False)),
+    }
+    report["routingd_state"] = state
+    if not state["running"]:
+        report["errors"].append(
+            "routingd not running in supervisor state: "
+            f"exit={state['last_exit_code']} error={state['last_error'] or 'n/a'}"
+        )
+    elif state["last_error"]:
+        report["errors"].append(f"routingd supervisor last_error: {state['last_error']}")
+
+
+def _has_http_probe_tool(use_sudo: bool, container: str) -> bool:
+    probe = run_cmd(
+        with_sudo(
+            [
+                "docker",
+                "exec",
+                container,
+                "sh",
+                "-lc",
+                "(command -v wget >/dev/null 2>&1 || command -v curl >/dev/null 2>&1) "
+                "&& echo yes || echo no",
+            ],
+            use_sudo,
+        ),
+        check=False,
+    ).strip()
+    return probe.lower() == "yes"
+
+
+def _last_nonempty_line(text: str) -> str:
+    lines = [line.strip() for line in text.splitlines() if line.strip()]
+    if not lines:
+        return ""
+    tail = lines[-1]
+    if len(tail) > 240:
+        return f"{tail[:237]}..."
+    return tail
+
+
 def _check_daemon_running(use_sudo: bool, container: str) -> bool:
     pid_text = run_cmd(
         with_sudo(
@@ -282,12 +497,67 @@ def _check_daemon_running(use_sudo: bool, container: str) -> bool:
             ),
             check=False,
         ).strip()
-        if "/irp/bin/irp_routerd_rs" in cmdline or "irp_routerd_rs --config" in cmdline:
+        if (
+            "/irp/bin/irp_routerd_rs" in cmdline
+            or "irp_routerd_rs --config" in cmdline
+            or "/irp/bin/routingd" in cmdline
+            or "routingd --config" in cmdline
+        ):
             return True
 
     pgrep_out = run_cmd(
         with_sudo(
-            ["docker", "exec", container, "pgrep", "-af", "irp_routerd_rs"],
+            [
+                "docker",
+                "exec",
+                container,
+                "sh",
+                "-lc",
+                "pgrep -af 'routingd|irp_routerd_rs' || true",
+            ],
+            use_sudo,
+        ),
+        check=False,
+    ).strip()
+    return bool(pgrep_out)
+
+
+def _check_node_supervisor_running(use_sudo: bool, container: str) -> bool:
+    pid_text = run_cmd(
+        with_sudo(
+            [
+                "docker",
+                "exec",
+                container,
+                "sh",
+                "-lc",
+                "cat /tmp/node_supervisor.pid 2>/dev/null || true",
+            ],
+            use_sudo,
+        ),
+        check=False,
+    ).strip()
+    if pid_text.isdigit():
+        cmdline = run_cmd(
+            with_sudo(
+                ["docker", "exec", container, "sh", "-lc", f"ps -p {pid_text} -o args= || true"],
+                use_sudo,
+            ),
+            check=False,
+        ).strip()
+        if "/irp/bin/node_supervisor" in cmdline or "node_supervisor --config" in cmdline:
+            return True
+
+    pgrep_out = run_cmd(
+        with_sudo(
+            [
+                "docker",
+                "exec",
+                container,
+                "sh",
+                "-lc",
+                "pgrep -af 'node_supervisor' || true",
+            ],
             use_sudo,
         ),
         check=False,
@@ -319,11 +589,13 @@ def main() -> int:
         for node_name in sorted(nodes.keys()):
             container = clab_container_name(lab_name, node_name)
             neighbors = load_neighbors(config_dir, node_name)
+            management_http_port = load_management_http_port(config_dir, node_name)
             reports[node_name] = inspect_node(
                 use_sudo=bool(args.sudo),
                 container=container,
                 tail_lines=int(args.tail_lines),
                 neighbors=neighbors,
+                management_http_port=management_http_port,
                 expect_protocol=str(args.expect_protocol),
                 min_routes=min_routes,
             )

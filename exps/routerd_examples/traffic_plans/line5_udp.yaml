@@ -1,0 +1,34 @@
+lab_name: routerd-ospf-line5
+sudo: true
+install:
+  enabled: true
+  bin_path: bin/traffic_app
+  nodes: [r1, r2, r3, r4, r5]
+tasks:
+  - node: r5
+    background: true
+    log_file: /tmp/traffic_sink.log
+    args:
+      - sink
+      - --proto
+      - udp
+      - --bind
+      - 0.0.0.0
+      - --port
+      - "9000"
+  - node: r1
+    delay_s: 1.0
+    args:
+      - send
+      - --proto
+      - udp
+      - --target
+      - 10.15.5.2
+      - --port
+      - "9000"
+      - --count
+      - "3000"
+      - --packet-size
+      - "512"
+      - --pps
+      - "1000"

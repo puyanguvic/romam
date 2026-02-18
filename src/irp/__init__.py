@@ -1,3 +1,3 @@
-"""Intelligent Routing Protocol package."""
+"""IRP package."""
 
 __all__ = ["utils"]

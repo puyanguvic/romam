@@ -13,6 +13,8 @@ from topology.clab_loader import load_clab_topology
 @dataclass(frozen=True)
 class LabGenParams:
     protocol: str
+    routing_alpha: float
+    routing_beta: float
     topology_file: Path
     node_image: str
     bind_port: int
@@ -34,6 +36,12 @@ class LabGenParams:
     mgmt_external_access: bool
     forwarding_enabled: bool = False
     forwarding_dry_run: bool = True
+    mgmt_http_enabled: bool = True
+    mgmt_http_bind: str = "0.0.0.0"
+    mgmt_http_port_base: int = 18000
+    mgmt_grpc_enabled: bool = True
+    mgmt_grpc_bind: str = "0.0.0.0"
+    mgmt_grpc_port_base: int = 19000
 
 
 def generate_routerd_lab(params: LabGenParams) -> Dict[str, str]:
@@ -135,6 +143,18 @@ def _build_routerd_config(
             rid_map=rid_map,
             router_host_ips=router_host_ips,
         ),
+        "management": {
+            "http": {
+                "enabled": bool(params.mgmt_http_enabled),
+                "bind": str(params.mgmt_http_bind),
+                "port": int(params.mgmt_http_port_base) + int(router_id),
+            },
+            "grpc": {
+                "enabled": bool(params.mgmt_grpc_enabled),
+                "bind": str(params.mgmt_grpc_bind),
+                "port": int(params.mgmt_grpc_port_base) + int(router_id),
+            },
+        },
     }
     if params.protocol == "ospf":
         cfg["protocol_params"] = {
@@ -144,13 +164,23 @@ def _build_routerd_config(
                 "lsa_max_age": float(params.ospf_lsa_max_age),
             }
         }
-    else:
+    elif params.protocol == "rip":
         cfg["protocol_params"] = {
             "rip": {
                 "update_interval": float(params.rip_update_interval),
                 "neighbor_timeout": float(params.rip_neighbor_timeout),
                 "infinity_metric": float(params.rip_infinity_metric),
                 "poison_reverse": bool(params.rip_poison_reverse),
+            }
+        }
+    else:
+        cfg["protocol_params"] = {
+            "irp": {
+                "alpha": float(params.routing_alpha),
+                "beta": float(params.routing_beta),
+                "hello_interval": float(params.ospf_hello_interval),
+                "lsa_interval": float(params.ospf_lsa_interval),
+                "lsa_max_age": float(params.ospf_lsa_max_age),
             }
         }
     return cfg

@@ -2,14 +2,14 @@ use std::path::PathBuf;
 
 use anyhow::Result;
 use clap::Parser;
-use irp_rust::runtime::config::load_daemon_config;
-use irp_rust::runtime::daemon::RouterDaemon;
+use irp::runtime::config::load_daemon_config;
+use irp::runtime::daemon::RouterDaemon;
 use tracing::Level;
 use tracing_subscriber::EnvFilter;
 
 #[derive(Debug, Parser)]
-#[command(name = "irp-routerd-rs")]
-#[command(about = "Rust router daemon for Intelligent Routing Protocol")]
+#[command(name = "routingd")]
+#[command(about = "Rust routing daemon for Intelligent Routing Protocol")]
 struct Args {
     #[arg(long)]
     config: PathBuf,

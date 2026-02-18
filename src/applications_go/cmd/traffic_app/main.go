@@ -2,6 +2,7 @@ package main
 
 import (
 	"encoding/binary"
+	"encoding/json"
 	"errors"
 	"flag"
 	"fmt"
@@ -19,6 +20,24 @@ const (
 	modeBulk  = "bulk"
 	modeOnOff = "onoff"
 )
+
+var (
+	logJSONEnabled = parseBoolEnv("TRAFFIC_LOG_JSON") || parseBoolEnv("TRAFFIC_APP_JSON")
+	logNodeID      = os.Getenv("NODE_ID")
+	logAppID       = os.Getenv("APP_ID")
+	logRole        = os.Getenv("APP_ROLE")
+	logFlowID      = os.Getenv("FLOW_ID")
+)
+
+func parseBoolEnv(name string) bool {
+	value := os.Getenv(name)
+	switch value {
+	case "1", "true", "TRUE", "yes", "YES", "on", "ON":
+		return true
+	default:
+		return false
+	}
+}
 
 type throughputStats struct {
 	packets int64
@@ -670,6 +689,32 @@ func report(prefix string, start time.Time, last time.Time, stats throughputStat
 	}
 	avgPPS := float64(stats.packets) / elapsed
 	avgMbps := (float64(stats.bytes) * 8.0) / elapsed / 1_000_000.0
+	if logJSONEnabled {
+		record := map[string]any{
+			"ts":         now.UTC().Format(time.RFC3339Nano),
+			"prefix":     prefix,
+			"node_id":    logNodeID,
+			"app_id":     logAppID,
+			"role":       logRole,
+			"elapsed_s":  elapsed,
+			"interval_s": interval,
+			"packets":    stats.packets,
+			"bytes":      stats.bytes,
+			"avg_pps":    avgPPS,
+			"avg_mbps":   avgMbps,
+		}
+		if logFlowID != "" {
+			if value, err := strconv.Atoi(logFlowID); err == nil {
+				record["flow_id"] = value
+			} else {
+				record["flow_id"] = logFlowID
+			}
+		}
+		if payload, err := json.Marshal(record); err == nil {
+			fmt.Println(string(payload))
+		}
+		return now
+	}
 	fmt.Printf(
 		"%s elapsed=%.3fs packets=%d bytes=%d avg_pps=%.2f avg_mbps=%.3f interval=%.3fs\n",
 		prefix,

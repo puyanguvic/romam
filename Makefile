@@ -2,9 +2,11 @@ PYTHON ?= python3
 PIP ?= $(PYTHON) -m pip
 PYTHONPATH ?= src
 RUST_CARGO ?= cargo
-RUST_ROUTERD_CRATE ?= src/irp_rust
-RUST_ROUTERD_BIN ?= bin/irp_routerd_rs
+RUST_ROUTERD_CRATE ?= src/irp
+RUST_ROUTERD_BIN ?= bin/routingd
+RUST_NODE_SUPERVISOR_BIN ?= bin/node_supervisor
 RUST_ROUTERD_BUILD_MODE ?= release
+RUST_ROUTERD_TARGET ?= x86_64-unknown-linux-musl
 EXP_REPEATS ?= 1
 EXP_TOPOLOGY_FILE ?= clab_topologies/ring6.clab.yaml
 EXP_LINK_DELAY_MS ?= 1.0
@@ -50,6 +52,12 @@ TRAFFIC_USE_SUDO ?= 1
 TRAFFIC_BACKGROUND ?= 0
 TRAFFIC_LOG_FILE ?= /tmp/traffic_app.log
 TRAFFIC_ARGS ?=
+TRAFFIC_PLAN_FILE ?=
+UNIFIED_CONFIG_FILE ?=
+UNIFIED_OUTPUT_JSON ?=
+UNIFIED_USE_SUDO ?= 1
+UNIFIED_POLL_INTERVAL_S ?= 1
+UNIFIED_KEEP_LAB ?= 0
 PROBE_LAB_NAME ?=
 PROBE_SRC_NODE ?=
 PROBE_DST_NODE ?=
@@ -94,7 +102,7 @@ INSTALL_TRAFFIC_BIN_TOPOLOGY_FILE ?=
 INSTALL_TRAFFIC_BIN_NODES ?=
 INSTALL_TRAFFIC_BIN_USE_SUDO ?= 1
 
-.PHONY: install test lint build-routerd-rs run-routerd-rs build-routerd-node-image build-traffic-app-go install-traffic-app-bin run-containerlab-exp run-ospf-convergence-exp gen-routerd-lab gen-classic-routerd-lab check-routerd-lab run-routerd-lab run-traffic-app run-traffic-probe run-line-ospf-udp-exp clean
+.PHONY: install test lint build-routerd-rs run-routerd-rs build-routerd-node-image build-traffic-app-go install-traffic-app-bin run-containerlab-exp run-ospf-convergence-exp gen-routerd-lab gen-classic-routerd-lab check-routerd-lab run-routerd-lab run-traffic-app run-traffic-plan run-unified-experiment run-traffic-probe run-line-ospf-udp-exp clean
 
 install:
 	$(PIP) install -e .[dev]
@@ -105,7 +113,7 @@ test:
 lint:
 	ruff check src tests scripts exps
 
-build-routerd-node-image:
+build-routerd-node-image: build-routerd-rs build-traffic-app-go
 	docker build -t $(ROUTERD_NODE_IMAGE) -f exps/container_images/routerd-multitool/Dockerfile .
 
 build-traffic-app-go:
@@ -144,11 +152,14 @@ run-ospf-convergence-exp:
 
 build-routerd-rs:
 	@command -v $(RUST_CARGO) >/dev/null 2>&1 || (echo "cargo not found in PATH"; exit 127)
-	@mkdir -p $(dir $(RUST_ROUTERD_BIN))
-	@cd $(RUST_ROUTERD_CRATE) && $(RUST_CARGO) build --$(RUST_ROUTERD_BUILD_MODE)
-	@cp $(RUST_ROUTERD_CRATE)/target/$(RUST_ROUTERD_BUILD_MODE)/irp_rust $(RUST_ROUTERD_BIN)
+	@mkdir -p $(dir $(RUST_ROUTERD_BIN)) $(dir $(RUST_NODE_SUPERVISOR_BIN))
+	@cd $(RUST_ROUTERD_CRATE) && $(RUST_CARGO) build --$(RUST_ROUTERD_BUILD_MODE) --target $(RUST_ROUTERD_TARGET)
+	@cp $(RUST_ROUTERD_CRATE)/target/$(RUST_ROUTERD_TARGET)/$(RUST_ROUTERD_BUILD_MODE)/routingd $(RUST_ROUTERD_BIN)
+	@cp $(RUST_ROUTERD_CRATE)/target/$(RUST_ROUTERD_TARGET)/$(RUST_ROUTERD_BUILD_MODE)/node_supervisor $(RUST_NODE_SUPERVISOR_BIN)
 	@chmod +x $(RUST_ROUTERD_BIN)
-	@echo "built $(RUST_ROUTERD_BIN) from $(RUST_ROUTERD_CRATE) ($(RUST_ROUTERD_BUILD_MODE))"
+	@chmod +x $(RUST_NODE_SUPERVISOR_BIN)
+	@echo "built $(RUST_ROUTERD_BIN) from $(RUST_ROUTERD_CRATE) ($(RUST_ROUTERD_BUILD_MODE), $(RUST_ROUTERD_TARGET))"
+	@echo "built $(RUST_NODE_SUPERVISOR_BIN) from $(RUST_ROUTERD_CRATE) ($(RUST_ROUTERD_BUILD_MODE), $(RUST_ROUTERD_TARGET))"
 
 run-routerd-rs:
 	@test -x "$(RUST_ROUTERD_BIN)" || (echo "binary missing: $(RUST_ROUTERD_BIN) (run make build-routerd-rs)"; exit 2)
@@ -214,6 +225,20 @@ run-traffic-app:
 		--log-file $(TRAFFIC_LOG_FILE) \
 		-- $(TRAFFIC_ARGS)
 
+run-traffic-plan:
+	@test -n "$(TRAFFIC_PLAN_FILE)" || (echo "TRAFFIC_PLAN_FILE is required"; exit 2)
+	PYTHONPATH=$(PYTHONPATH) $(PYTHON) exps/run_traffic_plan.py \
+		--plan $(TRAFFIC_PLAN_FILE)
+
+run-unified-experiment:
+	@test -n "$(UNIFIED_CONFIG_FILE)" || (echo "UNIFIED_CONFIG_FILE is required"; exit 2)
+	PYTHONPATH=$(PYTHONPATH) $(PYTHON) exps/run_unified_experiment.py \
+		--config $(UNIFIED_CONFIG_FILE) \
+		--poll-interval-s $(UNIFIED_POLL_INTERVAL_S) \
+		$(if $(strip $(UNIFIED_OUTPUT_JSON)),--output-json $(UNIFIED_OUTPUT_JSON),) \
+		$(if $(filter 1 yes true,$(UNIFIED_USE_SUDO)),--sudo,--no-sudo) \
+		$(if $(filter 1 yes true,$(UNIFIED_KEEP_LAB)),--keep-lab,)
+
 run-traffic-probe:
 	@test -n "$(PROBE_LAB_NAME)" || (echo "PROBE_LAB_NAME is required"; exit 2)
 	@test -n "$(PROBE_SRC_NODE)" || (echo "PROBE_SRC_NODE is required"; exit 2)
@@ -260,4 +285,4 @@ run-line-ospf-udp-exp:
 	$(if $(filter 1 yes true,$(LINE_EXP_KEEP_LAB)),--keep-lab,)
 
 clean:
-	rm -rf .pytest_cache .ruff_cache dist build *.egg-info src/irp_rust/target bin/irp_routerd_rs
+	rm -rf .pytest_cache .ruff_cache dist build *.egg-info src/irp/target bin/routingd bin/irp_routerd_rs bin/node_supervisor

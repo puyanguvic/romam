@@ -1,0 +1,140 @@
+topology: line_3
+protocol: irp
+
+routing:
+  alpha: 1.0
+  beta: 2.0
+
+node_apps:
+  - node_id: r2
+    apps:
+      - name: sink_udp_9001
+        kind: sink
+        bin: /irp/bin/traffic_app
+        args:
+          - sink
+          - --proto
+          - udp
+          - --bind
+          - 0.0.0.0
+          - --port
+          - "9001"
+          - --report-interval-s
+          - "1"
+          - --duration-s
+          - "90"
+        restart: never
+
+      - name: sender_bulk_f1
+        kind: sender
+        bin: /irp/bin/traffic_app
+        args:
+          - send
+          - --proto
+          - udp
+          - --target
+          - 10.9.2.2
+          - --port
+          - "9001"
+          - --packet-size
+          - "512"
+          - --duration-s
+          - "90"
+          - --pps
+          - "1200"
+          - --flow-id
+          - "1"
+          - --report-interval-s
+          - "1"
+        restart: on-failure
+        max_restarts: 3
+
+      - name: sender_onoff_f2
+        kind: sender
+        bin: /irp/bin/traffic_app
+        args:
+          - send
+          - --proto
+          - udp
+          - --target
+          - 10.9.2.2
+          - --port
+          - "9001"
+          - --packet-size
+          - "512"
+          - --duration-s
+          - "90"
+          - --pps
+          - "800"
+          - --pattern
+          - onoff
+          - --on-ms
+          - "2000"
+          - --off-ms
+          - "1000"
+          - --flow-id
+          - "2"
+          - --report-interval-s
+          - "1"
+        restart: on-failure
+        max_restarts: 3
+
+  - node_id: r3
+    apps:
+      - name: sink_udp_9002
+        kind: sink
+        bin: /irp/bin/traffic_app
+        args:
+          - sink
+          - --proto
+          - udp
+          - --bind
+          - 0.0.0.0
+          - --port
+          - "9002"
+          - --report-interval-s
+          - "1"
+          - --duration-s
+          - "90"
+        restart: never
+
+  - node_id: r1
+    apps:
+      - name: sender_r1_to_r3
+        kind: sender
+        bin: /irp/bin/traffic_app
+        args:
+          - send
+          - --proto
+          - udp
+          - --target
+          - 10.9.2.2
+          - --port
+          - "9002"
+          - --packet-size
+          - "256"
+          - --duration-s
+          - "90"
+          - --pps
+          - "500"
+          - --flow-id
+          - "11"
+          - --report-interval-s
+          - "1"
+        restart: on-failure
+        max_restarts: 2
+
+faults:
+  - time_s: 30
+    type: link_down
+    link: [r2, r3]
+  - time_s: 45
+    type: app_stop
+    node: r2
+    app: sender_onoff_f2
+  - time_s: 60
+    type: app_start
+    node: r2
+    app: sender_onoff_f2
+
+duration_s: 90

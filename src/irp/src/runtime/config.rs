@@ -36,6 +36,27 @@ impl Default for ForwardingConfig {
 }
 
 #[derive(Debug, Clone)]
+pub struct HttpManagementConfig {
+    pub enabled: bool,
+    pub bind_address: String,
+    pub port: u16,
+}
+
+#[derive(Debug, Clone)]
+pub struct GrpcManagementConfig {
+    pub enabled: bool,
+    pub bind_address: String,
+    pub port: u16,
+}
+
+#[derive(Debug, Clone)]
+pub struct ManagementConfig {
+    pub http: HttpManagementConfig,
+    pub grpc: GrpcManagementConfig,
+    pub forwarding_table: u32,
+}
+
+#[derive(Debug, Clone)]
 pub struct DaemonConfig {
     pub router_id: u32,
     pub protocol: String,
@@ -46,6 +67,7 @@ pub struct DaemonConfig {
     pub neighbors: Vec<NeighborConfig>,
     pub protocol_params: Map<String, Value>,
     pub forwarding: ForwardingConfig,
+    pub management: ManagementConfig,
 }
 
 #[derive(Debug, Deserialize, Default)]
@@ -77,6 +99,20 @@ struct RawForwarding {
     next_hop_ips: Option<BTreeMap<String, String>>,
 }
 
+#[derive(Debug, Deserialize, Default)]
+struct RawManagementEndpoint {
+    enabled: Option<bool>,
+    bind: Option<String>,
+    address: Option<String>,
+    port: Option<u16>,
+}
+
+#[derive(Debug, Deserialize, Default)]
+struct RawManagement {
+    http: Option<RawManagementEndpoint>,
+    grpc: Option<RawManagementEndpoint>,
+}
+
 #[derive(Debug, Deserialize)]
 struct RawDaemonConfig {
     router_id: u32,
@@ -88,6 +124,7 @@ struct RawDaemonConfig {
     #[serde(default)]
     protocol_params: BTreeMap<String, serde_yaml::Value>,
     forwarding: Option<RawForwarding>,
+    management: Option<RawManagement>,
     bind_address: Option<String>,
     bind_port: Option<u16>,
 }
@@ -101,6 +138,7 @@ pub fn load_daemon_config(path: &Path) -> Result<DaemonConfig> {
     let bind = raw_cfg.bind.unwrap_or_default();
     let timers = raw_cfg.timers.unwrap_or_default();
     let forwarding_raw = raw_cfg.forwarding.unwrap_or_default();
+    let management_raw = raw_cfg.management.unwrap_or_default();
 
     let protocol = raw_cfg
         .protocol
@@ -135,19 +173,39 @@ pub fn load_daemon_config(path: &Path) -> Result<DaemonConfig> {
         next_hop_ips: parse_int_key_map(forwarding_raw.next_hop_ips.unwrap_or_default())?,
     };
 
+    let bind_address = bind
+        .address
+        .or(raw_cfg.bind_address)
+        .unwrap_or_else(|| "0.0.0.0".to_string());
+    let bind_port = bind.port.or(raw_cfg.bind_port).unwrap_or(5500);
+
+    let http_raw = management_raw.http.unwrap_or_default();
+    let grpc_raw = management_raw.grpc.unwrap_or_default();
+    let management = ManagementConfig {
+        http: HttpManagementConfig {
+            enabled: http_raw.enabled.unwrap_or(true),
+            bind_address: endpoint_address(http_raw.bind.or(http_raw.address)),
+            port: endpoint_port(http_raw.port, bind_port, 10_000),
+        },
+        grpc: GrpcManagementConfig {
+            enabled: grpc_raw.enabled.unwrap_or(true),
+            bind_address: endpoint_address(grpc_raw.bind.or(grpc_raw.address)),
+            port: endpoint_port(grpc_raw.port, bind_port, 11_000),
+        },
+        forwarding_table: forwarding.table,
+    };
+
     Ok(DaemonConfig {
         router_id: raw_cfg.router_id,
         protocol,
-        bind_address: bind
-            .address
-            .or(raw_cfg.bind_address)
-            .unwrap_or_else(|| "0.0.0.0".to_string()),
-        bind_port: bind.port.or(raw_cfg.bind_port).unwrap_or(5500),
+        bind_address,
+        bind_port,
         tick_interval: timers.tick_interval.unwrap_or(1.0),
         dead_interval: timers.dead_interval.unwrap_or(4.0),
         neighbors,
         protocol_params,
         forwarding,
+        management,
     })
 }
 
@@ -168,4 +226,22 @@ fn parse_int_key_map(raw: BTreeMap<String, String>) -> Result<BTreeMap<u32, Stri
         out.insert(parsed, value);
     }
     Ok(out)
+}
+
+fn endpoint_address(raw: Option<String>) -> String {
+    raw.unwrap_or_else(|| "0.0.0.0".to_string())
+}
+
+fn endpoint_port(raw: Option<u16>, bind_port: u16, offset: u16) -> u16 {
+    match raw {
+        Some(port) => port,
+        None => {
+            let candidate = u32::from(bind_port) + u32::from(offset);
+            if candidate <= u32::from(u16::MAX) {
+                candidate as u16
+            } else {
+                bind_port
+            }
+        }
+    }
 }

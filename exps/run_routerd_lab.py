@@ -15,8 +15,9 @@ REPO_ROOT = Path(__file__).resolve().parents[1]
 SRC_DIR = REPO_ROOT / "src"
 GO_TRAFFIC_SRC_DIR = REPO_ROOT / "src" / "applications_go"
 GO_TRAFFIC_BIN_PATH = REPO_ROOT / "bin" / "traffic_app"
-RUST_ROUTERD_CRATE_DIR = REPO_ROOT / "src" / "irp_rust"
-RUST_ROUTERD_BIN_PATH = REPO_ROOT / "bin" / "irp_routerd_rs"
+RUST_ROUTERD_CRATE_DIR = REPO_ROOT / "src" / "irp"
+RUST_ROUTERD_BIN_PATH = REPO_ROOT / "bin" / "routingd"
+RUST_NODE_SUPERVISOR_BIN_PATH = REPO_ROOT / "bin" / "node_supervisor"
 if str(SRC_DIR) not in sys.path:
     sys.path.insert(0, str(SRC_DIR))
 
@@ -175,6 +176,18 @@ def clab_container_name(lab_name: str, node_name: str) -> str:
     return f"clab-{lab_name}-{node_name}"
 
 
+def container_has_executable(use_sudo: bool, container: str, path: str) -> bool:
+    return (
+        subprocess.run(
+            with_sudo(["docker", "exec", container, "sh", "-lc", f"test -x {path}"], use_sudo),
+            check=False,
+            stdout=subprocess.DEVNULL,
+            stderr=subprocess.DEVNULL,
+        ).returncode
+        == 0
+    )
+
+
 def run_containerlab(
     cmd: list[str],
     use_sudo: bool,
@@ -250,22 +263,27 @@ def build_traffic_app_binary() -> Path | None:
     return GO_TRAFFIC_BIN_PATH
 
 
-def build_routerd_rs_binary() -> Path:
+def build_rust_router_binaries() -> tuple[Path, Path]:
     if not RUST_ROUTERD_CRATE_DIR.exists():
         raise RuntimeError(f"rust routerd crate dir not found: {RUST_ROUTERD_CRATE_DIR}")
 
     cargo_bin = shutil.which("cargo")
     if cargo_bin is None:
-        if RUST_ROUTERD_BIN_PATH.exists():
-            print("[warn] `cargo` not found; using existing prebuilt irp_routerd_rs binary")
-            return RUST_ROUTERD_BIN_PATH
+        if RUST_ROUTERD_BIN_PATH.exists() and RUST_NODE_SUPERVISOR_BIN_PATH.exists():
+            print("[warn] `cargo` not found; using existing prebuilt rust binaries")
+            return RUST_ROUTERD_BIN_PATH, RUST_NODE_SUPERVISOR_BIN_PATH
         raise RuntimeError(
-            "`cargo` not found in PATH and no prebuilt binary at bin/irp_routerd_rs; "
+            "`cargo` not found in PATH and no prebuilt binaries at bin/routingd + "
+            "bin/node_supervisor; "
             "install Rust toolchain or run `make build-routerd-rs` first"
         )
 
     target_profile = os.environ.get("ROMAM_ROUTERD_RS_PROFILE", "release").strip() or "release"
-    build_cmd = [cargo_bin, "build", f"--{target_profile}"]
+    target_triple = (
+        os.environ.get("ROMAM_ROUTERD_RS_TARGET", "x86_64-unknown-linux-musl").strip()
+        or "x86_64-unknown-linux-musl"
+    )
+    build_cmd = [cargo_bin, "build", f"--{target_profile}", "--target", target_triple]
     try:
         output = run_cmd(
             build_cmd,
@@ -274,27 +292,56 @@ def build_routerd_rs_binary() -> Path:
             cwd=RUST_ROUTERD_CRATE_DIR,
         )
     except subprocess.CalledProcessError as exc:
-        if RUST_ROUTERD_BIN_PATH.exists():
-            print("[warn] rust routerd build failed; using existing prebuilt irp_routerd_rs binary")
-            return RUST_ROUTERD_BIN_PATH
         build_output = (exc.stdout or "").strip()
+        target_hint = ""
+        missing_target = "target may not be installed" in build_output.lower()
+        missing_std = "can't find crate for `std`" in build_output.lower()
+        if missing_target or missing_std:
+            target_hint = (
+                f"\nInstall target first: rustup target add {target_triple}"
+            )
         raise RuntimeError(
-            "rust routerd build failed.\n"
+            "rust build failed.\n"
             f"{build_output}\n"
+            f"{target_hint}\n"
             "fix build errors or run `make build-routerd-rs` first"
         ) from exc
 
     if output:
         print(output)
 
-    built_path = RUST_ROUTERD_CRATE_DIR / "target" / target_profile / "irp_rust"
-    if not built_path.exists():
-        raise RuntimeError(f"expected rust routerd binary missing after build: {built_path}")
+    routingd_candidates = [
+        RUST_ROUTERD_CRATE_DIR / "target" / target_triple / target_profile / "routingd",
+        RUST_ROUTERD_CRATE_DIR / "target" / target_triple / target_profile / "irp_routerd_rs",
+        RUST_ROUTERD_CRATE_DIR / "target" / target_profile / "routingd",
+        RUST_ROUTERD_CRATE_DIR / "target" / target_profile / "irp_routerd_rs",
+    ]
+    routingd_built = next((path for path in routingd_candidates if path.exists()), None)
+    if routingd_built is None:
+        raise RuntimeError(
+            "expected rust routerd binary missing after build: "
+            + ", ".join(str(path) for path in routingd_candidates)
+        )
+
+    supervisor_candidates = [
+        RUST_ROUTERD_CRATE_DIR / "target" / target_triple / target_profile / "node_supervisor",
+        RUST_ROUTERD_CRATE_DIR / "target" / target_profile / "node_supervisor",
+    ]
+    supervisor_built = next((path for path in supervisor_candidates if path.exists()), None)
+    if supervisor_built is None:
+        raise RuntimeError(
+            "expected node_supervisor binary missing after build: "
+            + ", ".join(str(path) for path in supervisor_candidates)
+        )
+
     RUST_ROUTERD_BIN_PATH.parent.mkdir(parents=True, exist_ok=True)
-    shutil.copy2(built_path, RUST_ROUTERD_BIN_PATH)
+    RUST_NODE_SUPERVISOR_BIN_PATH.parent.mkdir(parents=True, exist_ok=True)
+    shutil.copy2(routingd_built, RUST_ROUTERD_BIN_PATH)
+    shutil.copy2(supervisor_built, RUST_NODE_SUPERVISOR_BIN_PATH)
     RUST_ROUTERD_BIN_PATH.chmod(0o755)
-    print(f"rust routerd build profile: {target_profile}")
-    return RUST_ROUTERD_BIN_PATH
+    RUST_NODE_SUPERVISOR_BIN_PATH.chmod(0o755)
+    print(f"rust routerd build profile: {target_profile} target: {target_triple}")
+    return RUST_ROUTERD_BIN_PATH, RUST_NODE_SUPERVISOR_BIN_PATH
 
 
 def bootstrap_routerd(
@@ -304,8 +351,12 @@ def bootstrap_routerd(
     log_level: str,
     use_sudo: bool,
     routerd_rs_bin: Path,
+    node_supervisor_bin: Path,
     traffic_app_bin: Path | None,
 ) -> None:
+    supervisor_dir = configs_dir / "_supervisor"
+    supervisor_dir.mkdir(parents=True, exist_ok=True)
+
     node_names = list_node_names(topology_file)
     for node_name in node_names:
         container = clab_container_name(lab_name, node_name)
@@ -338,28 +389,112 @@ def bootstrap_routerd(
             check=True,
             capture_output=False,
         )
-        run_cmd(
+        if routerd_rs_bin.exists():
+            run_cmd(
+                with_sudo(
+                    [
+                        "docker",
+                        "cp",
+                        str(routerd_rs_bin.resolve()),
+                        f"{container}:/irp/bin/routingd",
+                    ],
+                    use_sudo,
+                ),
+                check=True,
+                capture_output=False,
+            )
+            run_cmd(
+                with_sudo(
+                    [
+                        "docker",
+                        "exec",
+                        container,
+                        "sh",
+                        "-lc",
+                        (
+                            "chmod +x /irp/bin/routingd "
+                            "&& ln -sf /irp/bin/routingd /irp/bin/irp_routerd_rs"
+                        ),
+                    ],
+                    use_sudo,
+                ),
+                check=True,
+                capture_output=False,
+            )
+        else:
+            has_routerd = subprocess.run(
+                with_sudo(
+                    [
+                        "docker",
+                        "exec",
+                        container,
+                        "sh",
+                        "-lc",
+                        "test -x /irp/bin/routingd || test -x /irp/bin/irp_routerd_rs",
+                    ],
+                    use_sudo,
+                ),
+                check=False,
+                stdout=subprocess.DEVNULL,
+                stderr=subprocess.DEVNULL,
+            ).returncode == 0
+            if not has_routerd:
+                raise RuntimeError(
+                    "node image does not include /irp/bin/routingd and local binary is missing: "
+                    f"{routerd_rs_bin}. Run `make build-routerd-rs` first."
+                )
+
+        if node_supervisor_bin.exists():
+            run_cmd(
+                with_sudo(
+                    [
+                        "docker",
+                        "cp",
+                        str(node_supervisor_bin.resolve()),
+                        f"{container}:/irp/bin/node_supervisor",
+                    ],
+                    use_sudo,
+                ),
+                check=True,
+                capture_output=False,
+            )
+            run_cmd(
+                with_sudo(
+                    ["docker", "exec", container, "chmod", "+x", "/irp/bin/node_supervisor"],
+                    use_sudo,
+                ),
+                check=True,
+                capture_output=False,
+            )
+        else:
+            has_supervisor = subprocess.run(
+                with_sudo(
+                    ["docker", "exec", container, "sh", "-lc", "test -x /irp/bin/node_supervisor"],
+                    use_sudo,
+                ),
+                check=False,
+                stdout=subprocess.DEVNULL,
+                stderr=subprocess.DEVNULL,
+            ).returncode == 0
+            if not has_supervisor:
+                raise RuntimeError(
+                    "node image does not include /irp/bin/node_supervisor and local binary is "
+                    f"missing: {node_supervisor_bin}. Run `make build-routerd-rs` first."
+                )
+        if traffic_app_bin is not None and subprocess.run(
             with_sudo(
-                [
-                    "docker",
-                    "cp",
-                    str(routerd_rs_bin.resolve()),
-                    f"{container}:/irp/bin/irp_routerd_rs",
-                ],
+                ["docker", "exec", container, "sh", "-lc", "test -x /irp/bin/traffic_app"],
                 use_sudo,
             ),
-            check=True,
-            capture_output=False,
-        )
-        run_cmd(
-            with_sudo(
-                ["docker", "exec", container, "chmod", "+x", "/irp/bin/irp_routerd_rs"],
-                use_sudo,
-            ),
-            check=True,
-            capture_output=False,
-        )
-        if traffic_app_bin is not None:
+            check=False,
+            stdout=subprocess.DEVNULL,
+            stderr=subprocess.DEVNULL,
+        ).returncode != 0:
+            if not traffic_app_bin.exists():
+                raise RuntimeError(
+                    "node image does not include /irp/bin/traffic_app and local binary is missing: "
+                    f"{traffic_app_bin}. Run `make build-traffic-app-go` first."
+                )
             run_cmd(
                 with_sudo(
                     [
@@ -381,10 +516,65 @@ def bootstrap_routerd(
                 check=True,
                 capture_output=False,
             )
+
+        supervisor_cfg = {
+            "node_id": str(node_name),
+            "tick_ms": 500,
+            "state_file": "/tmp/node_supervisor_state.json",
+            "routerd": {
+                "name": "routingd",
+                "kind": "routingd",
+                "bin": "/irp/bin/routingd",
+                "args": [
+                    "--config",
+                    f"/irp/configs/{node_name}.yaml",
+                    "--log-level",
+                    str(log_level),
+                ],
+                "env": {},
+                "restart": "always",
+                "max_restarts": -1,
+                "log_file": "/tmp/routerd.log",
+            },
+            "apps": [],
+        }
+        supervisor_cfg_file = supervisor_dir / f"{node_name}.supervisor.yaml"
+        supervisor_cfg_file.write_text(
+            yaml.safe_dump(supervisor_cfg, sort_keys=False),
+            encoding="utf-8",
+        )
+        run_cmd(
+            with_sudo(
+                [
+                    "docker",
+                    "cp",
+                    str(supervisor_cfg_file.resolve()),
+                    f"{container}:/irp/configs/{node_name}.supervisor.yaml",
+                ],
+                use_sudo,
+            ),
+            check=True,
+            capture_output=False,
+        )
+
         daemon_cmd = (
-            "nohup /irp/bin/irp_routerd_rs "
-            f"--config /irp/configs/{node_name}.yaml --log-level {log_level} "
-            ">/tmp/routerd.log 2>&1 & echo $! >/tmp/routerd.pid"
+            "if [ -f /tmp/node_supervisor.pid ]; then "
+            "PID=$(cat /tmp/node_supervisor.pid 2>/dev/null || true); "
+            "if [ -n \"$PID\" ]; then kill \"$PID\" >/dev/null 2>&1 || true; fi; "
+            "fi; "
+            "if [ -f /tmp/routerd.pid ]; then "
+            "PID=$(cat /tmp/routerd.pid 2>/dev/null || true); "
+            "if [ -n \"$PID\" ]; then kill \"$PID\" >/dev/null 2>&1 || true; fi; "
+            "fi; "
+            "pkill -x node_supervisor >/dev/null 2>&1 || true; "
+            "pkill -x routingd >/dev/null 2>&1 || true; "
+            "pkill -x irp_routerd_rs >/dev/null 2>&1 || true; "
+            "SUPERVISOR_BIN=/irp/bin/node_supervisor; "
+            "test -x \"$SUPERVISOR_BIN\" || "
+            "{ echo 'missing /irp/bin/node_supervisor' >&2; exit 127; }; "
+            "nohup \"$SUPERVISOR_BIN\" "
+            f"--config /irp/configs/{node_name}.supervisor.yaml "
+            ">/tmp/node_supervisor.log 2>&1 & echo $! >/tmp/node_supervisor.pid"
         )
         run_cmd(
             with_sudo(["docker", "exec", container, "sh", "-lc", daemon_cmd], use_sudo),
@@ -427,15 +617,37 @@ def main() -> int:
     run_containerlab(deploy_cmd, use_sudo=bool(args.sudo), env_overrides=deploy_env, check=True)
 
     log_level = deploy_env.get("ROMAM_LOG_LEVEL", "INFO")
-    print("[3/7] Build rust routerd binary")
-    routerd_rs_bin = build_routerd_rs_binary()
-    print(f"rust routerd ready: {routerd_rs_bin}")
+    node_names = list_node_names(topology_file)
+    sample_container = clab_container_name(lab_name, node_names[0])
+    sample_has_routerd = container_has_executable(
+        bool(args.sudo), sample_container, "/irp/bin/routingd"
+    ) or container_has_executable(bool(args.sudo), sample_container, "/irp/bin/irp_routerd_rs")
+    sample_has_supervisor = container_has_executable(
+        bool(args.sudo), sample_container, "/irp/bin/node_supervisor"
+    )
+    sample_has_traffic = container_has_executable(
+        bool(args.sudo), sample_container, "/irp/bin/traffic_app"
+    )
 
-    print("[4/7] Build traffic app data plane binary")
-    traffic_app_bin = build_traffic_app_binary()
-    print(f"go traffic app ready: {traffic_app_bin}")
+    if sample_has_routerd and sample_has_supervisor:
+        print("[3/7] Detected routingd + node_supervisor in node image; skip local rust build")
+        routerd_rs_bin = RUST_ROUTERD_BIN_PATH
+        node_supervisor_bin = RUST_NODE_SUPERVISOR_BIN_PATH
+    else:
+        print("[3/7] Build rust routing binaries (routingd + node_supervisor)")
+        routerd_rs_bin, node_supervisor_bin = build_rust_router_binaries()
+        print(f"rust routingd ready: {routerd_rs_bin}")
+        print(f"rust node_supervisor ready: {node_supervisor_bin}")
 
-    print("[5/7] Bootstrap routerd inside each container")
+    if sample_has_traffic:
+        print("[4/7] Detected traffic_app in node image; skip local go build")
+        traffic_app_bin = None
+    else:
+        print("[4/7] Build traffic app data plane binary")
+        traffic_app_bin = build_traffic_app_binary()
+        print(f"go traffic app ready: {traffic_app_bin}")
+
+    print("[5/7] Bootstrap node_supervisor + routingd inside each container")
     bootstrap_routerd(
         topology_file=topology_file,
         configs_dir=configs_dir,
@@ -443,6 +655,7 @@ def main() -> int:
         log_level=log_level,
         use_sudo=bool(args.sudo),
         routerd_rs_bin=routerd_rs_bin,
+        node_supervisor_bin=node_supervisor_bin,
         traffic_app_bin=traffic_app_bin,
     )
 

@@ -19,8 +19,8 @@ def _load_module():
 def test_parse_last_route_count() -> None:
     module = _load_module()
     text = (
-        "2026-02-11T10:00:00Z  INFO irp_rust::runtime::daemon: something\n"
-        "2026-02-11T10:00:01Z  INFO irp_rust::runtime::daemon: "
+        "2026-02-11T10:00:00Z  INFO irp::runtime::daemon: something\n"
+        "2026-02-11T10:00:01Z  INFO irp::runtime::daemon: "
         "RIB/FIB updated: [(2, 2, 1.0), (3, 2, 2.0), (4, 4, 1.0)]"
     )
     assert module.parse_last_route_count(text) == 3
@@ -29,7 +29,7 @@ def test_parse_last_route_count() -> None:
 def test_parse_protocol_from_log() -> None:
     module = _load_module()
     text = (
-        "2026-02-11T10:00:00Z  INFO irp_rust::runtime::daemon: "
+        "2026-02-11T10:00:00Z  INFO irp::runtime::daemon: "
         "routerd start: router_id=1 protocol=ospf bind=0.0.0.0:5500"
     )
     assert module.parse_protocol_from_log(text) == "ospf"
@@ -59,7 +59,7 @@ def test_check_daemon_running_matches_rust_process(monkeypatch) -> None:
     outputs = iter(
         [
             "123\n",
-            "/irp/bin/irp_routerd_rs --config /irp/configs/r1.yaml --log-level INFO\n",
+            "/irp/bin/routingd --config /irp/configs/r1.yaml --log-level INFO\n",
         ]
     )
 
