@@ -15,7 +15,7 @@ from common import (
     run_clab_command,
 )
 
-REPO_ROOT = Path(__file__).resolve().parents[3]
+REPO_ROOT = Path(__file__).resolve().parents[1]
 DEFAULT_TOPOLOGY_DATA = REPO_ROOT / "src" / "clab" / "topology-data.json"
 
 

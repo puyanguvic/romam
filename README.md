@@ -133,7 +133,7 @@ make gen-routerd-lab LABGEN_PROFILE=ring6 LABGEN_PROTOCOL=ospf
 Or run directly:
 
 ```bash
-python3 src/clab/scripts/generate_routerd_lab.py --profile star6 --protocol rip
+python3 scripts/generate_routerd_lab.py --profile star6 --protocol rip
 ```
 
 Built-in profiles (few common topologies, one-arg selection):
@@ -147,7 +147,7 @@ Built-in profiles (few common topologies, one-arg selection):
 For a custom topology file, use `--topology-file`:
 
 ```bash
-python3 src/clab/scripts/generate_routerd_lab.py \
+python3 scripts/generate_routerd_lab.py \
   --protocol rip \
   --topology-file src/clab/topologies/spineleaf2x4.clab.yaml
 ```
@@ -243,7 +243,7 @@ make run-ospf-convergence-exp EXP_TOPOLOGY_FILE=src/clab/topologies/ring6.clab.y
 Direct script usage:
 
 ```bash
-python3 src/clab/scripts/ospf_convergence_exp.py --topology-file src/clab/topologies/ring6.clab.yaml --repeats 1
+python3 scripts/ospf_convergence_exp.py --topology-file src/clab/topologies/ring6.clab.yaml --repeats 1
 ```
 
 If your environment requires privilege escalation for Docker/containerlab:
@@ -341,7 +341,7 @@ make run-unified-experiment \
 Equivalent direct script run:
 
 ```bash
-PYTHONPATH=src python3 src/clab/scripts/run_unified_experiment.py \
+PYTHONPATH=src python3 scripts/run_unified_experiment.py \
   --config exps/routerd_examples/unified_experiments/line3_irp_multi_apps.yaml \
   --poll-interval-s 1 \
   --sudo
@@ -443,7 +443,7 @@ make run-traffic-app \
 Direct script usage is also supported:
 
 ```bash
-python3 src/clab/scripts/run_traffic_app.py --lab-name <lab_name> --node r1 -- \
+python3 scripts/run_traffic_app.py --lab-name <lab_name> --node r1 -- \
   send --proto udp --target <ip> --port 9000 --count 100
 ```
 

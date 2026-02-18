@@ -11,7 +11,7 @@ from pathlib import Path
 
 import yaml
 
-REPO_ROOT = Path(__file__).resolve().parents[3]
+REPO_ROOT = Path(__file__).resolve().parents[1]
 SRC_DIR = REPO_ROOT / "src"
 GO_TRAFFIC_SRC_DIR = REPO_ROOT / "src" / "applications_go"
 GO_TRAFFIC_BIN_PATH = REPO_ROOT / "bin" / "traffic_app"
@@ -589,7 +589,7 @@ def main() -> int:
 
     gen_cmd = [
         sys.executable,
-        str(REPO_ROOT / "src" / "clab" / "scripts" / "generate_routerd_lab.py"),
+        str(REPO_ROOT / "scripts" / "generate_routerd_lab.py"),
         *gen_args,
     ]
     if args.sudo:
@@ -661,7 +661,7 @@ def main() -> int:
 
     check_cmd = [
         sys.executable,
-        str(REPO_ROOT / "src" / "clab" / "scripts" / "check_routerd_lab.py"),
+        str(REPO_ROOT / "scripts" / "check_routerd_lab.py"),
         "--topology-file",
         str(topology_file),
         "--lab-name",

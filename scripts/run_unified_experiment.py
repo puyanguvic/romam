@@ -21,7 +21,7 @@ from typing import Any
 
 import yaml
 
-REPO_ROOT = Path(__file__).resolve().parents[3]
+REPO_ROOT = Path(__file__).resolve().parents[1]
 SRC_DIR = REPO_ROOT / "src"
 if str(SRC_DIR) not in sys.path:
     sys.path.insert(0, str(SRC_DIR))
@@ -1243,7 +1243,7 @@ def run_scenario_mode(
 
     runlab_cmd = [
         sys.executable,
-        str(REPO_ROOT / "src" / "clab" / "scripts" / "run_routerd_lab.py"),
+        str(REPO_ROOT / "scripts" / "run_routerd_lab.py"),
         "--protocol",
         protocol,
         "--keep-lab",
@@ -1629,7 +1629,7 @@ def run_convergence_benchmark_mode(
     for run_idx in range(1, repeats + 1):
         runlab_cmd = [
             sys.executable,
-            str(REPO_ROOT / "src" / "clab" / "scripts" / "run_routerd_lab.py"),
+            str(REPO_ROOT / "scripts" / "run_routerd_lab.py"),
             "--protocol",
             protocol,
             "--keep-lab",

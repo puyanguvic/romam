@@ -12,7 +12,7 @@ import yaml
 
 from common import load_json, parse_bool_arg, resolve_clab_bin, run_clab_command
 
-REPO_ROOT = Path(__file__).resolve().parents[3]
+REPO_ROOT = Path(__file__).resolve().parents[1]
 DEFAULT_TOPOLOGY_DATA = REPO_ROOT / "src" / "clab" / "topology-data.json"
 
 

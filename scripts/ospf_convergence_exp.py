@@ -9,7 +9,7 @@ from pathlib import Path
 
 import yaml
 
-REPO_ROOT = Path(__file__).resolve().parents[3]
+REPO_ROOT = Path(__file__).resolve().parents[1]
 
 
 def parse_args() -> argparse.Namespace:
@@ -86,7 +86,7 @@ def main() -> int:
     try:
         cmd = [
             sys.executable,
-            str(REPO_ROOT / "src" / "clab" / "scripts" / "run_unified_experiment.py"),
+            str(REPO_ROOT / "scripts" / "run_unified_experiment.py"),
             "--config",
             str(cfg_path),
             "--sudo" if bool(args.sudo) else "--no-sudo",

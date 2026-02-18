@@ -1,6 +1,7 @@
 # clab Workspace
 
-Central place for containerlab resources and scripts:
+Central place for containerlab resources.
+Automation scripts live under the repository-root `scripts/` directory:
 
 - `topologies/*.clab.yaml`: topology files
 - `export-templates/auto.tmpl`: `topology-data.json` template
@@ -39,13 +40,13 @@ Optional fields:
 ## Usage
 
 ```bash
-python src/clab/scripts/deploy.py --topology-data src/clab/topology-data.json
+python scripts/deploy.py --topology-data src/clab/topology-data.json
 ```
 
 ```bash
-python src/clab/scripts/run_apps.py --topology-data src/clab/topology-data.json --plan <apps.yaml>
+python scripts/run_apps.py --topology-data src/clab/topology-data.json --plan <apps.yaml>
 ```
 
 ```bash
-python src/clab/scripts/collect.py --topology-data src/clab/topology-data.json
+python scripts/collect.py --topology-data src/clab/topology-data.json
 ```
