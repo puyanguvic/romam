@@ -9,7 +9,6 @@ from pathlib import Path
 from typing import Any
 
 import yaml
-
 from common import load_json, parse_bool_arg, resolve_clab_bin, run_clab_command
 
 REPO_ROOT = Path(__file__).resolve().parents[1]

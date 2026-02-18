@@ -77,7 +77,7 @@ def main() -> int:
         node_csv = ",".join(str(x) for x in install_nodes if str(x).strip())
         cmd = [
             sys.executable,
-            str(REPO_ROOT / "scripts" / "install_traffic_app_bin.py"),
+            str(REPO_ROOT / "tools" / "install_traffic_app_bin.py"),
             "--lab-name",
             lab_name,
             "--bin-path",
@@ -106,7 +106,7 @@ def main() -> int:
 
         cmd = [
             sys.executable,
-            str(REPO_ROOT / "scripts" / "run_traffic_app.py"),
+            str(REPO_ROOT / "tools" / "run_traffic_app.py"),
             "--lab-name",
             lab_name,
             "--node",

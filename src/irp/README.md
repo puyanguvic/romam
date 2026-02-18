@@ -20,7 +20,7 @@ This crate provides the `routingd` daemon used by containerlab router nodes.
 
 ```bash
 cargo run --manifest-path src/irp/Cargo.toml --bin routingd -- \
-  --config exps/routerd_examples/ospf_router1.yaml \
+  --config experiments/routerd_examples/ospf_router1.yaml \
   --log-level INFO
 ```
 

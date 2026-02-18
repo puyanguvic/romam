@@ -26,8 +26,8 @@ SRC_DIR = REPO_ROOT / "src"
 if str(SRC_DIR) not in sys.path:
     sys.path.insert(0, str(SRC_DIR))
 
-from irp.utils.io import dump_json, ensure_dir, now_tag
 from clab.clab_loader import ClabTopology, load_clab_topology
+from irp.utils.io import dump_json, ensure_dir, now_tag
 
 KNOWN_KEYS = ("topology_file", "configs_dir", "deploy_env_file", "lab_name")
 TOPOLOGY_ALIAS = {
@@ -1243,7 +1243,7 @@ def run_scenario_mode(
 
     runlab_cmd = [
         sys.executable,
-        str(REPO_ROOT / "scripts" / "run_routerd_lab.py"),
+        str(REPO_ROOT / "tools" / "run_routerd_lab.py"),
         "--protocol",
         protocol,
         "--keep-lab",
@@ -1629,7 +1629,7 @@ def run_convergence_benchmark_mode(
     for run_idx in range(1, repeats + 1):
         runlab_cmd = [
             sys.executable,
-            str(REPO_ROOT / "scripts" / "run_routerd_lab.py"),
+            str(REPO_ROOT / "tools" / "run_routerd_lab.py"),
             "--protocol",
             protocol,
             "--keep-lab",

@@ -17,8 +17,8 @@ SRC_DIR = REPO_ROOT / "src"
 if str(SRC_DIR) not in sys.path:
     sys.path.insert(0, str(SRC_DIR))
 
-from irp.utils.io import now_tag
 from clab.labgen import LabGenParams, generate_routerd_lab
+from irp.utils.io import now_tag
 
 PROFILE_TO_TOPOLOGY_FILE: dict[str, str] = {
     "line3": "src/clab/topologies/line3.clab.yaml",

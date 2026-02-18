@@ -6,10 +6,10 @@ from pathlib import Path
 
 
 def _load_module():
-    module_path = Path("scripts/check_routerd_lab.py").resolve()
+    module_path = Path("tools/check_routerd_lab.py").resolve()
     spec = importlib.util.spec_from_file_location("check_routerd_lab", module_path)
     if spec is None or spec.loader is None:
-        raise RuntimeError("Unable to load scripts/check_routerd_lab.py")
+        raise RuntimeError("Unable to load tools/check_routerd_lab.py")
     module = importlib.util.module_from_spec(spec)
     sys.modules[spec.name] = module
     spec.loader.exec_module(module)

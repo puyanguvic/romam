@@ -589,7 +589,7 @@ def main() -> int:
 
     gen_cmd = [
         sys.executable,
-        str(REPO_ROOT / "scripts" / "generate_routerd_lab.py"),
+        str(REPO_ROOT / "tools" / "generate_routerd_lab.py"),
         *gen_args,
     ]
     if args.sudo:
@@ -661,7 +661,7 @@ def main() -> int:
 
     check_cmd = [
         sys.executable,
-        str(REPO_ROOT / "scripts" / "check_routerd_lab.py"),
+        str(REPO_ROOT / "tools" / "check_routerd_lab.py"),
         "--topology-file",
         str(topology_file),
         "--lab-name",
