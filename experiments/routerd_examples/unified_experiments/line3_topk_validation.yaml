@@ -1,0 +1,23 @@
+topology: line_3
+protocol: topk
+
+routing:
+  topk:
+    k_paths: 3
+    explore_probability: 0.35
+    selection_hold_time_s: 2.5
+    rng_seed: 2026
+
+traffic:
+  enabled: true
+  proto: udp
+  model: bulk
+  src_node: r1
+  dst_node: r3
+  flows: 3
+  rate_mbps: 12
+  packet_size: 512
+  port: 9000
+
+precheck_max_wait_s: 30
+duration_s: 60

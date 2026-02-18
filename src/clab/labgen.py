@@ -47,6 +47,16 @@ class LabGenParams:
     ddr_flow_size_bytes: float = 64000.0
     ddr_link_bandwidth_bps: float = 9600000.0
     ddr_queue_sample_interval: float = 1.0
+    ddr_queue_levels: int = 4
+    ddr_pressure_threshold: int = 2
+    ddr_queue_level_scale_ms: float = 8.0
+    ddr_randomize_route_selection: bool = False
+    ddr_rng_seed: int = 1
+    ecmp_hash_seed: int = 1
+    topk_k_paths: int = 3
+    topk_explore_probability: float = 0.3
+    topk_selection_hold_time_s: float = 3.0
+    topk_rng_seed: int = 1
 
 
 def generate_routerd_lab(params: LabGenParams) -> Dict[str, str]:
@@ -179,9 +189,30 @@ def _build_routerd_config(
                 "poison_reverse": bool(params.rip_poison_reverse),
             }
         }
-    elif params.protocol == "ddr":
+    elif params.protocol == "ecmp":
         cfg["protocol_params"] = {
-            "ddr": {
+            "ecmp": {
+                "hello_interval": float(params.ospf_hello_interval),
+                "lsa_interval": float(params.ospf_lsa_interval),
+                "lsa_max_age": float(params.ospf_lsa_max_age),
+                "hash_seed": int(params.ecmp_hash_seed),
+            }
+        }
+    elif params.protocol == "topk":
+        cfg["protocol_params"] = {
+            "topk": {
+                "hello_interval": float(params.ospf_hello_interval),
+                "lsa_interval": float(params.ospf_lsa_interval),
+                "lsa_max_age": float(params.ospf_lsa_max_age),
+                "k_paths": int(params.topk_k_paths),
+                "explore_probability": float(params.topk_explore_probability),
+                "selection_hold_time_s": float(params.topk_selection_hold_time_s),
+                "rng_seed": int(params.topk_rng_seed),
+            }
+        }
+    elif params.protocol in {"ddr", "dgr"}:
+        cfg["protocol_params"] = {
+            params.protocol: {
                 "hello_interval": float(params.ospf_hello_interval),
                 "lsa_interval": float(params.ospf_lsa_interval),
                 "lsa_max_age": float(params.ospf_lsa_max_age),
@@ -190,6 +221,11 @@ def _build_routerd_config(
                 "deadline_ms": float(params.ddr_deadline_ms),
                 "flow_size_bytes": float(params.ddr_flow_size_bytes),
                 "link_bandwidth_bps": float(params.ddr_link_bandwidth_bps),
+                "queue_levels": int(params.ddr_queue_levels),
+                "pressure_threshold": int(params.ddr_pressure_threshold),
+                "queue_level_scale_ms": float(params.ddr_queue_level_scale_ms),
+                "randomize_route_selection": bool(params.ddr_randomize_route_selection),
+                "rng_seed": int(params.ddr_rng_seed),
             }
         }
     else:

@@ -35,6 +35,11 @@ pub struct DdrParams {
     pub deadline_ms: f64,
     pub flow_size_bytes: f64,
     pub link_bandwidth_bps: f64,
+    pub queue_levels: usize,
+    pub pressure_threshold: usize,
+    pub queue_level_scale_ms: f64,
+    pub randomize_route_selection: bool,
+    pub rng_seed: u64,
 }
 
 impl Default for DdrParams {
@@ -45,6 +50,11 @@ impl Default for DdrParams {
             deadline_ms: 100.0,
             flow_size_bytes: 64_000.0,
             link_bandwidth_bps: 9_600_000.0,
+            queue_levels: 4,
+            pressure_threshold: 2,
+            queue_level_scale_ms: 8.0,
+            randomize_route_selection: false,
+            rng_seed: 1,
         }
     }
 }
@@ -66,9 +76,11 @@ struct RouteChoice {
     next_hop: u32,
     completion_ms: f64,
     hop_count: usize,
+    pressure_level: usize,
 }
 
 pub struct DdrProtocol {
+    protocol_name: &'static str,
     params: DdrParams,
     msg_seq: u64,
     lsa_seq: i64,
@@ -81,11 +93,19 @@ pub struct DdrProtocol {
     arrivals_since_sample_bytes: BTreeMap<u32, f64>,
     estimated_queue_delay_ms: BTreeMap<u32, f64>,
     queue_sample_source: BTreeMap<u32, String>,
+    neighbor_queue_level: BTreeMap<u32, usize>,
+    rng_state: u64,
 }
 
 impl DdrProtocol {
     pub fn new(params: DdrParams) -> Self {
+        Self::new_with_name(params, "ddr")
+    }
+
+    pub fn new_with_name(params: DdrParams, protocol_name: &'static str) -> Self {
+        let rng_seed = params.rng_seed.max(1);
         Self {
+            protocol_name,
             params,
             msg_seq: 0,
             lsa_seq: 0,
@@ -98,6 +118,8 @@ impl DdrProtocol {
             arrivals_since_sample_bytes: BTreeMap::new(),
             estimated_queue_delay_ms: BTreeMap::new(),
             queue_sample_source: BTreeMap::new(),
+            neighbor_queue_level: BTreeMap::new(),
+            rng_state: rng_seed,
         }
     }
 
@@ -197,6 +219,7 @@ impl DdrProtocol {
                 }
                 self.queue_sample_source.remove(neighbor_id);
                 self.arrivals_since_sample_bytes.remove(neighbor_id);
+                self.neighbor_queue_level.remove(neighbor_id);
                 continue;
             }
 
@@ -322,6 +345,10 @@ impl DdrProtocol {
         for neighbor_id in ctx.links.keys() {
             let mut payload = BTreeMap::new();
             payload.insert("router_id".to_string(), json!(ctx.router_id));
+            payload.insert(
+                "queue_level".to_string(),
+                json!(self.queue_level_for_neighbor(*neighbor_id)),
+            );
             out.push((
                 *neighbor_id,
                 self.new_message(ctx.router_id, MessageKind::Hello, payload, ctx.now),
@@ -488,11 +515,39 @@ impl DdrProtocol {
         self.bytes_to_delay_ms(self.params.flow_size_bytes.max(1.0))
     }
 
+    fn queue_level_for_neighbor(&self, neighbor_id: u32) -> usize {
+        let delay_ms = self
+            .estimated_queue_delay_ms
+            .get(&neighbor_id)
+            .copied()
+            .unwrap_or(0.0);
+        self.quantize_queue_delay_ms(delay_ms)
+    }
+
+    fn quantize_queue_delay_ms(&self, delay_ms: f64) -> usize {
+        let levels = self.params.queue_levels.max(1);
+        if levels == 1 {
+            return 0;
+        }
+        let scale_ms = self.params.queue_level_scale_ms.max(1e-6);
+        let normalized = (delay_ms.max(0.0) / scale_ms).min(1.0);
+        let mut level = (normalized * levels as f64).floor() as usize;
+        if level >= levels {
+            level = levels - 1;
+        }
+        level
+    }
+
     fn evaluate_path(&self, path: &PathCandidate) -> Option<RouteChoice> {
         if path.nodes.len() < 2 {
             return None;
         }
         let next_hop = path.nodes[1];
+        let pressure_level = self
+            .neighbor_queue_level
+            .get(&next_hop)
+            .copied()
+            .unwrap_or_else(|| self.queue_level_for_neighbor(next_hop));
         let queue_delay_ms = self
             .estimated_queue_delay_ms
             .get(&next_hop)
@@ -503,6 +558,7 @@ impl DdrProtocol {
             next_hop,
             completion_ms,
             hop_count: path.nodes.len() - 1,
+            pressure_level,
         })
     }
 
@@ -513,11 +569,43 @@ impl DdrProtocol {
             _ => {
                 if a.next_hop != b.next_hop {
                     a.next_hop < b.next_hop
+                } else if a.pressure_level != b.pressure_level {
+                    a.pressure_level < b.pressure_level
                 } else {
                     a.hop_count < b.hop_count
                 }
             }
         }
+    }
+
+    fn is_high_pressure(&self, choice: &RouteChoice) -> bool {
+        choice.pressure_level > self.params.pressure_threshold
+    }
+
+    fn next_random_u64(&mut self) -> u64 {
+        self.rng_state = self
+            .rng_state
+            .wrapping_mul(6_364_136_223_846_793_005)
+            .wrapping_add(1);
+        self.rng_state
+    }
+
+    fn choose_route(&mut self, candidates: &[RouteChoice]) -> Option<RouteChoice> {
+        if candidates.is_empty() {
+            return None;
+        }
+        if self.params.randomize_route_selection && candidates.len() > 1 {
+            let idx = (self.next_random_u64() as usize) % candidates.len();
+            return Some(candidates[idx].clone());
+        }
+
+        let mut best = candidates[0].clone();
+        for candidate in candidates.iter().skip(1) {
+            if Self::route_choice_better(candidate, &best) {
+                best = candidate.clone();
+            }
+        }
+        Some(best)
     }
 
     fn compare_path_candidate(a: &PathCandidate, b: &PathCandidate) -> Ordering {
@@ -528,7 +616,7 @@ impl DdrProtocol {
         }
     }
 
-    fn compute_routes(&self, ctx: &ProtocolContext) -> Vec<Route> {
+    fn compute_routes(&mut self, ctx: &ProtocolContext) -> Vec<Route> {
         let graph = self.build_graph(ctx);
         let mut routes = Vec::new();
 
@@ -541,30 +629,46 @@ impl DdrProtocol {
                 continue;
             }
 
-            let mut best_any: Option<RouteChoice> = None;
-            let mut best_deadline: Option<RouteChoice> = None;
+            let mut by_next_hop: BTreeMap<u32, RouteChoice> = BTreeMap::new();
             for path in &paths {
                 let Some(choice) = self.evaluate_path(path) else {
                     continue;
                 };
-
-                let better_than_any = match best_any.as_ref() {
+                let keep = match by_next_hop.get(&choice.next_hop) {
                     None => true,
-                    Some(current) => Self::route_choice_better(&choice, current),
+                    Some(existing) => Self::route_choice_better(&choice, existing),
                 };
-                if better_than_any {
-                    best_any = Some(choice.clone());
-                }
-                let better_than_deadline = match best_deadline.as_ref() {
-                    None => true,
-                    Some(current) => Self::route_choice_better(&choice, current),
-                };
-                if choice.completion_ms <= self.params.deadline_ms && better_than_deadline {
-                    best_deadline = Some(choice);
+                if keep {
+                    by_next_hop.insert(choice.next_hop, choice);
                 }
             }
+            if by_next_hop.is_empty() {
+                continue;
+            }
 
-            let Some(chosen) = best_deadline.or(best_any) else {
+            let all_candidates: Vec<RouteChoice> = by_next_hop.values().cloned().collect();
+            let deadline_candidates: Vec<RouteChoice> = all_candidates
+                .iter()
+                .filter(|choice| choice.completion_ms <= self.params.deadline_ms)
+                .cloned()
+                .collect();
+            let base_candidates = if deadline_candidates.is_empty() {
+                all_candidates
+            } else {
+                deadline_candidates
+            };
+            let low_pressure_candidates: Vec<RouteChoice> = base_candidates
+                .iter()
+                .filter(|choice| !self.is_high_pressure(choice))
+                .cloned()
+                .collect();
+            let selection_pool = if low_pressure_candidates.is_empty() {
+                &base_candidates
+            } else {
+                &low_pressure_candidates
+            };
+
+            let Some(chosen) = self.choose_route(selection_pool) else {
                 continue;
             };
             routes.push(Route {
@@ -581,7 +685,7 @@ impl DdrProtocol {
 
 impl ProtocolEngine for DdrProtocol {
     fn name(&self) -> &'static str {
-        "ddr"
+        self.protocol_name
     }
 
     fn start(&mut self, ctx: &ProtocolContext) -> ProtocolOutputs {
@@ -596,6 +700,20 @@ impl ProtocolEngine for DdrProtocol {
         let mut outputs = ProtocolOutputs::default();
 
         if message.kind == MessageKind::Hello {
+            let queue_level = message
+                .payload
+                .get("queue_level")
+                .and_then(Value::as_u64)
+                .and_then(|value| usize::try_from(value).ok())
+                .unwrap_or(0);
+            let clamped = queue_level.min(self.params.queue_levels.saturating_sub(1));
+            let changed = self
+                .neighbor_queue_level
+                .insert(message.src_router_id, clamped)
+                != Some(clamped);
+            if changed {
+                outputs.routes = Some(self.compute_routes(ctx));
+            }
             return outputs;
         }
         if message.kind != MessageKind::DdrLsa {
@@ -651,6 +769,21 @@ impl ProtocolEngine for DdrProtocol {
             .iter()
             .map(|(neighbor_id, value)| (neighbor_id.to_string(), json!(value)))
             .collect::<serde_json::Map<String, Value>>();
+        let queue_level_local = self
+            .estimated_queue_delay_ms
+            .keys()
+            .map(|neighbor_id| {
+                (
+                    neighbor_id.to_string(),
+                    json!(self.queue_level_for_neighbor(*neighbor_id)),
+                )
+            })
+            .collect::<serde_json::Map<String, Value>>();
+        let queue_level_neighbor = self
+            .neighbor_queue_level
+            .iter()
+            .map(|(neighbor_id, value)| (neighbor_id.to_string(), json!(value)))
+            .collect::<serde_json::Map<String, Value>>();
 
         out.insert("queue_delay_ms".to_string(), Value::Object(queue_delay_ms));
         out.insert(
@@ -658,8 +791,30 @@ impl ProtocolEngine for DdrProtocol {
             Value::Object(queue_depth_bytes),
         );
         out.insert("sample_source".to_string(), Value::Object(sample_source));
+        out.insert(
+            "queue_level_local".to_string(),
+            Value::Object(queue_level_local),
+        );
+        out.insert(
+            "queue_level_neighbor".to_string(),
+            Value::Object(queue_level_neighbor),
+        );
         out.insert("k_paths".to_string(), json!(self.params.k_paths));
         out.insert("deadline_ms".to_string(), json!(self.params.deadline_ms));
+        out.insert("queue_levels".to_string(), json!(self.params.queue_levels));
+        out.insert(
+            "pressure_threshold".to_string(),
+            json!(self.params.pressure_threshold),
+        );
+        out.insert(
+            "queue_level_scale_ms".to_string(),
+            json!(self.params.queue_level_scale_ms),
+        );
+        out.insert(
+            "randomize_route_selection".to_string(),
+            json!(self.params.randomize_route_selection),
+        );
+        out.insert("rng_seed".to_string(), json!(self.params.rng_seed));
         out.insert(
             "effective_bandwidth_bps".to_string(),
             json!(self.effective_bandwidth_bps()),
@@ -791,5 +946,94 @@ qdisc fq_codel 0: dev eth1 root refcnt 2 limit 10240p\n\
         assert!(metrics.contains_key("queue_delay_ms"));
         assert!(metrics.contains_key("queue_depth_bytes"));
         assert!(metrics.contains_key("sample_source"));
+        assert!(metrics.contains_key("queue_level_local"));
+        assert!(metrics.contains_key("queue_level_neighbor"));
+    }
+
+    #[test]
+    fn hello_updates_neighbor_queue_level() {
+        let mut ddr = DdrProtocol::new(DdrParams::default());
+        let mut links = BTreeMap::new();
+        links.insert(
+            2,
+            RouterLink {
+                neighbor_id: 2,
+                cost: 1.0,
+                address: "10.0.12.2".to_string(),
+                port: 5500,
+                interface_name: None,
+                is_up: true,
+            },
+        );
+        let ctx = ProtocolContext {
+            router_id: 1,
+            now: 0.0,
+            links,
+        };
+        let mut payload = BTreeMap::new();
+        payload.insert("queue_level".to_string(), json!(3));
+        let msg = ControlMessage {
+            protocol: "ddr".to_string(),
+            kind: MessageKind::Hello,
+            src_router_id: 2,
+            seq: 1,
+            payload,
+            ts: 0.0,
+        };
+        ddr.on_message(&ctx, &msg);
+        assert_eq!(ddr.neighbor_queue_level.get(&2).copied(), Some(3));
+    }
+
+    #[test]
+    fn ddr_filters_high_pressure_neighbor_reports() {
+        let mut ddr = DdrProtocol::new(DdrParams {
+            pressure_threshold: 0,
+            randomize_route_selection: false,
+            flow_size_bytes: 1200.0,
+            link_bandwidth_bps: 9_600_000.0,
+            ..DdrParams::default()
+        });
+        ddr.neighbor_queue_level.insert(2, 3);
+        ddr.neighbor_queue_level.insert(3, 0);
+
+        let mut links = BTreeMap::new();
+        links.insert(
+            2,
+            RouterLink {
+                neighbor_id: 2,
+                cost: 1.0,
+                address: "10.0.12.2".to_string(),
+                port: 5500,
+                interface_name: None,
+                is_up: true,
+            },
+        );
+        links.insert(
+            3,
+            RouterLink {
+                neighbor_id: 3,
+                cost: 1.0,
+                address: "10.0.13.3".to_string(),
+                port: 5500,
+                interface_name: None,
+                is_up: true,
+            },
+        );
+        let ctx = ProtocolContext {
+            router_id: 1,
+            now: 0.0,
+            links,
+        };
+        ddr.lsdb
+            .upsert(1, 1, BTreeMap::from([(2_u32, 1.0), (3_u32, 1.0)]), 0.0);
+        ddr.lsdb.upsert(2, 1, BTreeMap::from([(4_u32, 1.0)]), 0.0);
+        ddr.lsdb.upsert(3, 1, BTreeMap::from([(4_u32, 1.0)]), 0.0);
+
+        let routes = ddr.compute_routes(&ctx);
+        let to_4 = routes
+            .iter()
+            .find(|route| route.destination == 4)
+            .expect("route to 4 should exist");
+        assert_eq!(to_4.next_hop, 3);
     }
 }

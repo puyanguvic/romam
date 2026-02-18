@@ -46,7 +46,9 @@ Control/observability paths:
 - Protocol engines:
   - OSPF-like link-state: `src/irp/src/protocols/ospf.rs`
   - RIP distance-vector: `src/irp/src/protocols/rip.rs`
-  - DDR deadline-driven routing: `src/irp/src/protocols/ddr.rs`
+  - ECMP equal-cost multipath baseline: `src/irp/src/protocols/ecmp.rs`
+  - Top-K random multipath baseline: `src/irp/src/protocols/topk.rs`
+  - DDR/DGR delay-aware routing core: `src/irp/src/protocols/ddr.rs`
     - uses `tc -s qdisc` backlog when neighbor `iface` is present in config; converts queue bytes to delay via `link_bandwidth_bps` (falls back to local estimator otherwise)
   - IRP mode entry: `protocol: irp` (currently routed through the OSPF-style core with IRP params)
 - Decision/policy hook: `src/irp/src/algo/mod.rs`
@@ -123,7 +125,7 @@ RIP example config: `experiments/routerd_examples/rip_router1.yaml`
 
 ```yaml
 router_id: 1
-protocol: ospf  # or rip
+protocol: ospf  # or rip/ecmp/topk/ddr/dgr/irp
 bind:
   address: 0.0.0.0
   port: 5500
@@ -187,7 +189,7 @@ python3 tools/generate_routerd_lab.py \
   --topology-file src/clab/topologies/spineleaf2x4.clab.yaml
 ```
 
-`--protocol` is independent from topology file, so the same file can run `ospf`, `rip`, `ddr`, or `irp`.
+`--protocol` is independent from topology file, so the same file can run `ospf`, `rip`, `ecmp`, `topk`, `ddr`, `dgr`, or `irp`.
 
 DDR validation config example:
 
@@ -197,6 +199,40 @@ PYTHONPATH=src python3 tools/run_unified_experiment.py \
   --poll-interval-s 1 \
   --sudo
 ```
+
+ECMP validation config example:
+
+```bash
+PYTHONPATH=src python3 tools/run_unified_experiment.py \
+  --config experiments/routerd_examples/unified_experiments/line3_ecmp_validation.yaml \
+  --poll-interval-s 1 \
+  --sudo
+```
+
+Top-K random routing validation config example:
+
+```bash
+PYTHONPATH=src python3 tools/run_unified_experiment.py \
+  --config experiments/routerd_examples/unified_experiments/line3_topk_validation.yaml \
+  --poll-interval-s 1 \
+  --sudo
+```
+
+DGR validation config example:
+
+```bash
+PYTHONPATH=src python3 tools/run_unified_experiment.py \
+  --config experiments/routerd_examples/unified_experiments/line3_dgr_validation.yaml \
+  --poll-interval-s 1 \
+  --sudo
+```
+
+`dgr` routing params support queue-level back-pressure controls:
+- `queue_levels`
+- `pressure_threshold`
+- `queue_level_scale_ms`
+- `randomize_route_selection`
+- `rng_seed`
 
 ## One-Command Lab Run
 

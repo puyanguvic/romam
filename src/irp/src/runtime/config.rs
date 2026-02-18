@@ -147,12 +147,25 @@ pub fn load_daemon_config(path: &Path) -> Result<DaemonConfig> {
         .unwrap_or_else(|| "ospf".to_string())
         .to_lowercase();
 
-    let protocol_params = raw_cfg
-        .protocol_params
-        .get(&protocol)
-        .map(yaml_to_json_object)
-        .transpose()?
-        .unwrap_or_default();
+    let protocol_params = if let Some(value) = raw_cfg.protocol_params.get(&protocol) {
+        yaml_to_json_object(value)?
+    } else if protocol == "dgr" {
+        raw_cfg
+            .protocol_params
+            .get("ddr")
+            .map(yaml_to_json_object)
+            .transpose()?
+            .unwrap_or_default()
+    } else if protocol == "ddr" {
+        raw_cfg
+            .protocol_params
+            .get("dgr")
+            .map(yaml_to_json_object)
+            .transpose()?
+            .unwrap_or_default()
+    } else {
+        Map::new()
+    };
 
     let neighbors = raw_cfg
         .neighbors

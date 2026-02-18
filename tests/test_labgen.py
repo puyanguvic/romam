@@ -110,6 +110,96 @@ def test_generate_routerd_lab_supports_named_nodes_with_rip(tmp_path: Path) -> N
     assert len(cfg_s1["neighbors"]) == 4
 
 
+def test_generate_routerd_lab_supports_ecmp_protocol(tmp_path: Path) -> None:
+    out_dir = tmp_path / "lab-ecmp"
+    params = LabGenParams(
+        protocol="ecmp",
+        routing_alpha=1.0,
+        routing_beta=2.0,
+        topology_file=Path("src/clab/topologies/line3.clab.yaml"),
+        node_image="ghcr.io/srl-labs/network-multitool:latest",
+        bind_port=5500,
+        tick_interval=1.0,
+        dead_interval=4.0,
+        ospf_hello_interval=1.0,
+        ospf_lsa_interval=3.0,
+        ospf_lsa_max_age=15.0,
+        rip_update_interval=5.0,
+        rip_neighbor_timeout=15.0,
+        rip_infinity_metric=16.0,
+        rip_poison_reverse=True,
+        output_dir=out_dir,
+        lab_name="testlab-ecmp",
+        log_level="INFO",
+        mgmt_network_name="testlab-ecmp-mgmt",
+        mgmt_ipv4_subnet="10.250.15.0/24",
+        mgmt_ipv6_subnet="fd00:fa:15::/64",
+        mgmt_external_access=False,
+        forwarding_enabled=False,
+        forwarding_dry_run=True,
+        ecmp_hash_seed=2026,
+    )
+
+    result = generate_routerd_lab(params)
+    cfg_r1 = yaml.safe_load(
+        Path(result["configs_dir"]).joinpath("r1.yaml").read_text(encoding="utf-8")
+    )
+    assert cfg_r1["protocol"] == "ecmp"
+    ecmp_cfg = dict(cfg_r1["protocol_params"]["ecmp"])
+    assert ecmp_cfg["hello_interval"] == 1.0
+    assert ecmp_cfg["lsa_interval"] == 3.0
+    assert ecmp_cfg["lsa_max_age"] == 15.0
+    assert ecmp_cfg["hash_seed"] == 2026
+
+
+def test_generate_routerd_lab_supports_topk_protocol(tmp_path: Path) -> None:
+    out_dir = tmp_path / "lab-topk"
+    params = LabGenParams(
+        protocol="topk",
+        routing_alpha=1.0,
+        routing_beta=2.0,
+        topology_file=Path("src/clab/topologies/line3.clab.yaml"),
+        node_image="ghcr.io/srl-labs/network-multitool:latest",
+        bind_port=5500,
+        tick_interval=1.0,
+        dead_interval=4.0,
+        ospf_hello_interval=1.0,
+        ospf_lsa_interval=3.0,
+        ospf_lsa_max_age=15.0,
+        rip_update_interval=5.0,
+        rip_neighbor_timeout=15.0,
+        rip_infinity_metric=16.0,
+        rip_poison_reverse=True,
+        output_dir=out_dir,
+        lab_name="testlab-topk",
+        log_level="INFO",
+        mgmt_network_name="testlab-topk-mgmt",
+        mgmt_ipv4_subnet="10.250.16.0/24",
+        mgmt_ipv6_subnet="fd00:fa:16::/64",
+        mgmt_external_access=False,
+        forwarding_enabled=False,
+        forwarding_dry_run=True,
+        topk_k_paths=4,
+        topk_explore_probability=0.35,
+        topk_selection_hold_time_s=2.5,
+        topk_rng_seed=2026,
+    )
+
+    result = generate_routerd_lab(params)
+    cfg_r1 = yaml.safe_load(
+        Path(result["configs_dir"]).joinpath("r1.yaml").read_text(encoding="utf-8")
+    )
+    assert cfg_r1["protocol"] == "topk"
+    topk_cfg = dict(cfg_r1["protocol_params"]["topk"])
+    assert topk_cfg["hello_interval"] == 1.0
+    assert topk_cfg["lsa_interval"] == 3.0
+    assert topk_cfg["lsa_max_age"] == 15.0
+    assert topk_cfg["k_paths"] == 4
+    assert topk_cfg["explore_probability"] == 0.35
+    assert topk_cfg["selection_hold_time_s"] == 2.5
+    assert topk_cfg["rng_seed"] == 2026
+
+
 def test_generate_routerd_lab_can_enable_forwarding_config(tmp_path: Path) -> None:
     out_dir = tmp_path / "lab-forwarding"
     params = LabGenParams(
@@ -182,6 +272,11 @@ def test_generate_routerd_lab_supports_ddr_protocol(tmp_path: Path) -> None:
         ddr_flow_size_bytes=32768.0,
         ddr_link_bandwidth_bps=25000000.0,
         ddr_queue_sample_interval=0.5,
+        ddr_queue_levels=4,
+        ddr_pressure_threshold=2,
+        ddr_queue_level_scale_ms=8.0,
+        ddr_randomize_route_selection=False,
+        ddr_rng_seed=7,
     )
 
     result = generate_routerd_lab(params)
@@ -195,3 +290,65 @@ def test_generate_routerd_lab_supports_ddr_protocol(tmp_path: Path) -> None:
     assert ddr_cfg["flow_size_bytes"] == 32768.0
     assert ddr_cfg["link_bandwidth_bps"] == 25000000.0
     assert ddr_cfg["queue_sample_interval"] == 0.5
+    assert ddr_cfg["queue_levels"] == 4
+    assert ddr_cfg["pressure_threshold"] == 2
+    assert ddr_cfg["queue_level_scale_ms"] == 8.0
+    assert ddr_cfg["randomize_route_selection"] is False
+    assert ddr_cfg["rng_seed"] == 7
+
+
+def test_generate_routerd_lab_supports_dgr_protocol(tmp_path: Path) -> None:
+    out_dir = tmp_path / "lab-dgr"
+    params = LabGenParams(
+        protocol="dgr",
+        routing_alpha=1.0,
+        routing_beta=2.0,
+        topology_file=Path("src/clab/topologies/line3.clab.yaml"),
+        node_image="ghcr.io/srl-labs/network-multitool:latest",
+        bind_port=5500,
+        tick_interval=1.0,
+        dead_interval=4.0,
+        ospf_hello_interval=1.0,
+        ospf_lsa_interval=3.0,
+        ospf_lsa_max_age=15.0,
+        rip_update_interval=5.0,
+        rip_neighbor_timeout=15.0,
+        rip_infinity_metric=16.0,
+        rip_poison_reverse=True,
+        output_dir=out_dir,
+        lab_name="testlab-dgr",
+        log_level="INFO",
+        mgmt_network_name="testlab-dgr-mgmt",
+        mgmt_ipv4_subnet="10.250.14.0/24",
+        mgmt_ipv6_subnet="fd00:fa:14::/64",
+        mgmt_external_access=False,
+        forwarding_enabled=False,
+        forwarding_dry_run=True,
+        ddr_k_paths=5,
+        ddr_deadline_ms=70.0,
+        ddr_flow_size_bytes=24576.0,
+        ddr_link_bandwidth_bps=15000000.0,
+        ddr_queue_sample_interval=0.2,
+        ddr_queue_levels=4,
+        ddr_pressure_threshold=2,
+        ddr_queue_level_scale_ms=8.0,
+        ddr_randomize_route_selection=True,
+        ddr_rng_seed=2026,
+    )
+
+    result = generate_routerd_lab(params)
+    cfg_r1 = yaml.safe_load(
+        Path(result["configs_dir"]).joinpath("r1.yaml").read_text(encoding="utf-8")
+    )
+    assert cfg_r1["protocol"] == "dgr"
+    dgr_cfg = dict(cfg_r1["protocol_params"]["dgr"])
+    assert dgr_cfg["k_paths"] == 5
+    assert dgr_cfg["deadline_ms"] == 70.0
+    assert dgr_cfg["flow_size_bytes"] == 24576.0
+    assert dgr_cfg["link_bandwidth_bps"] == 15000000.0
+    assert dgr_cfg["queue_sample_interval"] == 0.2
+    assert dgr_cfg["queue_levels"] == 4
+    assert dgr_cfg["pressure_threshold"] == 2
+    assert dgr_cfg["queue_level_scale_ms"] == 8.0
+    assert dgr_cfg["randomize_route_selection"] is True
+    assert dgr_cfg["rng_seed"] == 2026

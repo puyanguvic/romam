@@ -13,8 +13,10 @@ use crate::model::routing::{ForwardingTable, RouteTable};
 use crate::model::state::{NeighborInfo, NeighborTable};
 use crate::protocols::base::{ProtocolContext, ProtocolEngine, RouterLink};
 use crate::protocols::ddr::{DdrParams, DdrProtocol, DdrTimers};
+use crate::protocols::ecmp::{EcmpParams, EcmpProtocol, EcmpTimers};
 use crate::protocols::ospf::{OspfProtocol, OspfTimers};
 use crate::protocols::rip::{RipProtocol, RipTimers};
+use crate::protocols::topk::{TopkParams, TopkProtocol, TopkTimers};
 use crate::runtime::config::DaemonConfig;
 use crate::runtime::forwarding::{
     ForwardingApplier, LinuxForwardingApplier, NullForwardingApplier,
@@ -323,6 +325,44 @@ impl RouterDaemon {
                     poison_reverse,
                 )))
             }
+            "ecmp" => {
+                let hello_interval = param_f64(params, "hello_interval", 1.0);
+                let lsa_interval = param_f64(params, "lsa_interval", 3.0);
+                let lsa_max_age =
+                    param_f64(params, "lsa_max_age", (cfg.dead_interval * 3.0).max(10.0));
+                let hash_seed = param_u64(params, "hash_seed", 1);
+
+                Ok(Box::new(EcmpProtocol::new(EcmpParams {
+                    timers: EcmpTimers {
+                        hello_interval,
+                        lsa_interval,
+                        lsa_max_age,
+                    },
+                    hash_seed,
+                })))
+            }
+            "topk" => {
+                let hello_interval = param_f64(params, "hello_interval", 1.0);
+                let lsa_interval = param_f64(params, "lsa_interval", 3.0);
+                let lsa_max_age =
+                    param_f64(params, "lsa_max_age", (cfg.dead_interval * 3.0).max(10.0));
+                let k_paths = param_usize(params, "k_paths", 3).max(1);
+                let explore_probability = param_f64(params, "explore_probability", 0.3);
+                let selection_hold_time_s = param_f64(params, "selection_hold_time_s", 3.0);
+                let rng_seed = param_u64(params, "rng_seed", 1);
+
+                Ok(Box::new(TopkProtocol::new(TopkParams {
+                    timers: TopkTimers {
+                        hello_interval,
+                        lsa_interval,
+                        lsa_max_age,
+                    },
+                    k_paths,
+                    explore_probability,
+                    selection_hold_time_s,
+                    rng_seed,
+                })))
+            }
             "ddr" => {
                 let hello_interval = param_f64(params, "hello_interval", 1.0);
                 let lsa_interval = param_f64(params, "lsa_interval", 3.0);
@@ -335,19 +375,73 @@ impl RouterDaemon {
                 let flow_size_bytes = param_f64(params, "flow_size_bytes", 64_000.0).max(1.0);
                 let link_bandwidth_bps =
                     param_f64(params, "link_bandwidth_bps", 9_600_000.0).max(1.0);
+                let queue_levels = param_usize(params, "queue_levels", 4).max(1);
+                let pressure_threshold = param_usize(params, "pressure_threshold", 2);
+                let queue_level_scale_ms = param_f64(params, "queue_level_scale_ms", 8.0).max(1e-6);
+                let randomize_route_selection =
+                    param_bool(params, "randomize_route_selection", false);
+                let rng_seed = param_u64(params, "rng_seed", 1);
 
-                Ok(Box::new(DdrProtocol::new(DdrParams {
-                    timers: DdrTimers {
-                        hello_interval,
-                        lsa_interval,
-                        lsa_max_age,
-                        queue_sample_interval,
+                Ok(Box::new(DdrProtocol::new_with_name(
+                    DdrParams {
+                        timers: DdrTimers {
+                            hello_interval,
+                            lsa_interval,
+                            lsa_max_age,
+                            queue_sample_interval,
+                        },
+                        k_paths,
+                        deadline_ms,
+                        flow_size_bytes,
+                        link_bandwidth_bps,
+                        queue_levels,
+                        pressure_threshold,
+                        queue_level_scale_ms,
+                        randomize_route_selection,
+                        rng_seed,
                     },
-                    k_paths,
-                    deadline_ms,
-                    flow_size_bytes,
-                    link_bandwidth_bps,
-                })))
+                    "ddr",
+                )))
+            }
+            "dgr" => {
+                let hello_interval = param_f64(params, "hello_interval", 1.0);
+                let lsa_interval = param_f64(params, "lsa_interval", 3.0);
+                let lsa_max_age =
+                    param_f64(params, "lsa_max_age", (cfg.dead_interval * 3.0).max(10.0));
+                let queue_sample_interval =
+                    param_f64(params, "queue_sample_interval", cfg.tick_interval.max(0.5));
+                let k_paths = param_usize(params, "k_paths", 3);
+                let deadline_ms = param_f64(params, "deadline_ms", 100.0);
+                let flow_size_bytes = param_f64(params, "flow_size_bytes", 64_000.0).max(1.0);
+                let link_bandwidth_bps =
+                    param_f64(params, "link_bandwidth_bps", 9_600_000.0).max(1.0);
+                let queue_levels = param_usize(params, "queue_levels", 4).max(1);
+                let pressure_threshold = param_usize(params, "pressure_threshold", 2);
+                let queue_level_scale_ms = param_f64(params, "queue_level_scale_ms", 8.0).max(1e-6);
+                let randomize_route_selection =
+                    param_bool(params, "randomize_route_selection", true);
+                let rng_seed = param_u64(params, "rng_seed", 1);
+
+                Ok(Box::new(DdrProtocol::new_with_name(
+                    DdrParams {
+                        timers: DdrTimers {
+                            hello_interval,
+                            lsa_interval,
+                            lsa_max_age,
+                            queue_sample_interval,
+                        },
+                        k_paths,
+                        deadline_ms,
+                        flow_size_bytes,
+                        link_bandwidth_bps,
+                        queue_levels,
+                        pressure_threshold,
+                        queue_level_scale_ms,
+                        randomize_route_selection,
+                        rng_seed,
+                    },
+                    "dgr",
+                )))
             }
             "irp" => {
                 let alpha = param_f64(params, "alpha", 1.0);
@@ -398,6 +492,14 @@ fn param_usize(params: &Map<String, Value>, key: &str, default: usize) -> usize 
             .and_then(|v| usize::try_from(v).ok())
             .unwrap_or(default),
         Some(Value::String(text)) => text.parse::<usize>().unwrap_or(default),
+        _ => default,
+    }
+}
+
+fn param_u64(params: &Map<String, Value>, key: &str, default: u64) -> u64 {
+    match params.get(key) {
+        Some(Value::Number(num)) => num.as_u64().unwrap_or(default),
+        Some(Value::String(text)) => text.parse::<u64>().unwrap_or(default),
         _ => default,
     }
 }

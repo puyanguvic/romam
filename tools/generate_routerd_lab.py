@@ -34,7 +34,11 @@ def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(
         description="Generate routerd-enabled containerlab topology and per-node configs."
     )
-    parser.add_argument("--protocol", choices=["ospf", "rip", "irp", "ddr"], default="ospf")
+    parser.add_argument(
+        "--protocol",
+        choices=["ospf", "rip", "ecmp", "topk", "irp", "ddr", "dgr"],
+        default="ospf",
+    )
     parser.add_argument(
         "--routing-alpha",
         type=float,
@@ -78,11 +82,75 @@ def parse_args() -> argparse.Namespace:
         default=True,
         help="Enable poison reverse in RIP updates (default: enabled).",
     )
-    parser.add_argument("--ddr-k-paths", type=int, default=3)
-    parser.add_argument("--ddr-deadline-ms", type=float, default=100.0)
-    parser.add_argument("--ddr-flow-size-bytes", type=float, default=64000.0)
-    parser.add_argument("--ddr-link-bandwidth-bps", type=float, default=9600000.0)
-    parser.add_argument("--ddr-queue-sample-interval", type=float, default=1.0)
+    parser.add_argument("--ecmp-hash-seed", type=int, default=1)
+    parser.add_argument("--topk-k-paths", type=int, default=3)
+    parser.add_argument("--topk-explore-probability", type=float, default=0.3)
+    parser.add_argument("--topk-selection-hold-time-s", type=float, default=3.0)
+    parser.add_argument("--topk-rng-seed", type=int, default=1)
+    parser.add_argument("--ddr-k-paths", "--dgr-k-paths", dest="ddr_k_paths", type=int, default=3)
+    parser.add_argument(
+        "--ddr-deadline-ms",
+        "--dgr-deadline-ms",
+        dest="ddr_deadline_ms",
+        type=float,
+        default=100.0,
+    )
+    parser.add_argument(
+        "--ddr-flow-size-bytes",
+        "--dgr-flow-size-bytes",
+        dest="ddr_flow_size_bytes",
+        type=float,
+        default=64000.0,
+    )
+    parser.add_argument(
+        "--ddr-link-bandwidth-bps",
+        "--dgr-link-bandwidth-bps",
+        dest="ddr_link_bandwidth_bps",
+        type=float,
+        default=9600000.0,
+    )
+    parser.add_argument(
+        "--ddr-queue-sample-interval",
+        "--dgr-queue-sample-interval",
+        dest="ddr_queue_sample_interval",
+        type=float,
+        default=1.0,
+    )
+    parser.add_argument(
+        "--ddr-queue-levels",
+        "--dgr-queue-levels",
+        dest="ddr_queue_levels",
+        type=int,
+        default=4,
+    )
+    parser.add_argument(
+        "--ddr-pressure-threshold",
+        "--dgr-pressure-threshold",
+        dest="ddr_pressure_threshold",
+        type=int,
+        default=2,
+    )
+    parser.add_argument(
+        "--ddr-queue-level-scale-ms",
+        "--dgr-queue-level-scale-ms",
+        dest="ddr_queue_level_scale_ms",
+        type=float,
+        default=8.0,
+    )
+    parser.add_argument(
+        "--ddr-randomized-selection",
+        "--dgr-randomized-selection",
+        dest="ddr_randomized_selection",
+        action=argparse.BooleanOptionalAction,
+        default=None,
+    )
+    parser.add_argument(
+        "--ddr-rng-seed",
+        "--dgr-rng-seed",
+        dest="ddr_rng_seed",
+        type=int,
+        default=1,
+    )
     parser.add_argument(
         "--lab-name",
         default="",
@@ -175,6 +243,11 @@ def parse_args() -> argparse.Namespace:
 
 def main() -> int:
     args = parse_args()
+    randomized_selection = (
+        bool(args.ddr_randomized_selection)
+        if args.ddr_randomized_selection is not None
+        else str(args.protocol) == "dgr"
+    )
     source_topology_file = resolve_source_topology_file(args)
     topology_label = source_topology_file.name.removesuffix(".clab.yaml")
     lab_name = args.lab_name or f"routerd-{args.protocol}-{topology_label}-{now_tag().lower()}"
@@ -196,6 +269,11 @@ def main() -> int:
         rip_neighbor_timeout=float(args.rip_neighbor_timeout),
         rip_infinity_metric=float(args.rip_infinity_metric),
         rip_poison_reverse=bool(args.rip_poison_reverse),
+        ecmp_hash_seed=int(args.ecmp_hash_seed),
+        topk_k_paths=int(args.topk_k_paths),
+        topk_explore_probability=float(args.topk_explore_probability),
+        topk_selection_hold_time_s=float(args.topk_selection_hold_time_s),
+        topk_rng_seed=int(args.topk_rng_seed),
         output_dir=output_dir,
         lab_name=lab_name,
         log_level=str(args.log_level),
@@ -216,6 +294,11 @@ def main() -> int:
         ddr_flow_size_bytes=float(args.ddr_flow_size_bytes),
         ddr_link_bandwidth_bps=float(args.ddr_link_bandwidth_bps),
         ddr_queue_sample_interval=float(args.ddr_queue_sample_interval),
+        ddr_queue_levels=int(args.ddr_queue_levels),
+        ddr_pressure_threshold=int(args.ddr_pressure_threshold),
+        ddr_queue_level_scale_ms=float(args.ddr_queue_level_scale_ms),
+        ddr_randomize_route_selection=bool(randomized_selection),
+        ddr_rng_seed=int(args.ddr_rng_seed),
     )
     result = generate_routerd_lab(params)
     clab_bin = shutil.which("containerlab") or "containerlab"
@@ -227,12 +310,24 @@ def main() -> int:
     if str(args.protocol) == "irp":
         print(f"routing_alpha: {float(args.routing_alpha)}")
         print(f"routing_beta: {float(args.routing_beta)}")
-    if str(args.protocol) == "ddr":
+    if str(args.protocol) == "ecmp":
+        print(f"ecmp_hash_seed: {int(args.ecmp_hash_seed)}")
+    if str(args.protocol) == "topk":
+        print(f"topk_k_paths: {int(args.topk_k_paths)}")
+        print(f"topk_explore_probability: {float(args.topk_explore_probability)}")
+        print(f"topk_selection_hold_time_s: {float(args.topk_selection_hold_time_s)}")
+        print(f"topk_rng_seed: {int(args.topk_rng_seed)}")
+    if str(args.protocol) in {"ddr", "dgr"}:
         print(f"ddr_k_paths: {int(args.ddr_k_paths)}")
         print(f"ddr_deadline_ms: {float(args.ddr_deadline_ms)}")
         print(f"ddr_flow_size_bytes: {float(args.ddr_flow_size_bytes)}")
         print(f"ddr_link_bandwidth_bps: {float(args.ddr_link_bandwidth_bps)}")
         print(f"ddr_queue_sample_interval: {float(args.ddr_queue_sample_interval)}")
+        print(f"ddr_queue_levels: {int(args.ddr_queue_levels)}")
+        print(f"ddr_pressure_threshold: {int(args.ddr_pressure_threshold)}")
+        print(f"ddr_queue_level_scale_ms: {float(args.ddr_queue_level_scale_ms)}")
+        print(f"ddr_randomized_selection: {bool(randomized_selection)}")
+        print(f"ddr_rng_seed: {int(args.ddr_rng_seed)}")
     print(f"source_topology_file: {source_topology_file}")
     print(f"topology_file: {result['topology_file']}")
     print(f"configs_dir: {result['configs_dir']}")

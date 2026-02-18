@@ -108,6 +108,52 @@ def test_build_run_routerd_lab_cmd_includes_irp_params() -> None:
     assert "--lab-name my-lab" in text
 
 
+def test_build_run_routerd_lab_cmd_includes_ecmp_params() -> None:
+    module = _load_module()
+    cmd = module.build_run_routerd_lab_cmd(
+        protocol="ecmp",
+        topology_key="profile",
+        topology_value="line3",
+        use_sudo=False,
+        config={},
+        precheck_min_routes=0,
+        precheck_max_wait_s=20,
+        precheck_poll_interval_s=1.0,
+        precheck_tail_lines=120,
+        ecmp_params={"hash_seed": 2026},
+    )
+    text = " ".join(cmd)
+    assert "--protocol ecmp" in text
+    assert "--ecmp-hash-seed 2026" in text
+
+
+def test_build_run_routerd_lab_cmd_includes_topk_params() -> None:
+    module = _load_module()
+    cmd = module.build_run_routerd_lab_cmd(
+        protocol="topk",
+        topology_key="profile",
+        topology_value="line3",
+        use_sudo=False,
+        config={},
+        precheck_min_routes=0,
+        precheck_max_wait_s=20,
+        precheck_poll_interval_s=1.0,
+        precheck_tail_lines=120,
+        topk_params={
+            "k_paths": 4,
+            "explore_probability": 0.35,
+            "selection_hold_time_s": 2.5,
+            "rng_seed": 2026,
+        },
+    )
+    text = " ".join(cmd)
+    assert "--protocol topk" in text
+    assert "--topk-k-paths 4" in text
+    assert "--topk-explore-probability 0.35" in text
+    assert "--topk-selection-hold-time-s 2.5" in text
+    assert "--topk-rng-seed 2026" in text
+
+
 def test_build_run_routerd_lab_cmd_includes_ddr_params() -> None:
     module = _load_module()
     cmd = module.build_run_routerd_lab_cmd(
@@ -126,6 +172,11 @@ def test_build_run_routerd_lab_cmd_includes_ddr_params() -> None:
             "flow_size_bytes": 32768.0,
             "link_bandwidth_bps": 25000000.0,
             "queue_sample_interval": 0.5,
+            "queue_levels": 4,
+            "pressure_threshold": 2,
+            "queue_level_scale_ms": 8.0,
+            "randomize_route_selection": False,
+            "rng_seed": 7,
         },
     )
     text = " ".join(cmd)
@@ -135,6 +186,50 @@ def test_build_run_routerd_lab_cmd_includes_ddr_params() -> None:
     assert "--ddr-flow-size-bytes 32768.0" in text
     assert "--ddr-link-bandwidth-bps 25000000.0" in text
     assert "--ddr-queue-sample-interval 0.5" in text
+    assert "--ddr-queue-levels 4" in text
+    assert "--ddr-pressure-threshold 2" in text
+    assert "--ddr-queue-level-scale-ms 8.0" in text
+    assert "--ddr-rng-seed 7" in text
+    assert "--no-ddr-randomized-selection" in text
+
+
+def test_build_run_routerd_lab_cmd_includes_dgr_params() -> None:
+    module = _load_module()
+    cmd = module.build_run_routerd_lab_cmd(
+        protocol="dgr",
+        topology_key="profile",
+        topology_value="line3",
+        use_sudo=False,
+        config={},
+        precheck_min_routes=0,
+        precheck_max_wait_s=20,
+        precheck_poll_interval_s=1.0,
+        precheck_tail_lines=120,
+        ddr_params={
+            "k_paths": 5,
+            "deadline_ms": 70.0,
+            "flow_size_bytes": 24576.0,
+            "link_bandwidth_bps": 15000000.0,
+            "queue_sample_interval": 0.2,
+            "queue_levels": 4,
+            "pressure_threshold": 2,
+            "queue_level_scale_ms": 8.0,
+            "randomize_route_selection": True,
+            "rng_seed": 2026,
+        },
+    )
+    text = " ".join(cmd)
+    assert "--protocol dgr" in text
+    assert "--ddr-k-paths 5" in text
+    assert "--ddr-deadline-ms 70.0" in text
+    assert "--ddr-flow-size-bytes 24576.0" in text
+    assert "--ddr-link-bandwidth-bps 15000000.0" in text
+    assert "--ddr-queue-sample-interval 0.2" in text
+    assert "--ddr-queue-levels 4" in text
+    assert "--ddr-pressure-threshold 2" in text
+    assert "--ddr-queue-level-scale-ms 8.0" in text
+    assert "--ddr-rng-seed 2026" in text
+    assert "--ddr-randomized-selection" in text
 
 
 def test_write_standard_run_artifacts(tmp_path: Path) -> None:

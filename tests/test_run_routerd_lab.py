@@ -22,8 +22,11 @@ def test_infer_protocol_default_and_explicit() -> None:
     module = _load_module()
     assert module.infer_protocol([]) == "ospf"
     assert module.infer_protocol(["--protocol", "rip"]) == "rip"
+    assert module.infer_protocol(["--protocol", "ecmp"]) == "ecmp"
+    assert module.infer_protocol(["--protocol", "topk"]) == "topk"
     assert module.infer_protocol(["--x", "1", "--protocol=irp"]) == "irp"
     assert module.infer_protocol(["--protocol=ddr"]) == "ddr"
+    assert module.infer_protocol(["--protocol=dgr"]) == "dgr"
 
 
 def test_parse_generator_output_missing_key_raises() -> None:

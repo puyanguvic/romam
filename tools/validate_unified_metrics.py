@@ -93,8 +93,8 @@ def validate_scenario(payload: dict[str, Any]) -> list[str]:
     )
     if errors:
         return errors
-    if payload.get("protocol") not in {"ospf", "rip", "irp", "ddr"}:
-        errors.append("protocol must be one of: ospf, rip, irp, ddr")
+    if payload.get("protocol") not in {"ospf", "rip", "ecmp", "topk", "irp", "ddr", "dgr"}:
+        errors.append("protocol must be one of: ospf, rip, ecmp, topk, irp, ddr, dgr")
     if not _is_number(payload.get("duration_s")):
         errors.append("duration_s must be a number")
     if not _is_number(payload.get("poll_interval_s")):
@@ -149,8 +149,8 @@ def validate_benchmark_run(payload: dict[str, Any]) -> list[str]:
     )
     if errors:
         return errors
-    if payload.get("protocol") not in {"ospf", "rip", "irp", "ddr"}:
-        errors.append("protocol must be one of: ospf, rip, irp, ddr")
+    if payload.get("protocol") not in {"ospf", "rip", "ecmp", "topk", "irp", "ddr", "dgr"}:
+        errors.append("protocol must be one of: ospf, rip, ecmp, topk, irp, ddr, dgr")
     if not isinstance(payload.get("probes"), list):
         errors.append("probes must be a list")
     return errors
@@ -178,8 +178,8 @@ def validate_benchmark_summary(payload: dict[str, Any]) -> list[str]:
         errors.append("experiment must be unified_convergence_benchmark")
     if payload.get("mode") != "convergence_benchmark":
         errors.append("mode must be convergence_benchmark")
-    if payload.get("protocol") not in {"ospf", "rip", "irp", "ddr"}:
-        errors.append("protocol must be one of: ospf, rip, irp, ddr")
+    if payload.get("protocol") not in {"ospf", "rip", "ecmp", "topk", "irp", "ddr", "dgr"}:
+        errors.append("protocol must be one of: ospf, rip, ecmp, topk, irp, ddr, dgr")
     runs = payload.get("runs")
     if not isinstance(runs, list):
         errors.append("runs must be a list")

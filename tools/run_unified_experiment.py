@@ -309,27 +309,63 @@ def sanitize_label(value: str, max_len: int = 48) -> str:
 
 def validate_protocol(protocol: str) -> str:
     normalized = str(protocol).strip().lower()
-    if normalized not in {"ospf", "rip", "irp", "ddr"}:
-        raise ValueError("protocol must be one of: ospf, rip, irp, ddr")
+    if normalized not in {"ospf", "rip", "ecmp", "topk", "irp", "ddr", "dgr"}:
+        raise ValueError("protocol must be one of: ospf, rip, ecmp, topk, irp, ddr, dgr")
     return normalized
 
 
-def extract_ddr_routing_params(routing: dict[str, Any]) -> dict[str, Any]:
-    ddr_cfg = dict(routing.get("ddr", {}) or {})
+def extract_ddr_routing_params(
+    routing: dict[str, Any],
+    *,
+    protocol: str,
+) -> dict[str, Any]:
+    selected_cfg = dict(routing.get(protocol, {}) or {})
+    fallback_cfg: dict[str, Any] = {}
+    if protocol == "ddr":
+        fallback_cfg = dict(routing.get("dgr", {}) or {})
+    elif protocol == "dgr":
+        fallback_cfg = dict(routing.get("ddr", {}) or {})
+
+    def pick(key: str, default: Any) -> Any:
+        if key in selected_cfg:
+            return selected_cfg[key]
+        if key in fallback_cfg:
+            return fallback_cfg[key]
+        return routing.get(key, default)
+
+    randomize_default = protocol == "dgr"
     return {
-        "k_paths": int(ddr_cfg.get("k_paths", routing.get("k_paths", 3))),
-        "deadline_ms": float(ddr_cfg.get("deadline_ms", routing.get("deadline_ms", 100.0))),
-        "flow_size_bytes": float(
-            ddr_cfg.get("flow_size_bytes", routing.get("flow_size_bytes", 64000.0))
+        "k_paths": int(pick("k_paths", 3)),
+        "deadline_ms": float(pick("deadline_ms", 100.0)),
+        "flow_size_bytes": float(pick("flow_size_bytes", 64000.0)),
+        "link_bandwidth_bps": float(pick("link_bandwidth_bps", 9600000.0)),
+        "queue_sample_interval": float(pick("queue_sample_interval", 1.0)),
+        "queue_levels": int(pick("queue_levels", 4)),
+        "pressure_threshold": int(pick("pressure_threshold", 2)),
+        "queue_level_scale_ms": float(pick("queue_level_scale_ms", 8.0)),
+        "randomize_route_selection": bool(pick("randomize_route_selection", randomize_default)),
+        "rng_seed": int(pick("rng_seed", 1)),
+    }
+
+
+def extract_ecmp_routing_params(routing: dict[str, Any]) -> dict[str, Any]:
+    ecmp_cfg = dict(routing.get("ecmp", {}) or {})
+    return {
+        "hash_seed": int(ecmp_cfg.get("hash_seed", routing.get("hash_seed", 1))),
+    }
+
+
+def extract_topk_routing_params(routing: dict[str, Any]) -> dict[str, Any]:
+    topk_cfg = dict(routing.get("topk", {}) or {})
+    return {
+        "k_paths": int(topk_cfg.get("k_paths", routing.get("k_paths", 3))),
+        "explore_probability": float(
+            topk_cfg.get("explore_probability", routing.get("explore_probability", 0.3))
         ),
-        "link_bandwidth_bps": float(
-            ddr_cfg.get("link_bandwidth_bps", routing.get("link_bandwidth_bps", 9600000.0))
+        "selection_hold_time_s": float(
+            topk_cfg.get("selection_hold_time_s", routing.get("selection_hold_time_s", 3.0))
         ),
-        "queue_sample_interval": float(
-            ddr_cfg.get(
-                "queue_sample_interval", routing.get("queue_sample_interval", 1.0)
-            )
-        ),
+        "rng_seed": int(topk_cfg.get("rng_seed", routing.get("rng_seed", 1))),
     }
 
 
@@ -384,6 +420,8 @@ def build_run_routerd_lab_cmd(
     precheck_tail_lines: int,
     routing_alpha: float | None = None,
     routing_beta: float | None = None,
+    ecmp_params: dict[str, Any] | None = None,
+    topk_params: dict[str, Any] | None = None,
     ddr_params: dict[str, Any] | None = None,
     lab_name_override: str = "",
 ) -> list[str]:
@@ -414,7 +452,23 @@ def build_run_routerd_lab_cmd(
             "--routing-beta",
             str(float(routing_beta)),
         ])
-    if protocol == "ddr" and ddr_params is not None:
+    if protocol == "ecmp" and ecmp_params is not None:
+        runlab_cmd.extend([
+            "--ecmp-hash-seed",
+            str(int(ecmp_params.get("hash_seed", 1))),
+        ])
+    if protocol == "topk" and topk_params is not None:
+        runlab_cmd.extend([
+            "--topk-k-paths",
+            str(int(topk_params.get("k_paths", 3))),
+            "--topk-explore-probability",
+            str(float(topk_params.get("explore_probability", 0.3))),
+            "--topk-selection-hold-time-s",
+            str(float(topk_params.get("selection_hold_time_s", 3.0))),
+            "--topk-rng-seed",
+            str(int(topk_params.get("rng_seed", 1))),
+        ])
+    if protocol in {"ddr", "dgr"} and ddr_params is not None:
         runlab_cmd.extend([
             "--ddr-k-paths",
             str(int(ddr_params.get("k_paths", 3))),
@@ -426,7 +480,19 @@ def build_run_routerd_lab_cmd(
             str(float(ddr_params.get("link_bandwidth_bps", 9600000.0))),
             "--ddr-queue-sample-interval",
             str(float(ddr_params.get("queue_sample_interval", 1.0))),
+            "--ddr-queue-levels",
+            str(int(ddr_params.get("queue_levels", 4))),
+            "--ddr-pressure-threshold",
+            str(int(ddr_params.get("pressure_threshold", 2))),
+            "--ddr-queue-level-scale-ms",
+            str(float(ddr_params.get("queue_level_scale_ms", 8.0))),
+            "--ddr-rng-seed",
+            str(int(ddr_params.get("rng_seed", 1))),
         ])
+        if bool(ddr_params.get("randomize_route_selection", protocol == "dgr")):
+            runlab_cmd.append("--ddr-randomized-selection")
+        else:
+            runlab_cmd.append("--no-ddr-randomized-selection")
     append_runlab_generator_args(runlab_cmd, config)
     if lab_name_override.strip():
         runlab_cmd.extend(["--lab-name", lab_name_override.strip()])
@@ -1368,7 +1434,9 @@ def run_scenario_mode(
     routing = dict(config.get("routing", {}) or {})
     routing_alpha = float(routing.get("alpha", 1.0))
     routing_beta = float(routing.get("beta", 2.0))
-    ddr_params = extract_ddr_routing_params(routing)
+    ecmp_params = extract_ecmp_routing_params(routing)
+    topk_params = extract_topk_routing_params(routing)
+    ddr_params = extract_ddr_routing_params(routing, protocol=protocol)
 
     duration_s = max(1.0, float(config.get("duration_s", 60.0)))
     poll_interval_s = max(0.2, float(args.poll_interval_s))
@@ -1385,6 +1453,8 @@ def run_scenario_mode(
         precheck_tail_lines=int(config.get("precheck_tail_lines", 120)),
         routing_alpha=routing_alpha,
         routing_beta=routing_beta,
+        ecmp_params=ecmp_params,
+        topk_params=topk_params,
         ddr_params=ddr_params,
     )
     runlab = launch_run_routerd_lab(
@@ -1615,7 +1685,10 @@ def run_scenario_mode(
         "routing": {
             "alpha": routing_alpha,
             "beta": routing_beta,
-            "ddr": ddr_params if protocol == "ddr" else {},
+            "ecmp": ecmp_params if protocol == "ecmp" else {},
+            "topk": topk_params if protocol == "topk" else {},
+            "ddr": ddr_params if protocol in {"ddr", "dgr"} else {},
+            "dgr": ddr_params if protocol == "dgr" else {},
         },
         "convergence": {
             "initial_converged_at_s": converged_at_s,
@@ -1735,7 +1808,9 @@ def run_convergence_benchmark_mode(
     routing = dict(config.get("routing", {}) or {})
     routing_alpha = float(routing.get("alpha", 1.0))
     routing_beta = float(routing.get("beta", 2.0))
-    ddr_params = extract_ddr_routing_params(routing)
+    ecmp_params = extract_ecmp_routing_params(routing)
+    topk_params = extract_topk_routing_params(routing)
+    ddr_params = extract_ddr_routing_params(routing, protocol=protocol)
 
     bench_cfg = dict(config.get("benchmark", {}) or {})
     repeats = max(1, int(bench_cfg.get("repeats", config.get("repeats", 1))))
@@ -1780,6 +1855,8 @@ def run_convergence_benchmark_mode(
             precheck_tail_lines=precheck_tail_lines,
             routing_alpha=routing_alpha,
             routing_beta=routing_beta,
+            ecmp_params=ecmp_params,
+            topk_params=topk_params,
             ddr_params=ddr_params,
         )
         if lab_name_prefix and not explicit_lab_name:
