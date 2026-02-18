@@ -3,6 +3,7 @@ from __future__ import annotations
 
 import json
 import os
+import shlex
 import shutil
 import subprocess
 from pathlib import Path
@@ -25,6 +26,29 @@ def load_yaml(path: Path) -> dict[str, Any]:
     if not isinstance(data, dict):
         raise ValueError(f"Expected mapping YAML: {path}")
     return data
+
+
+def parse_keyed_output(text: str, *, keys: tuple[str, ...] | list[str]) -> dict[str, str]:
+    out: dict[str, str] = {}
+    key_list = [str(key) for key in keys]
+    for line in text.splitlines():
+        stripped = line.strip()
+        for key in key_list:
+            prefix = f"{key}:"
+            if stripped.startswith(prefix):
+                out[key] = stripped[len(prefix) :].strip()
+    return out
+
+
+def parse_env_file(path: Path) -> dict[str, str]:
+    out: dict[str, str] = {}
+    for line in path.read_text(encoding="utf-8").splitlines():
+        text = line.strip()
+        if not text or text.startswith("#") or "=" not in text:
+            continue
+        key, value = text.split("=", maxsplit=1)
+        out[key.strip()] = value.strip()
+    return out
 
 
 def resolve_path(path_value: str, base_dir: Path) -> Path:
@@ -56,6 +80,7 @@ def run_command(
     check: bool = True,
     capture_output: bool = True,
     env: dict[str, str] | None = None,
+    cwd: Path | None = None,
 ) -> subprocess.CompletedProcess[str]:
     proc = subprocess.run(
         cmd,
@@ -64,10 +89,12 @@ def run_command(
         stdout=subprocess.PIPE if capture_output else None,
         stderr=subprocess.STDOUT if capture_output else None,
         env=env,
+        cwd=str(cwd) if cwd is not None else None,
     )
     if check and proc.returncode != 0:
         out = (proc.stdout or "").strip()
-        raise RuntimeError(f"Command failed ({proc.returncode}): {' '.join(cmd)}\n{out}")
+        pretty_cmd = " ".join(shlex.quote(str(token)) for token in cmd)
+        raise RuntimeError(f"Command failed ({proc.returncode}): {pretty_cmd}\n{out}")
     return proc
 
 

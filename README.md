@@ -6,6 +6,34 @@ This repo uses a layered architecture:
 - containerlab only manages topology/container lifecycle.
 - Go traffic apps are experiment tools and are configured/injected per node.
 
+## Documentation
+
+- Docs index: `docs/README.md`
+- Quickstart: `docs/quickstart.md`
+- Unified experiments: `docs/unified-experiments.md`
+- Results and validation: `docs/results-and-validation.md`
+
+## 5-Minute Quickstart
+
+```bash
+make install
+make build-routerd-rs
+make build-traffic-app-go
+
+PYTHONPATH=src python3 tools/run_unified_experiment.py \
+  --config experiments/routerd_examples/unified_experiments/line3_irp_multi_apps.yaml \
+  --poll-interval-s 1 \
+  --sudo
+```
+
+Validate outputs:
+
+```bash
+python3 tools/validate_unified_metrics.py \
+  --input results/runs/unified_experiments \
+  --recursive
+```
+
 Control/observability paths:
 - route computation + RIB/FIB snapshot: `src/irp/src/runtime/daemon.rs`
 - kernel route install/readback (netlink via `ip route`): `src/irp/src/runtime/forwarding.rs`
@@ -363,6 +391,17 @@ make run-unified-experiment \
 Default outputs:
 - `mode: scenario`: `results/runs/unified_experiments/<lab_name>/report_<timestamp>.json`
 - `mode: convergence_benchmark`: `results/tables/<protocol>_convergence_unified_<topology>.json` and `.csv`
+- Standardized artifacts (both modes):
+  `results/runs/.../<run_id>/config.yaml`, `topology.yaml`, `traffic.yaml`, `logs/`,
+  `metrics.json`, `summary.md`
+
+Validate unified JSON outputs (lightweight schema checks):
+
+```bash
+python3 tools/validate_unified_metrics.py \
+  --input results/runs/unified_experiments \
+  --recursive
+```
 
 The unified config supports fault injection, e.g.:
 - `link_down` with `faults[].link: [r2, r3]`

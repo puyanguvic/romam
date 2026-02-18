@@ -1,8 +1,11 @@
 from __future__ import annotations
 
 import importlib.util
+import json
 import sys
 from pathlib import Path
+
+import pytest
 
 
 def _load_module():
@@ -54,3 +57,76 @@ def test_append_runlab_generator_args() -> None:
     assert "--mgmt-ipv6-subnet fd00:fa:10::/64" in text
     assert "--mgmt-external-access" in text
     assert "--lab-name demo-lab" in text
+
+
+def test_parse_run_routerd_lab_metadata_success() -> None:
+    module = _load_module()
+    output = (
+        "topology_file: /tmp/demo.clab.yaml\n"
+        "configs_dir: /tmp/demo_cfg\n"
+        "deploy_env_file: /tmp/demo.env\n"
+        "lab_name: demo-lab\n"
+    )
+    parsed = module.parse_run_routerd_lab_metadata(output, context="test")
+    assert parsed["topology_file"] == "/tmp/demo.clab.yaml"
+    assert parsed["configs_dir"] == "/tmp/demo_cfg"
+    assert parsed["deploy_env_file"] == "/tmp/demo.env"
+    assert parsed["lab_name"] == "demo-lab"
+
+
+def test_parse_run_routerd_lab_metadata_missing_key() -> None:
+    module = _load_module()
+    with pytest.raises(RuntimeError):
+        module.parse_run_routerd_lab_metadata(
+            "topology_file: /tmp/demo.clab.yaml\nlab_name: demo-lab\n",
+            context="test",
+        )
+
+
+def test_build_run_routerd_lab_cmd_includes_irp_params() -> None:
+    module = _load_module()
+    cmd = module.build_run_routerd_lab_cmd(
+        protocol="irp",
+        topology_key="profile",
+        topology_value="line3",
+        use_sudo=False,
+        config={},
+        precheck_min_routes=0,
+        precheck_max_wait_s=20,
+        precheck_poll_interval_s=1.0,
+        precheck_tail_lines=120,
+        routing_alpha=1.5,
+        routing_beta=2.5,
+        lab_name_override="my-lab",
+    )
+    text = " ".join(cmd)
+    assert "--protocol irp" in text
+    assert "--profile line3" in text
+    assert "--routing-alpha 1.5" in text
+    assert "--routing-beta 2.5" in text
+    assert "--no-sudo" in text
+    assert "--lab-name my-lab" in text
+
+
+def test_write_standard_run_artifacts(tmp_path: Path) -> None:
+    module = _load_module()
+    topology_file = tmp_path / "demo.clab.yaml"
+    topology_file.write_text("name: demo\n", encoding="utf-8")
+
+    out_dir = module.write_standard_run_artifacts(
+        run_dir=tmp_path / "run_demo",
+        input_config={"protocol": "ospf"},
+        topology_file=topology_file,
+        traffic_payload={"mode": "scenario"},
+        metrics_payload={"ok": True},
+        summary_lines=["- mode: scenario"],
+    )
+    assert (out_dir / "config.yaml").is_file()
+    assert (out_dir / "topology.yaml").is_file()
+    assert (out_dir / "traffic.yaml").is_file()
+    assert (out_dir / "logs").is_dir()
+    assert (out_dir / "metrics.json").is_file()
+    assert (out_dir / "summary.md").is_file()
+
+    metrics = json.loads((out_dir / "metrics.json").read_text(encoding="utf-8"))
+    assert metrics["ok"] is True

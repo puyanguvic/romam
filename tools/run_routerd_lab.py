@@ -7,11 +7,14 @@ import os
 import shutil
 import subprocess
 import sys
+from dataclasses import dataclass
 from pathlib import Path
 
 import yaml
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
+if str(REPO_ROOT) not in sys.path:
+    sys.path.insert(0, str(REPO_ROOT))
 SRC_DIR = REPO_ROOT / "src"
 GO_TRAFFIC_SRC_DIR = REPO_ROOT / "src" / "applications_go"
 GO_TRAFFIC_BIN_PATH = REPO_ROOT / "bin" / "traffic_app"
@@ -21,24 +24,39 @@ RUST_NODE_SUPERVISOR_BIN_PATH = REPO_ROOT / "bin" / "node_supervisor"
 if str(SRC_DIR) not in sys.path:
     sys.path.insert(0, str(SRC_DIR))
 
-TOPOLOGY_LINE_RE = "topology_file:"
-LAB_NAME_LINE_RE = "lab_name:"
-CONFIGS_DIR_LINE_RE = "configs_dir:"
-DEPLOY_ENV_LINE_RE = "deploy_env_file:"
+from tools.common import (
+    parse_env_file,
+    parse_keyed_output,
+    run_clab_command,
+)
+from tools.common import (
+    run_command as common_run_command,
+)
+
+GENERATOR_KEYS = ("topology_file", "configs_dir", "deploy_env_file", "lab_name")
+
+
+@dataclass(frozen=True)
+class GeneratedLabContext:
+    topology_file: Path
+    configs_dir: Path
+    deploy_env_file: Path
+    lab_name: str
+    deploy_env: dict[str, str]
 
 
 def parse_args() -> tuple[argparse.Namespace, list[str]]:
     parser = argparse.ArgumentParser(
         description=(
-            "Generate routerd lab configs, deploy source topology with containerlab, "
-            "bootstrap routerd in containers, run health check, and optionally destroy lab."
+            "Generate routerd lab configs, deploy with containerlab, "
+            "bootstrap binaries in containers, run health checks, and optionally destroy the lab."
         )
     )
     parser.add_argument(
         "--sudo",
         action=argparse.BooleanOptionalAction,
         default=True,
-        help="Use sudo for containerlab/docker operations (default: enabled).",
+        help="Use sudo for containerlab/docker commands (default: enabled).",
     )
     parser.add_argument(
         "--keep-lab",
@@ -49,30 +67,30 @@ def parse_args() -> tuple[argparse.Namespace, list[str]]:
         "--check-tail-lines",
         type=int,
         default=60,
-        help="Tail lines read from /tmp/routerd.log per node during health check.",
+        help="Number of tail lines read from /tmp/routerd.log per node during health checks.",
     )
     parser.add_argument(
         "--check-max-wait-s",
         type=float,
         default=10.0,
-        help="Max wait seconds for convergence evidence during health check.",
+        help="Maximum wait time in seconds for convergence evidence during health checks.",
     )
     parser.add_argument(
         "--check-poll-interval-s",
         type=float,
         default=1.0,
-        help="Health check polling interval in seconds.",
+        help="Health-check polling interval in seconds.",
     )
     parser.add_argument(
         "--check-min-routes",
         type=int,
         default=-1,
-        help="Minimum route count expected during health check (-1 means n_nodes-1).",
+        help="Minimum route count expected during health checks (-1 means n_nodes-1).",
     )
     parser.add_argument(
         "--check-output-json",
         default="",
-        help="Optional path to write health-check JSON report.",
+        help="Path to health-check JSON report (optional).",
     )
     args, gen_args = parser.parse_known_args()
     return args, gen_args
@@ -89,14 +107,12 @@ def run_cmd(
     env: dict[str, str] | None = None,
     cwd: Path | None = None,
 ) -> str:
-    result = subprocess.run(
+    result = common_run_command(
         cmd,
         check=check,
-        text=True,
-        stdout=subprocess.PIPE if capture_output else None,
-        stderr=subprocess.STDOUT if capture_output else None,
+        capture_output=capture_output,
         env=env,
-        cwd=str(cwd) if cwd is not None else None,
+        cwd=cwd,
     )
     return (result.stdout or "").strip()
 
@@ -111,47 +127,49 @@ def infer_protocol(gen_args: list[str]) -> str:
 
 
 def parse_generator_output(text: str) -> tuple[Path, Path, Path, str]:
-    topology_path: Path | None = None
-    configs_dir: Path | None = None
-    deploy_env_file: Path | None = None
-    lab_name = ""
-
-    for line in text.splitlines():
-        stripped = line.strip()
-        if stripped.startswith(TOPOLOGY_LINE_RE):
-            topology_path = Path(stripped.split(":", maxsplit=1)[1].strip()).expanduser().resolve()
-        elif stripped.startswith(CONFIGS_DIR_LINE_RE):
-            configs_dir = Path(stripped.split(":", maxsplit=1)[1].strip()).expanduser().resolve()
-        elif stripped.startswith(DEPLOY_ENV_LINE_RE):
-            deploy_env_file = (
-                Path(stripped.split(":", maxsplit=1)[1].strip()).expanduser().resolve()
-            )
-        elif stripped.startswith(LAB_NAME_LINE_RE):
-            lab_name = stripped.split(":", maxsplit=1)[1].strip()
-
-    if topology_path is None:
-        raise RuntimeError("Cannot parse topology_file from generate_routerd_lab.py output")
-    if configs_dir is None:
-        raise RuntimeError("Cannot parse configs_dir from generate_routerd_lab.py output")
-    if deploy_env_file is None:
-        raise RuntimeError("Cannot parse deploy_env_file from generate_routerd_lab.py output")
+    parsed = parse_keyed_output(text, keys=GENERATOR_KEYS)
+    missing = [key for key in GENERATOR_KEYS if not parsed.get(key)]
+    if missing:
+        raise RuntimeError(
+            "Cannot parse generate_routerd_lab.py output; missing: "
+            + ", ".join(missing)
+        )
+    topology_path = Path(parsed["topology_file"]).expanduser().resolve()
+    configs_dir = Path(parsed["configs_dir"]).expanduser().resolve()
+    deploy_env_file = Path(parsed["deploy_env_file"]).expanduser().resolve()
+    lab_name = parsed["lab_name"]
     if not lab_name:
         raise RuntimeError("Cannot parse lab_name from generate_routerd_lab.py output")
-
     return topology_path, configs_dir, deploy_env_file, lab_name
 
 
-def parse_env_file(path: Path) -> dict[str, str]:
-    out: dict[str, str] = {}
-    for line in path.read_text(encoding="utf-8").splitlines():
-        text = line.strip()
-        if not text or text.startswith("#"):
-            continue
-        if "=" not in text:
-            continue
-        key, value = text.split("=", maxsplit=1)
-        out[key.strip()] = value.strip()
-    return out
+def run_generate_routerd_lab(
+    *,
+    gen_args: list[str],
+    use_sudo: bool,
+) -> GeneratedLabContext:
+    gen_cmd = [
+        sys.executable,
+        str(REPO_ROOT / "tools" / "generate_routerd_lab.py"),
+        *gen_args,
+    ]
+    if use_sudo:
+        gen_cmd.append("--sudo")
+
+    print(f"[1/7] Generate lab configs: {' '.join(gen_cmd)}")
+    generated_text = run_cmd(gen_cmd, check=True, capture_output=True)
+    print(generated_text)
+
+    topology_file, configs_dir, deploy_env_file, lab_name = parse_generator_output(generated_text)
+    deploy_env = parse_env_file(deploy_env_file)
+    deploy_env["CLAB_LAB_NAME"] = lab_name
+    return GeneratedLabContext(
+        topology_file=topology_file,
+        configs_dir=configs_dir,
+        deploy_env_file=deploy_env_file,
+        lab_name=lab_name,
+        deploy_env=deploy_env,
+    )
 
 
 def resolve_containerlab_bin() -> str:
@@ -194,19 +212,12 @@ def run_containerlab(
     env_overrides: dict[str, str],
     check: bool,
 ) -> None:
-    if use_sudo:
-        export_vars = [f"{key}={value}" for key, value in env_overrides.items()]
-        run_cmd(
-            ["sudo", "env", *export_vars, *cmd],
-            check=check,
-            capture_output=False,
-        )
-        return
-    run_cmd(
+    run_clab_command(
         cmd,
+        use_sudo=use_sudo,
+        env_overrides=env_overrides,
         check=check,
         capture_output=False,
-        env={**os.environ, **env_overrides},
     )
 
 
@@ -235,24 +246,23 @@ def build_traffic_app_binary() -> Path | None:
         "GOARCH": go_arch,
         "CGO_ENABLED": cgo_enabled,
     }
-    try:
-        output = run_cmd(
-            build_cmd,
-            check=True,
-            capture_output=True,
-            env=build_env,
-            cwd=GO_TRAFFIC_SRC_DIR,
-        )
-    except subprocess.CalledProcessError as exc:
+    build_proc = common_run_command(
+        build_cmd,
+        check=False,
+        capture_output=True,
+        env=build_env,
+        cwd=GO_TRAFFIC_SRC_DIR,
+    )
+    output = (build_proc.stdout or "").strip()
+    if build_proc.returncode != 0:
         if GO_TRAFFIC_BIN_PATH.exists():
             print("[warn] go traffic app build failed; using existing prebuilt binary")
             return GO_TRAFFIC_BIN_PATH
-        build_output = (exc.stdout or "").strip()
         raise RuntimeError(
             "go traffic app build failed.\n"
-            f"{build_output}\n"
+            f"{output}\n"
             "fix build errors or run `make build-traffic-app-go` first"
-        ) from exc
+        )
 
     if output:
         print(output)
@@ -284,28 +294,27 @@ def build_rust_router_binaries() -> tuple[Path, Path]:
         or "x86_64-unknown-linux-musl"
     )
     build_cmd = [cargo_bin, "build", f"--{target_profile}", "--target", target_triple]
-    try:
-        output = run_cmd(
-            build_cmd,
-            check=True,
-            capture_output=True,
-            cwd=RUST_ROUTERD_CRATE_DIR,
-        )
-    except subprocess.CalledProcessError as exc:
-        build_output = (exc.stdout or "").strip()
+    build_proc = common_run_command(
+        build_cmd,
+        check=False,
+        capture_output=True,
+        cwd=RUST_ROUTERD_CRATE_DIR,
+    )
+    output = (build_proc.stdout or "").strip()
+    if build_proc.returncode != 0:
         target_hint = ""
-        missing_target = "target may not be installed" in build_output.lower()
-        missing_std = "can't find crate for `std`" in build_output.lower()
+        missing_target = "target may not be installed" in output.lower()
+        missing_std = "can't find crate for `std`" in output.lower()
         if missing_target or missing_std:
             target_hint = (
                 f"\nInstall target first: rustup target add {target_triple}"
             )
         raise RuntimeError(
             "rust build failed.\n"
-            f"{build_output}\n"
+            f"{output}\n"
             f"{target_hint}\n"
             "fix build errors or run `make build-routerd-rs` first"
-        ) from exc
+        )
 
     if output:
         print(output)
@@ -587,21 +596,15 @@ def main() -> int:
     args, gen_args = parse_args()
     protocol = infer_protocol(gen_args)
 
-    gen_cmd = [
-        sys.executable,
-        str(REPO_ROOT / "tools" / "generate_routerd_lab.py"),
-        *gen_args,
-    ]
-    if args.sudo:
-        gen_cmd.append("--sudo")
-
-    print(f"[1/7] Generate lab configs: {' '.join(gen_cmd)}")
-    generated_text = run_cmd(gen_cmd, check=True, capture_output=True)
-    print(generated_text)
-
-    topology_file, configs_dir, deploy_env_file, lab_name = parse_generator_output(generated_text)
-    deploy_env = parse_env_file(deploy_env_file)
-    deploy_env["CLAB_LAB_NAME"] = lab_name
+    generated = run_generate_routerd_lab(
+        gen_args=gen_args,
+        use_sudo=bool(args.sudo),
+    )
+    topology_file = generated.topology_file
+    configs_dir = generated.configs_dir
+    deploy_env_file = generated.deploy_env_file
+    lab_name = generated.lab_name
+    deploy_env = dict(generated.deploy_env)
     clab_bin = resolve_containerlab_bin()
 
     deploy_cmd = [

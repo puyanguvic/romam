@@ -10,7 +10,6 @@ import os
 import re
 import shlex
 import shutil
-import subprocess
 import sys
 import time
 from dataclasses import asdict, dataclass
@@ -22,12 +21,15 @@ from typing import Any
 import yaml
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
+if str(REPO_ROOT) not in sys.path:
+    sys.path.insert(0, str(REPO_ROOT))
 SRC_DIR = REPO_ROOT / "src"
 if str(SRC_DIR) not in sys.path:
     sys.path.insert(0, str(SRC_DIR))
 
 from clab.clab_loader import ClabTopology, load_clab_topology
 from irp.utils.io import dump_json, ensure_dir, now_tag
+from tools.common import parse_env_file, parse_keyed_output, run_command
 
 KNOWN_KEYS = ("topology_file", "configs_dir", "deploy_env_file", "lab_name")
 TOPOLOGY_ALIAS = {
@@ -64,19 +66,29 @@ class AppSpec:
     cpu_affinity: str
 
 
+@dataclass
+class RunRouterdLabResult:
+    topology_file: Path
+    config_dir: Path
+    deploy_env_file: Path
+    lab_name: str
+    deploy_env: dict[str, str]
+    stdout: str
+
+
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(
         description=(
-            "Run unified routing experiment from a single YAML config: "
-            "scenario mode (apps/faults/polling) or convergence benchmark mode "
-            "(repeated deploy + ping probes + summary)."
+            "Run unified routing experiments from a single YAML config. "
+            "Supports scenario mode (apps/faults/polling) and "
+            "convergence_benchmark mode (repeated deploy + ping probes + summary)."
         )
     )
-    parser.add_argument("--config", required=True, help="Path to unified experiment YAML.")
+    parser.add_argument("--config", required=True, help="Path to unified experiment YAML config.")
     parser.add_argument(
         "--output-json",
         default="",
-        help="Optional output report path. Default under results/runs/unified_experiments/.",
+        help="Path to output JSON report (default: under results/runs/unified_experiments/).",
     )
     parser.add_argument(
         "--sudo",
@@ -88,58 +100,25 @@ def parse_args() -> argparse.Namespace:
         "--poll-interval-s",
         type=float,
         default=1.0,
-        help="Sampling interval for management APIs and app supervision.",
+        help="Sampling interval in seconds for management APIs and app supervision.",
     )
     parser.add_argument(
         "--keep-lab",
         action="store_true",
-        help="Keep lab after experiment (skip destroy).",
+        help="Keep the lab after the experiment (skip destroy).",
     )
     return parser.parse_args()
 
 
-def run_cmd(
-    cmd: list[str],
-    *,
-    check: bool = True,
-    capture_output: bool = True,
-    env: dict[str, str] | None = None,
-) -> subprocess.CompletedProcess[str]:
-    proc = subprocess.run(
-        cmd,
-        check=False,
-        text=True,
-        stdout=subprocess.PIPE if capture_output else None,
-        stderr=subprocess.STDOUT if capture_output else None,
-        env=env,
-    )
-    if check and proc.returncode != 0:
+def parse_run_routerd_lab_metadata(text: str, *, context: str) -> dict[str, str]:
+    parsed = parse_keyed_output(text, keys=KNOWN_KEYS)
+    missing = [key for key in KNOWN_KEYS if not parsed.get(key)]
+    if missing:
         raise RuntimeError(
-            f"Command failed ({proc.returncode}): {' '.join(cmd)}\n{(proc.stdout or '').strip()}"
+            f"{context}: failed to parse run_routerd_lab output, "
+            f"missing keys: {', '.join(missing)}"
         )
-    return proc
-
-
-def parse_keyed_output(text: str) -> dict[str, str]:
-    out: dict[str, str] = {}
-    for line in text.splitlines():
-        stripped = line.strip()
-        for key in KNOWN_KEYS:
-            prefix = f"{key}:"
-            if stripped.startswith(prefix):
-                out[key] = stripped[len(prefix) :].strip()
-    return out
-
-
-def load_env_file(path: Path) -> dict[str, str]:
-    out: dict[str, str] = {}
-    for line in path.read_text(encoding="utf-8").splitlines():
-        text = line.strip()
-        if not text or text.startswith("#") or "=" not in text:
-            continue
-        key, value = text.split("=", maxsplit=1)
-        out[key.strip()] = value.strip()
-    return out
+    return parsed
 
 
 def resolve_topology_spec(spec: str) -> tuple[str, str]:
@@ -191,9 +170,9 @@ def run_containerlab_destroy(
     ]
     if use_sudo:
         exports = [f"{k}={v}" for k, v in deploy_env.items()]
-        run_cmd(["sudo", "env", *exports, *destroy_cmd], check=False, capture_output=False)
+        run_command(["sudo", "env", *exports, *destroy_cmd], check=False, capture_output=False)
         return
-    run_cmd(
+    run_command(
         destroy_cmd,
         check=False,
         capture_output=False,
@@ -241,7 +220,7 @@ def container_name(lab_name: str, node_name: str) -> str:
 def fetch_mgmt_json(*, use_sudo: bool, container: str, port: int, path: str) -> dict[str, Any]:
     if port <= 0:
         return {}
-    text = run_cmd(
+    text = run_command(
         with_sudo(
             [
                 "docker",
@@ -272,7 +251,7 @@ def fetch_mgmt_json(*, use_sudo: bool, container: str, port: int, path: str) -> 
 
 
 def fetch_supervisor_state(*, use_sudo: bool, container: str) -> dict[str, Any]:
-    text = run_cmd(
+    text = run_command(
         with_sudo(
             [
                 "docker",
@@ -328,6 +307,13 @@ def sanitize_label(value: str, max_len: int = 48) -> str:
     return (text or "lab")[:max_len]
 
 
+def validate_protocol(protocol: str) -> str:
+    normalized = str(protocol).strip().lower()
+    if normalized not in {"ospf", "rip", "irp"}:
+        raise ValueError("protocol must be one of: ospf, rip, irp")
+    return normalized
+
+
 def append_runlab_generator_args(runlab_cmd: list[str], config: dict[str, Any]) -> None:
     lab_cfg = dict(config.get("lab", {}) or {})
     lab_name = str(lab_cfg.get("lab_name", config.get("lab_name", ""))).strip()
@@ -366,6 +352,120 @@ def append_runlab_generator_args(runlab_cmd: list[str], config: dict[str, Any]) 
         runlab_cmd.append("--mgmt-external-access")
 
 
+def build_run_routerd_lab_cmd(
+    *,
+    protocol: str,
+    topology_key: str,
+    topology_value: str,
+    use_sudo: bool,
+    config: dict[str, Any],
+    precheck_min_routes: int,
+    precheck_max_wait_s: float,
+    precheck_poll_interval_s: float,
+    precheck_tail_lines: int,
+    routing_alpha: float | None = None,
+    routing_beta: float | None = None,
+    lab_name_override: str = "",
+) -> list[str]:
+    runlab_cmd = [
+        sys.executable,
+        str(REPO_ROOT / "tools" / "run_routerd_lab.py"),
+        "--protocol",
+        protocol,
+        "--keep-lab",
+        "--check-min-routes",
+        str(int(precheck_min_routes)),
+        "--check-max-wait-s",
+        str(float(precheck_max_wait_s)),
+        "--check-poll-interval-s",
+        str(float(precheck_poll_interval_s)),
+        "--check-tail-lines",
+        str(int(precheck_tail_lines)),
+        "--sudo" if use_sudo else "--no-sudo",
+    ]
+    if topology_key == "profile":
+        runlab_cmd.extend(["--profile", topology_value])
+    else:
+        runlab_cmd.extend(["--topology-file", topology_value])
+    if protocol == "irp" and routing_alpha is not None and routing_beta is not None:
+        runlab_cmd.extend([
+            "--routing-alpha",
+            str(float(routing_alpha)),
+            "--routing-beta",
+            str(float(routing_beta)),
+        ])
+    append_runlab_generator_args(runlab_cmd, config)
+    if lab_name_override.strip():
+        runlab_cmd.extend(["--lab-name", lab_name_override.strip()])
+    return runlab_cmd
+
+
+def launch_run_routerd_lab(
+    *,
+    cmd: list[str],
+    stage_title: str,
+    context: str,
+) -> RunRouterdLabResult:
+    print(stage_title)
+    print("cmd:", " ".join(shlex.quote(x) for x in cmd))
+    runlab_proc = run_command(cmd, check=False, capture_output=True)
+    runlab_output = runlab_proc.stdout or ""
+    if runlab_output.strip():
+        print(runlab_output.strip())
+    if runlab_proc.returncode != 0:
+        raise RuntimeError(
+            f"{context}: run_routerd_lab failed ({runlab_proc.returncode})"
+        )
+
+    parsed = parse_run_routerd_lab_metadata(runlab_output, context=context)
+    topology_file = Path(parsed["topology_file"]).expanduser().resolve()
+    config_dir = Path(parsed["configs_dir"]).expanduser().resolve()
+    deploy_env_file = Path(parsed["deploy_env_file"]).expanduser().resolve()
+    lab_name = parsed["lab_name"]
+    deploy_env = parse_env_file(deploy_env_file)
+    deploy_env["CLAB_LAB_NAME"] = lab_name
+    return RunRouterdLabResult(
+        topology_file=topology_file,
+        config_dir=config_dir,
+        deploy_env_file=deploy_env_file,
+        lab_name=lab_name,
+        deploy_env=deploy_env,
+        stdout=runlab_output,
+    )
+
+
+def write_standard_run_artifacts(
+    *,
+    run_dir: Path,
+    input_config: dict[str, Any],
+    topology_file: Path,
+    traffic_payload: dict[str, Any],
+    metrics_payload: dict[str, Any],
+    summary_lines: list[str],
+) -> Path:
+    out_dir = ensure_dir(run_dir)
+    (out_dir / "config.yaml").write_text(
+        yaml.safe_dump(input_config, sort_keys=False),
+        encoding="utf-8",
+    )
+    if topology_file.exists():
+        shutil.copy2(topology_file, out_dir / "topology.yaml")
+    else:
+        (out_dir / "topology.yaml").write_text(
+            yaml.safe_dump({"missing_topology_file": str(topology_file)}, sort_keys=False),
+            encoding="utf-8",
+        )
+    (out_dir / "traffic.yaml").write_text(
+        yaml.safe_dump(traffic_payload, sort_keys=False),
+        encoding="utf-8",
+    )
+    ensure_dir(out_dir / "logs")
+    dump_json(out_dir / "metrics.json", metrics_payload)
+    summary_text = "\n".join(["# Summary", *[str(line) for line in summary_lines]]).rstrip() + "\n"
+    (out_dir / "summary.md").write_text(summary_text, encoding="utf-8")
+    return out_dir
+
+
 def apply_link_delay_for_all_links(
     *,
     use_sudo: bool,
@@ -381,7 +481,7 @@ def apply_link_delay_for_all_links(
             (str(link.right_node), str(link.right_iface)),
         ]:
             container = container_name(lab_name, node)
-            run_cmd(
+            run_command(
                 with_sudo(
                     ["docker", "exec", container, "ip", "link", "set", "dev", iface, "up"],
                     use_sudo,
@@ -389,7 +489,7 @@ def apply_link_delay_for_all_links(
                 check=True,
                 capture_output=True,
             )
-            run_cmd(
+            run_command(
                 with_sudo(
                     [
                         "docker",
@@ -445,7 +545,7 @@ def run_link_ping_probes(
             )
             continue
 
-        ping_proc = run_cmd(
+        ping_proc = run_command(
             with_sudo(
                 [
                     "docker",
@@ -576,7 +676,7 @@ def apply_link_down_fault(
             ],
             use_sudo,
         )
-        proc = run_cmd(cmd, check=False)
+        proc = run_command(cmd, check=False)
         if proc.returncode != 0:
             errors.append((proc.stdout or "").strip() or f"failed on {node}:{iface}")
 
@@ -1149,7 +1249,7 @@ def configure_node_supervisor_apps(
         )
 
         container = container_name(lab_name, node)
-        run_cmd(
+        run_command(
             with_sudo(
                 [
                     "docker",
@@ -1177,7 +1277,7 @@ def configure_node_supervisor_apps(
             ">/tmp/node_supervisor.log 2>&1 & echo $! >/tmp/node_supervisor.pid; "
             "cat /tmp/node_supervisor.pid"
         )
-        restart_proc = run_cmd(
+        restart_proc = run_command(
             with_sudo(
                 ["docker", "exec", container, "sh", "-lc", restart_cmd],
                 use_sudo,
@@ -1230,9 +1330,7 @@ def run_scenario_mode(
     config: dict[str, Any],
 ) -> int:
     topology_key, topology_value = resolve_topology_spec(str(config.get("topology", "")))
-    protocol = str(config.get("protocol", "ospf")).strip().lower()
-    if protocol not in {"ospf", "rip", "irp"}:
-        raise ValueError("protocol must be one of: ospf, rip, irp")
+    protocol = validate_protocol(str(config.get("protocol", "ospf")))
 
     routing = dict(config.get("routing", {}) or {})
     routing_alpha = float(routing.get("alpha", 1.0))
@@ -1241,60 +1339,28 @@ def run_scenario_mode(
     duration_s = max(1.0, float(config.get("duration_s", 60.0)))
     poll_interval_s = max(0.2, float(args.poll_interval_s))
 
-    runlab_cmd = [
-        sys.executable,
-        str(REPO_ROOT / "tools" / "run_routerd_lab.py"),
-        "--protocol",
-        protocol,
-        "--keep-lab",
-        "--check-min-routes",
-        "0",
-        "--check-max-wait-s",
-        str(float(config.get("precheck_max_wait_s", 20.0))),
-        "--check-poll-interval-s",
-        "1",
-        "--check-tail-lines",
-        str(int(config.get("precheck_tail_lines", 120))),
-        "--sudo" if bool(args.sudo) else "--no-sudo",
-    ]
-    if topology_key == "profile":
-        runlab_cmd.extend(["--profile", topology_value])
-    else:
-        runlab_cmd.extend(["--topology-file", topology_value])
-    if protocol == "irp":
-        runlab_cmd.extend([
-            "--routing-alpha",
-            str(routing_alpha),
-            "--routing-beta",
-            str(routing_beta),
-        ])
-    append_runlab_generator_args(runlab_cmd, config)
-
-    print("[1/3] deploy + bootstrap lab")
-    print("cmd:", " ".join(shlex.quote(x) for x in runlab_cmd))
-    runlab_proc = run_cmd(runlab_cmd, check=False)
-    runlab_output = runlab_proc.stdout or ""
-    if runlab_output.strip():
-        print(runlab_output.strip())
-
-    parsed = parse_keyed_output(runlab_output)
-    missing = [k for k in KNOWN_KEYS if not parsed.get(k)]
-    if missing:
-        raise RuntimeError(
-            "failed to parse run_routerd_lab output, missing keys: " + ", ".join(missing)
-        )
-
-    topology_file = Path(parsed["topology_file"]).expanduser().resolve()
-    config_dir = Path(parsed["configs_dir"]).expanduser().resolve()
-    deploy_env_file = Path(parsed["deploy_env_file"]).expanduser().resolve()
-    lab_name = parsed["lab_name"]
-    deploy_env = load_env_file(deploy_env_file)
-    deploy_env["CLAB_LAB_NAME"] = lab_name
-
-    if runlab_proc.returncode != 0:
-        raise RuntimeError(
-            f"run_routerd_lab failed ({runlab_proc.returncode}) before experiment start"
-        )
+    runlab_cmd = build_run_routerd_lab_cmd(
+        protocol=protocol,
+        topology_key=topology_key,
+        topology_value=topology_value,
+        use_sudo=bool(args.sudo),
+        config=config,
+        precheck_min_routes=0,
+        precheck_max_wait_s=float(config.get("precheck_max_wait_s", 20.0)),
+        precheck_poll_interval_s=1.0,
+        precheck_tail_lines=int(config.get("precheck_tail_lines", 120)),
+        routing_alpha=routing_alpha,
+        routing_beta=routing_beta,
+    )
+    runlab = launch_run_routerd_lab(
+        cmd=runlab_cmd,
+        stage_title="[1/3] deploy + bootstrap lab",
+        context="scenario mode",
+    )
+    topology_file = runlab.topology_file
+    config_dir = runlab.config_dir
+    lab_name = runlab.lab_name
+    deploy_env = runlab.deploy_env
 
     topo = load_clab_topology(topology_file)
     node_ports: dict[str, int] = {
@@ -1523,14 +1589,50 @@ def run_scenario_mode(
         "samples": samples,
     }
 
+    run_tag = now_tag().lower()
     output_json = str(args.output_json).strip()
     if not output_json:
         out_dir = ensure_dir(REPO_ROOT / "results" / "runs" / "unified_experiments" / lab_name)
-        output_json = str(out_dir / f"report_{now_tag().lower()}.json")
+        output_json = str(out_dir / f"report_{run_tag}.json")
 
-    dump_json(Path(output_json), report)
-    print(f"report_json: {output_json}")
+    output_path = Path(output_json).expanduser().resolve()
+    dump_json(output_path, report)
+    print(f"report_json: {output_path}")
     print(f"initial_converged_at_s: {converged_at_s}")
+
+    traffic_payload = {
+        "mode": apps_mode,
+        "traffic_config": dict(config.get("traffic", {}) or {}),
+        "traffic_summary": traffic_summary,
+        "apps": [asdict(spec) for spec in app_specs],
+    }
+    artifact_dir = write_standard_run_artifacts(
+        run_dir=(
+            REPO_ROOT
+            / "results"
+            / "runs"
+            / "unified_experiments"
+            / lab_name
+            / f"run_{run_tag}"
+        ),
+        input_config=config,
+        topology_file=topology_file,
+        traffic_payload=traffic_payload,
+        metrics_payload=report,
+        summary_lines=[
+            "- mode: scenario",
+            f"- protocol: {protocol}",
+            f"- topology: {topology_file.name}",
+            f"- duration_s: {duration_s}",
+            f"- poll_interval_s: {poll_interval_s}",
+            f"- apps_mode: {apps_mode}",
+            f"- app_count: {len(app_specs)}",
+            f"- faults_applied: {len(applied_faults)}",
+            f"- initial_converged_at_s: {converged_at_s}",
+            f"- report_json: {output_path}",
+        ],
+    )
+    print(f"artifacts_dir: {artifact_dir}")
 
     if not bool(args.keep_lab):
         run_containerlab_destroy(
@@ -1593,9 +1695,10 @@ def run_convergence_benchmark_mode(
     config: dict[str, Any],
 ) -> int:
     topology_key, topology_value = resolve_topology_spec(str(config.get("topology", "")))
-    protocol = str(config.get("protocol", "ospf")).strip().lower() or "ospf"
-    if protocol not in {"ospf", "rip", "irp"}:
-        raise ValueError("protocol must be one of: ospf, rip, irp")
+    protocol = validate_protocol(str(config.get("protocol", "ospf")) or "ospf")
+    routing = dict(config.get("routing", {}) or {})
+    routing_alpha = float(routing.get("alpha", 1.0))
+    routing_beta = float(routing.get("beta", 2.0))
 
     bench_cfg = dict(config.get("benchmark", {}) or {})
     repeats = max(1, int(bench_cfg.get("repeats", config.get("repeats", 1))))
@@ -1622,67 +1725,40 @@ def run_convergence_benchmark_mode(
             "results/runs/unified_experiments/convergence_benchmark",
         )
     ).strip() or "results/runs/unified_experiments/convergence_benchmark"
+    run_output_root = ensure_dir(REPO_ROOT / run_output_dir)
 
     rows: list[dict[str, Any]] = []
     topologies_seen: list[str] = []
 
     for run_idx in range(1, repeats + 1):
-        runlab_cmd = [
-            sys.executable,
-            str(REPO_ROOT / "tools" / "run_routerd_lab.py"),
-            "--protocol",
-            protocol,
-            "--keep-lab",
-            "--check-min-routes",
-            str(precheck_min_routes),
-            "--check-max-wait-s",
-            str(precheck_max_wait_s),
-            "--check-poll-interval-s",
-            str(precheck_poll_interval_s),
-            "--check-tail-lines",
-            str(precheck_tail_lines),
-            "--sudo" if bool(args.sudo) else "--no-sudo",
-        ]
-        if topology_key == "profile":
-            runlab_cmd.extend(["--profile", topology_value])
-        else:
-            runlab_cmd.extend(["--topology-file", topology_value])
-        append_runlab_generator_args(runlab_cmd, config)
+        runlab_cmd = build_run_routerd_lab_cmd(
+            protocol=protocol,
+            topology_key=topology_key,
+            topology_value=topology_value,
+            use_sudo=bool(args.sudo),
+            config=config,
+            precheck_min_routes=precheck_min_routes,
+            precheck_max_wait_s=precheck_max_wait_s,
+            precheck_poll_interval_s=precheck_poll_interval_s,
+            precheck_tail_lines=precheck_tail_lines,
+            routing_alpha=routing_alpha,
+            routing_beta=routing_beta,
+        )
         if lab_name_prefix and not explicit_lab_name:
             auto_lab_name = (
                 f"{sanitize_label(lab_name_prefix, 28)}-r{run_idx}-{now_tag().lower()}"
             )
             runlab_cmd.extend(["--lab-name", auto_lab_name])
 
-        topology_file: Path | None = None
-        lab_name = ""
-        deploy_env: dict[str, str] = {}
+        runlab: RunRouterdLabResult | None = None
         try:
-            print(f"[run {run_idx}/{repeats}] deploy + bootstrap + precheck")
-            print("cmd:", " ".join(shlex.quote(x) for x in runlab_cmd))
-            runlab_proc = run_cmd(runlab_cmd, check=False, capture_output=True)
-            runlab_output = runlab_proc.stdout or ""
-            if runlab_output.strip():
-                print(runlab_output.strip())
-            parsed = parse_keyed_output(runlab_output)
-            missing = [k for k in KNOWN_KEYS if not parsed.get(k)]
-            if missing:
-                raise RuntimeError(
-                    "failed to parse run_routerd_lab output, missing keys: "
-                    + ", ".join(missing)
-                )
-            if runlab_proc.returncode != 0:
-                raise RuntimeError(
-                    f"run_routerd_lab failed ({runlab_proc.returncode}) in benchmark run {run_idx}"
-                )
-
-            topology_file = Path(parsed["topology_file"]).expanduser().resolve()
-            deploy_env_file = Path(parsed["deploy_env_file"]).expanduser().resolve()
-            lab_name = parsed["lab_name"]
-            deploy_env = load_env_file(deploy_env_file)
-            deploy_env["CLAB_LAB_NAME"] = lab_name
-            topo = load_clab_topology(topology_file)
-            topologies_seen.append(topology_file.name.removesuffix(".clab.yaml"))
+            runlab = launch_run_routerd_lab(
+                cmd=runlab_cmd,
+                stage_title=f"[run {run_idx}/{repeats}] deploy + bootstrap + precheck",
+                context=f"benchmark run {run_idx}",
+            )
+            topo = load_clab_topology(runlab.topology_file)
+            topologies_seen.append(runlab.topology_file.name.removesuffix(".clab.yaml"))
 
             if startup_wait_s > 0:
                 time.sleep(startup_wait_s)
@@ -1690,13 +1766,13 @@ def run_convergence_benchmark_mode(
             print(f"[run {run_idx}/{repeats}] apply link delay + ping probes")
             apply_link_delay_for_all_links(
                 use_sudo=bool(args.sudo),
-                lab_name=lab_name,
+                lab_name=runlab.lab_name,
                 topo=topo,
                 delay_ms=link_delay_ms,
             )
             probes, successful, failed, rtts = run_link_ping_probes(
                 use_sudo=bool(args.sudo),
-                lab_name=lab_name,
+                lab_name=runlab.lab_name,
                 topo=topo,
                 ping_count=ping_count,
                 ping_timeout_s=ping_timeout_s,
@@ -1709,17 +1785,17 @@ def run_convergence_benchmark_mode(
                 "run_idx": run_idx,
                 "protocol": protocol,
                 "n_nodes": len(topo.node_names),
-                "topology": topology_file.name.removesuffix(".clab.yaml"),
+                "topology": runlab.topology_file.name.removesuffix(".clab.yaml"),
                 "source_topology_file": str(topo.source_path),
                 "edge_count": len(topo.links),
                 "link_delay_ms": link_delay_ms,
-                "node_image": str(deploy_env.get("CLAB_NODE_IMAGE", "")),
-                "lab_name": lab_name,
-                "mgmt_network_name": str(deploy_env.get("CLAB_MGMT_NETWORK", "")),
-                "mgmt_ipv4_subnet": str(deploy_env.get("CLAB_MGMT_IPV4_SUBNET", "")),
-                "mgmt_ipv6_subnet": str(deploy_env.get("CLAB_MGMT_IPV6_SUBNET", "")),
+                "node_image": str(runlab.deploy_env.get("CLAB_NODE_IMAGE", "")),
+                "lab_name": runlab.lab_name,
+                "mgmt_network_name": str(runlab.deploy_env.get("CLAB_MGMT_NETWORK", "")),
+                "mgmt_ipv4_subnet": str(runlab.deploy_env.get("CLAB_MGMT_IPV4_SUBNET", "")),
+                "mgmt_ipv6_subnet": str(runlab.deploy_env.get("CLAB_MGMT_IPV6_SUBNET", "")),
                 "mgmt_external_access": str(
-                    deploy_env.get("CLAB_MGMT_EXTERNAL_ACCESS", "")
+                    runlab.deploy_env.get("CLAB_MGMT_EXTERNAL_ACCESS", "")
                 ).lower()
                 in {"1", "true", "yes"},
                 "successful_probes": successful,
@@ -1732,15 +1808,40 @@ def run_convergence_benchmark_mode(
             rows.append(row)
 
             run_payload = {**row, "probes": probes, "config_file": str(cfg_path)}
-            run_dir = ensure_dir(REPO_ROOT / run_output_dir)
-            dump_json(run_dir / f"{run_id}.json", run_payload)
+            dump_json(run_output_root / f"{run_id}.json", run_payload)
+            artifact_dir = write_standard_run_artifacts(
+                run_dir=run_output_root / run_id,
+                input_config=config,
+                topology_file=runlab.topology_file,
+                traffic_payload={
+                    "mode": "convergence_benchmark",
+                    "ping_count": ping_count,
+                    "ping_timeout_s": ping_timeout_s,
+                    "link_delay_ms": link_delay_ms,
+                },
+                metrics_payload=run_payload,
+                summary_lines=[
+                    "- mode: convergence_benchmark",
+                    f"- protocol: {protocol}",
+                    f"- run_idx: {run_idx}/{repeats}",
+                    f"- run_id: {run_id}",
+                    f"- topology: {runlab.topology_file.name}",
+                    f"- successful_probes: {successful}",
+                    f"- failed_probes: {failed}",
+                    f"- probe_success_ratio: {row['probe_success_ratio']}",
+                    f"- converged: {row['converged']}",
+                    f"- avg_rtt_ms: {row['avg_rtt_ms']}",
+                    f"- p95_rtt_ms: {row['p95_rtt_ms']}",
+                ],
+            )
+            print(f"[run {run_idx}/{repeats}] artifacts_dir: {artifact_dir}")
         finally:
-            if topology_file is not None and lab_name and deploy_env:
+            if runlab is not None:
                 if not bool(args.keep_lab):
                     run_containerlab_destroy(
-                        topology_file=topology_file,
-                        lab_name=lab_name,
-                        deploy_env=deploy_env,
+                        topology_file=runlab.topology_file,
+                        lab_name=runlab.lab_name,
+                        deploy_env=runlab.deploy_env,
                         use_sudo=bool(args.sudo),
                     )
                     print(f"[run {run_idx}/{repeats}] lab destroyed")

@@ -1,14 +1,20 @@
 #!/usr/bin/env python3
+# ruff: noqa: E402
 from __future__ import annotations
 
 import argparse
 import json
 import shlex
+import sys
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 
-from common import (
+REPO_ROOT = Path(__file__).resolve().parents[1]
+if str(REPO_ROOT) not in sys.path:
+    sys.path.insert(0, str(REPO_ROOT))
+
+from tools.common import (
     load_json,
     load_management_ports_from_configs,
     load_topology_node_names,
@@ -19,46 +25,47 @@ from common import (
     run_clab_command,
 )
 
-REPO_ROOT = Path(__file__).resolve().parents[1]
 DEFAULT_TOPOLOGY_DATA = REPO_ROOT / "src" / "clab" / "topology-data.json"
 DEFAULT_ENDPOINTS = "/v1/status,/v1/routes,/v1/fib,/v1/kernel-routes"
 
 
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(
-        description="Collect routingd APIs + clab inspect JSON and save report."
+        description="Collect routingd APIs and containerlab inspect output into one JSON report."
     )
     parser.add_argument(
         "--topology-data",
         default=str(DEFAULT_TOPOLOGY_DATA),
-        help="Path to topology-data.json.",
+        help="Path to topology-data.json (default: src/clab/topology-data.json).",
     )
     parser.add_argument(
         "--out",
+        "--output-json",
+        dest="output_json",
         default="",
-        help="Output result JSON path. Default: results/runs/clab/<lab>/collect-<utc>.json",
+        help="Path to output JSON file (default: results/runs/clab/<lab>/collect-<utc>.json).",
     )
     parser.add_argument(
         "--sudo",
         action=argparse.BooleanOptionalAction,
         default=None,
-        help="Use sudo for clab command. Default from topology-data.json (fallback false).",
+        help="Use sudo for clab commands (default: from topology-data.json, fallback false).",
     )
     parser.add_argument(
         "--clab-bin",
         default="",
-        help="Path/name of clab binary. Default: auto-detect clab/containerlab.",
+        help="Containerlab binary path/name (default: auto-detect clab/containerlab).",
     )
     parser.add_argument(
         "--endpoints",
         default=DEFAULT_ENDPOINTS,
-        help="Comma-separated routingd API paths, e.g. /v1/status,/v1/routes",
+        help="Comma-separated routingd API paths (example: /v1/status,/v1/routes).",
     )
     parser.add_argument(
         "--http-timeout-s",
         type=float,
         default=4.0,
-        help="Timeout for each in-container API fetch.",
+        help="Timeout in seconds for each in-container API fetch.",
     )
     return parser.parse_args()
 
@@ -176,8 +183,8 @@ def main() -> int:
         per_node[node] = node_result
 
     ts = datetime.now(timezone.utc)
-    if args.out:
-        out_path = Path(str(args.out)).expanduser().resolve()
+    if args.output_json:
+        out_path = Path(str(args.output_json)).expanduser().resolve()
     else:
         out_path = (
             REPO_ROOT
@@ -209,4 +216,3 @@ def main() -> int:
 
 if __name__ == "__main__":
     raise SystemExit(main())
-
