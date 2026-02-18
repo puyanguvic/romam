@@ -11,7 +11,7 @@ from typing import Any
 
 import yaml
 
-REPO_ROOT = Path(__file__).resolve().parents[1]
+REPO_ROOT = Path(__file__).resolve().parents[3]
 
 
 def parse_args() -> argparse.Namespace:
@@ -77,7 +77,7 @@ def main() -> int:
         node_csv = ",".join(str(x) for x in install_nodes if str(x).strip())
         cmd = [
             sys.executable,
-            str(REPO_ROOT / "exps" / "install_traffic_app_bin.py"),
+            str(REPO_ROOT / "src" / "clab" / "scripts" / "install_traffic_app_bin.py"),
             "--lab-name",
             lab_name,
             "--bin-path",
@@ -106,7 +106,7 @@ def main() -> int:
 
         cmd = [
             sys.executable,
-            str(REPO_ROOT / "exps" / "run_traffic_app.py"),
+            str(REPO_ROOT / "src" / "clab" / "scripts" / "run_traffic_app.py"),
             "--lab-name",
             lab_name,
             "--node",

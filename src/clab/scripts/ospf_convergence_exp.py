@@ -9,7 +9,7 @@ from pathlib import Path
 
 import yaml
 
-REPO_ROOT = Path(__file__).resolve().parents[1]
+REPO_ROOT = Path(__file__).resolve().parents[3]
 
 
 def parse_args() -> argparse.Namespace:
@@ -19,7 +19,7 @@ def parse_args() -> argparse.Namespace:
             "The benchmark core is implemented in run_unified_experiment.py."
         )
     )
-    parser.add_argument("--topology-file", default="clab_topologies/ring6.clab.yaml")
+    parser.add_argument("--topology-file", default="src/clab/topologies/ring6.clab.yaml")
     parser.add_argument("--repeats", type=int, default=1)
     parser.add_argument("--ping-count", type=int, default=3)
     parser.add_argument("--ping-timeout-s", type=int, default=1)
@@ -86,7 +86,7 @@ def main() -> int:
     try:
         cmd = [
             sys.executable,
-            str(REPO_ROOT / "exps" / "run_unified_experiment.py"),
+            str(REPO_ROOT / "src" / "clab" / "scripts" / "run_unified_experiment.py"),
             "--config",
             str(cfg_path),
             "--sudo" if bool(args.sudo) else "--no-sudo",

@@ -2,11 +2,11 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from topology.clab_loader import load_clab_topology
+from clab.clab_loader import load_clab_topology
 
 
 def test_load_clab_topology_parses_real_ring_file() -> None:
-    source = load_clab_topology(Path("clab_topologies/ring6.clab.yaml"))
+    source = load_clab_topology(Path("src/clab/topologies/ring6.clab.yaml"))
     assert source.node_names == ["r1", "r2", "r3", "r4", "r5", "r6"]
     assert len(source.links) == 6
     first = source.links[0]

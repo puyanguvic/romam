@@ -5,7 +5,7 @@ import argparse
 import json
 from pathlib import Path
 
-from topology.clab_loader import load_clab_topology
+from clab.clab_loader import load_clab_topology
 
 
 def main() -> None:

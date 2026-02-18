@@ -6,10 +6,10 @@ from pathlib import Path
 
 
 def _load_module():
-    module_path = Path("exps/check_routerd_lab.py").resolve()
+    module_path = Path("src/clab/scripts/check_routerd_lab.py").resolve()
     spec = importlib.util.spec_from_file_location("check_routerd_lab", module_path)
     if spec is None or spec.loader is None:
-        raise RuntimeError("Unable to load exps/check_routerd_lab.py")
+        raise RuntimeError("Unable to load src/clab/scripts/check_routerd_lab.py")
     module = importlib.util.module_from_spec(spec)
     sys.modules[spec.name] = module
     spec.loader.exec_module(module)
@@ -37,7 +37,7 @@ def test_parse_protocol_from_log() -> None:
 
 def test_parse_config_bind_resolves_relative_to_topology_file(tmp_path: Path) -> None:
     module = _load_module()
-    topology_file = tmp_path / "clab_topologies" / "ring6-routerd.clab.yaml"
+    topology_file = tmp_path / "topologies" / "ring6-routerd.clab.yaml"
     topology_file.parent.mkdir(parents=True, exist_ok=True)
     topology_file.write_text("name: dummy\n", encoding="utf-8")
 

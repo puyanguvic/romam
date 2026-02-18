@@ -8,7 +8,7 @@ RUST_NODE_SUPERVISOR_BIN ?= bin/node_supervisor
 RUST_ROUTERD_BUILD_MODE ?= release
 RUST_ROUTERD_TARGET ?= x86_64-unknown-linux-musl
 EXP_REPEATS ?= 1
-EXP_TOPOLOGY_FILE ?= clab_topologies/ring6.clab.yaml
+EXP_TOPOLOGY_FILE ?= src/clab/topologies/ring6.clab.yaml
 EXP_LINK_DELAY_MS ?= 1.0
 EXP_NODE_IMAGE ?= ghcr.io/srl-labs/network-multitool:latest
 EXP_MGMT_NETWORK_NAME ?=
@@ -37,7 +37,7 @@ CHECK_POLL_INTERVAL_S ?= 1
 ROUTERD_NODE_IMAGE ?= romam/network-multitool-routerd:latest
 CLASSIC_PROFILE ?= ring6
 CLASSIC_PROTOCOL ?= ospf
-CLASSIC_OUTPUT_DIR ?= clab_topologies/generated
+CLASSIC_OUTPUT_DIR ?= results/runs/routerd_labs/classic
 CLASSIC_LAB_NAME ?= $(CLASSIC_PROFILE)-routerd-$(CLASSIC_PROTOCOL)
 RUNLAB_USE_SUDO ?= 1
 RUNLAB_KEEP_LAB ?= 0
@@ -108,7 +108,7 @@ build-traffic-app-go:
 install-traffic-app-bin:
 	@test -n "$(INSTALL_TRAFFIC_BIN_LAB_NAME)" || (echo "INSTALL_TRAFFIC_BIN_LAB_NAME is required"; exit 2)
 	@test -f "$(TRAFFIC_GO_BIN)" || (echo "binary missing: $(TRAFFIC_GO_BIN) (run make build-traffic-app-go)"; exit 2)
-	PYTHONPATH=$(PYTHONPATH) $(PYTHON) exps/install_traffic_app_bin.py \
+	PYTHONPATH=$(PYTHONPATH) $(PYTHON) src/clab/scripts/install_traffic_app_bin.py \
 		--lab-name $(INSTALL_TRAFFIC_BIN_LAB_NAME) \
 		--bin-path $(TRAFFIC_GO_BIN) \
 		$(if $(strip $(INSTALL_TRAFFIC_BIN_TOPOLOGY_FILE)),--topology-file $(INSTALL_TRAFFIC_BIN_TOPOLOGY_FILE),) \
@@ -119,7 +119,7 @@ run-containerlab-exp:
 	$(MAKE) run-ospf-convergence-exp
 
 run-ospf-convergence-exp:
-	PYTHONPATH=$(PYTHONPATH) $(PYTHON) exps/ospf_convergence_exp.py \
+	PYTHONPATH=$(PYTHONPATH) $(PYTHON) src/clab/scripts/ospf_convergence_exp.py \
 		--topology-file $(EXP_TOPOLOGY_FILE) \
 		--repeats $(EXP_REPEATS) \
 		--link-delay-ms $(EXP_LINK_DELAY_MS) \
@@ -146,7 +146,7 @@ run-routerd-rs:
 	$(RUST_ROUTERD_BIN) --config $(ROUTERD_RS_CONFIG) --log-level $(ROUTERD_RS_LOG_LEVEL)
 
 gen-routerd-lab:
-	PYTHONPATH=$(PYTHONPATH) $(PYTHON) exps/generate_routerd_lab.py \
+	PYTHONPATH=$(PYTHONPATH) $(PYTHON) src/clab/scripts/generate_routerd_lab.py \
 		--protocol $(LABGEN_PROTOCOL) \
 		$(if $(strip $(LABGEN_PROFILE)),--profile $(LABGEN_PROFILE),) \
 		$(if $(strip $(LABGEN_TOPOLOGY_FILE)),--topology-file $(LABGEN_TOPOLOGY_FILE),) \
@@ -156,7 +156,7 @@ gen-routerd-lab:
 		$(if $(filter 1 yes true,$(LABGEN_MGMT_EXTERNAL_ACCESS)),--mgmt-external-access,)
 
 gen-classic-routerd-lab:
-	PYTHONPATH=$(PYTHONPATH) $(PYTHON) exps/generate_routerd_lab.py \
+	PYTHONPATH=$(PYTHONPATH) $(PYTHON) src/clab/scripts/generate_routerd_lab.py \
 		--profile $(CLASSIC_PROFILE) \
 		--protocol $(CLASSIC_PROTOCOL) \
 		--node-image $(ROUTERD_NODE_IMAGE) \
@@ -165,7 +165,7 @@ gen-classic-routerd-lab:
 
 check-routerd-lab:
 	@test -n "$(CHECK_TOPOLOGY_FILE)" || (echo "CHECK_TOPOLOGY_FILE is required"; exit 2)
-	PYTHONPATH=$(PYTHONPATH) $(PYTHON) exps/check_routerd_lab.py \
+	PYTHONPATH=$(PYTHONPATH) $(PYTHON) src/clab/scripts/check_routerd_lab.py \
 		--topology-file $(CHECK_TOPOLOGY_FILE) \
 		$(if $(strip $(CHECK_LAB_NAME)),--lab-name $(CHECK_LAB_NAME),) \
 		$(if $(strip $(CHECK_CONFIG_DIR)),--config-dir $(CHECK_CONFIG_DIR),) \
@@ -177,7 +177,7 @@ check-routerd-lab:
 		$(if $(filter 1 yes true,$(CHECK_USE_SUDO)),--sudo,)
 
 run-routerd-lab:
-	PYTHONPATH=$(PYTHONPATH) $(PYTHON) exps/run_routerd_lab.py \
+	PYTHONPATH=$(PYTHONPATH) $(PYTHON) src/clab/scripts/run_routerd_lab.py \
 		--protocol $(LABGEN_PROTOCOL) \
 		$(if $(strip $(LABGEN_PROFILE)),--profile $(LABGEN_PROFILE),) \
 		$(if $(strip $(LABGEN_TOPOLOGY_FILE)),--topology-file $(LABGEN_TOPOLOGY_FILE),) \
@@ -197,7 +197,7 @@ run-traffic-app:
 	@test -n "$(TRAFFIC_LAB_NAME)" || (echo "TRAFFIC_LAB_NAME is required"; exit 2)
 	@test -n "$(TRAFFIC_NODE)" || (echo "TRAFFIC_NODE is required"; exit 2)
 	@test -n "$(TRAFFIC_ARGS)" || (echo "TRAFFIC_ARGS is required"; exit 2)
-	PYTHONPATH=$(PYTHONPATH) $(PYTHON) exps/run_traffic_app.py \
+	PYTHONPATH=$(PYTHONPATH) $(PYTHON) src/clab/scripts/run_traffic_app.py \
 		--lab-name $(TRAFFIC_LAB_NAME) \
 		--node $(TRAFFIC_NODE) \
 		$(if $(filter 1 yes true,$(TRAFFIC_USE_SUDO)),--sudo,--no-sudo) \
@@ -207,12 +207,12 @@ run-traffic-app:
 
 run-traffic-plan:
 	@test -n "$(TRAFFIC_PLAN_FILE)" || (echo "TRAFFIC_PLAN_FILE is required"; exit 2)
-	PYTHONPATH=$(PYTHONPATH) $(PYTHON) exps/run_traffic_plan.py \
+	PYTHONPATH=$(PYTHONPATH) $(PYTHON) src/clab/scripts/run_traffic_plan.py \
 		--plan $(TRAFFIC_PLAN_FILE)
 
 run-unified-experiment:
 	@test -n "$(UNIFIED_CONFIG_FILE)" || (echo "UNIFIED_CONFIG_FILE is required"; exit 2)
-	PYTHONPATH=$(PYTHONPATH) $(PYTHON) exps/run_unified_experiment.py \
+	PYTHONPATH=$(PYTHONPATH) $(PYTHON) src/clab/scripts/run_unified_experiment.py \
 		--config $(UNIFIED_CONFIG_FILE) \
 		--poll-interval-s $(UNIFIED_POLL_INTERVAL_S) \
 		$(if $(strip $(UNIFIED_OUTPUT_JSON)),--output-json $(UNIFIED_OUTPUT_JSON),) \
@@ -224,7 +224,7 @@ run-traffic-probe:
 	@test -n "$(PROBE_SRC_NODE)" || (echo "PROBE_SRC_NODE is required"; exit 2)
 	@test -n "$(PROBE_DST_NODE)" || (echo "PROBE_DST_NODE is required"; exit 2)
 	@test -n "$(PROBE_DST_IP)" || (echo "PROBE_DST_IP is required"; exit 2)
-	PYTHONPATH=$(PYTHONPATH) $(PYTHON) exps/run_traffic_probe.py \
+	PYTHONPATH=$(PYTHONPATH) $(PYTHON) src/clab/scripts/run_traffic_probe.py \
 		--lab-name $(PROBE_LAB_NAME) \
 		--src-node $(PROBE_SRC_NODE) \
 		--dst-node $(PROBE_DST_NODE) \

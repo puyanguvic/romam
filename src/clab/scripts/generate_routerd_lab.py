@@ -12,21 +12,21 @@ import sys
 from pathlib import Path
 from typing import List
 
-REPO_ROOT = Path(__file__).resolve().parents[1]
+REPO_ROOT = Path(__file__).resolve().parents[3]
 SRC_DIR = REPO_ROOT / "src"
 if str(SRC_DIR) not in sys.path:
     sys.path.insert(0, str(SRC_DIR))
 
 from irp.utils.io import now_tag
-from topology.labgen import LabGenParams, generate_routerd_lab
+from clab.labgen import LabGenParams, generate_routerd_lab
 
 PROFILE_TO_TOPOLOGY_FILE: dict[str, str] = {
-    "line3": "clab_topologies/line3.clab.yaml",
-    "line5": "clab_topologies/line5.clab.yaml",
-    "ring6": "clab_topologies/ring6.clab.yaml",
-    "star6": "clab_topologies/star6.clab.yaml",
-    "fullmesh4": "clab_topologies/fullmesh4.clab.yaml",
-    "spineleaf2x4": "clab_topologies/spineleaf2x4.clab.yaml",
+    "line3": "src/clab/topologies/line3.clab.yaml",
+    "line5": "src/clab/topologies/line5.clab.yaml",
+    "ring6": "src/clab/topologies/ring6.clab.yaml",
+    "star6": "src/clab/topologies/star6.clab.yaml",
+    "fullmesh4": "src/clab/topologies/fullmesh4.clab.yaml",
+    "spineleaf2x4": "src/clab/topologies/spineleaf2x4.clab.yaml",
 }
 
 
@@ -51,7 +51,7 @@ def parse_args() -> argparse.Namespace:
         "--profile",
         choices=sorted(PROFILE_TO_TOPOLOGY_FILE.keys()),
         default="ring6",
-        help="Built-in topology profile under clab_topologies/.",
+        help="Built-in topology profile under src/clab/topologies/.",
     )
     parser.add_argument(
         "--topology-file",

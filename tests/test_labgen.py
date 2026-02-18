@@ -4,7 +4,7 @@ from pathlib import Path
 
 import yaml
 
-from topology.labgen import LabGenParams, generate_routerd_lab
+from clab.labgen import LabGenParams, generate_routerd_lab
 
 
 def test_generate_routerd_lab_outputs_configs_and_env(tmp_path: Path) -> None:
@@ -13,7 +13,7 @@ def test_generate_routerd_lab_outputs_configs_and_env(tmp_path: Path) -> None:
         protocol="ospf",
         routing_alpha=1.0,
         routing_beta=2.0,
-        topology_file=Path("clab_topologies/ring6.clab.yaml"),
+        topology_file=Path("src/clab/topologies/ring6.clab.yaml"),
         node_image="ghcr.io/srl-labs/network-multitool:latest",
         bind_port=5500,
         tick_interval=1.0,
@@ -42,7 +42,7 @@ def test_generate_routerd_lab_outputs_configs_and_env(tmp_path: Path) -> None:
     deploy_env_file = Path(result["deploy_env_file"])
 
     assert source_topology_path.name == "ring6.clab.yaml"
-    assert source_topology_path.parent.name == "clab_topologies"
+    assert source_topology_path.parent.name == "topologies"
     assert configs_dir.is_dir()
     assert deploy_env_file.is_file()
 
@@ -72,7 +72,7 @@ def test_generate_routerd_lab_supports_named_nodes_with_rip(tmp_path: Path) -> N
         protocol="rip",
         routing_alpha=1.0,
         routing_beta=2.0,
-        topology_file=Path("clab_topologies/spineleaf2x4.clab.yaml"),
+        topology_file=Path("src/clab/topologies/spineleaf2x4.clab.yaml"),
         node_image="ghcr.io/srl-labs/network-multitool:latest",
         bind_port=5500,
         tick_interval=1.0,
@@ -115,7 +115,7 @@ def test_generate_routerd_lab_can_enable_forwarding_config(tmp_path: Path) -> No
         protocol="ospf",
         routing_alpha=1.0,
         routing_beta=2.0,
-        topology_file=Path("clab_topologies/line5.clab.yaml"),
+        topology_file=Path("src/clab/topologies/line5.clab.yaml"),
         node_image="ghcr.io/srl-labs/network-multitool:latest",
         bind_port=5500,
         tick_interval=1.0,

@@ -23,7 +23,7 @@ Control/observability paths:
 - Management API: `src/irp/src/runtime/mgmt.rs` (HTTP + gRPC placeholder)
 - Runtime entrypoint: `src/irp/src/main.rs` (`routingd` binary)
 - Node process supervisor: `src/irp/src/bin/node_supervisor.rs`
-- Topology file loader + lab tools: `src/topology/clab_loader.py`, `src/topology/labgen.py`
+- Topology file loader + lab tools: `src/clab/clab_loader.py`, `src/clab/labgen.py`
 - Example daemon configs: `exps/routerd_examples/`
 - Experiment utilities index: `exps/README.md`
 
@@ -133,7 +133,7 @@ make gen-routerd-lab LABGEN_PROFILE=ring6 LABGEN_PROTOCOL=ospf
 Or run directly:
 
 ```bash
-python3 exps/generate_routerd_lab.py --profile star6 --protocol rip
+python3 src/clab/scripts/generate_routerd_lab.py --profile star6 --protocol rip
 ```
 
 Built-in profiles (few common topologies, one-arg selection):
@@ -147,9 +147,9 @@ Built-in profiles (few common topologies, one-arg selection):
 For a custom topology file, use `--topology-file`:
 
 ```bash
-python3 exps/generate_routerd_lab.py \
+python3 src/clab/scripts/generate_routerd_lab.py \
   --protocol rip \
-  --topology-file clab_topologies/spineleaf2x4.clab.yaml
+  --topology-file src/clab/topologies/spineleaf2x4.clab.yaml
 ```
 
 `--protocol` is independent from topology file, so the same file can run `ospf`, `rip`, or `irp`.
@@ -173,7 +173,7 @@ Generated assets are written under:
 - `results/runs/routerd_labs/<lab_name>/deploy.env`
 
 `deploy.env` carries containerlab variable overrides (`name/mgmt/image`) and is consumed by
-`run-routerd-lab`. Topology files in `clab_topologies/` are parameterized with environment
+`run-routerd-lab`. Topology files in `src/clab/topologies/` are parameterized with environment
 variables, so the same source file can be reused across runs.
 
 ### Common Pitfalls
@@ -206,7 +206,7 @@ After `containerlab deploy`, run:
 
 ```bash
 make check-routerd-lab \
-  CHECK_TOPOLOGY_FILE=clab_topologies/ring6.clab.yaml \
+  CHECK_TOPOLOGY_FILE=src/clab/topologies/ring6.clab.yaml \
   CHECK_LAB_NAME=<lab_name> \
   CHECK_CONFIG_DIR=results/runs/routerd_labs/<lab_name>/configs \
   CHECK_USE_SUDO=1 \
@@ -237,13 +237,13 @@ make run-unified-experiment \
 Legacy-compatible wrapper (still supported):
 
 ```bash
-make run-ospf-convergence-exp EXP_TOPOLOGY_FILE=clab_topologies/ring6.clab.yaml EXP_REPEATS=1
+make run-ospf-convergence-exp EXP_TOPOLOGY_FILE=src/clab/topologies/ring6.clab.yaml EXP_REPEATS=1
 ```
 
 Direct script usage:
 
 ```bash
-python3 exps/ospf_convergence_exp.py --topology-file clab_topologies/ring6.clab.yaml --repeats 1
+python3 src/clab/scripts/ospf_convergence_exp.py --topology-file src/clab/topologies/ring6.clab.yaml --repeats 1
 ```
 
 If your environment requires privilege escalation for Docker/containerlab:
@@ -264,7 +264,7 @@ make run-ospf-convergence-exp EXP_USE_SUDO=1 \
 For `spineleaf2x4` convergence tests:
 
 ```bash
-make run-ospf-convergence-exp EXP_TOPOLOGY_FILE=clab_topologies/spineleaf2x4.clab.yaml
+make run-ospf-convergence-exp EXP_TOPOLOGY_FILE=src/clab/topologies/spineleaf2x4.clab.yaml
 ```
 
 ## Run Sender / Sink Apps On Routers (UDP + TCP)
@@ -341,7 +341,7 @@ make run-unified-experiment \
 Equivalent direct script run:
 
 ```bash
-PYTHONPATH=src python3 exps/run_unified_experiment.py \
+PYTHONPATH=src python3 src/clab/scripts/run_unified_experiment.py \
   --config exps/routerd_examples/unified_experiments/line3_irp_multi_apps.yaml \
   --poll-interval-s 1 \
   --sudo
@@ -366,7 +366,7 @@ The unified config supports fault injection, e.g.:
 Cleanup command (when you keep lab running or need manual cleanup):
 
 ```bash
-sudo containerlab destroy -t clab_topologies/line3.clab.yaml --name <lab_name> --cleanup
+sudo containerlab destroy -t src/clab/topologies/line3.clab.yaml --name <lab_name> --cleanup
 ```
 
 ### Multi-app AppSpec schema
@@ -443,7 +443,7 @@ make run-traffic-app \
 Direct script usage is also supported:
 
 ```bash
-python3 exps/run_traffic_app.py --lab-name <lab_name> --node r1 -- \
+python3 src/clab/scripts/run_traffic_app.py --lab-name <lab_name> --node r1 -- \
   send --proto udp --target <ip> --port 9000 --count 100
 ```
 

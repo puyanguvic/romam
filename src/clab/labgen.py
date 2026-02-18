@@ -7,7 +7,7 @@ from typing import Any, Dict, List
 import yaml
 
 from irp.utils.io import ensure_dir
-from topology.clab_loader import load_clab_topology
+from clab.clab_loader import load_clab_topology
 
 
 @dataclass(frozen=True)

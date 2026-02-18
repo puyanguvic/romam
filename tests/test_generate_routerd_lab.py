@@ -7,10 +7,10 @@ from pathlib import Path
 
 
 def _load_module():
-    module_path = Path("exps/generate_routerd_lab.py").resolve()
+    module_path = Path("src/clab/scripts/generate_routerd_lab.py").resolve()
     spec = importlib.util.spec_from_file_location("generate_routerd_lab", module_path)
     if spec is None or spec.loader is None:
-        raise RuntimeError("Unable to load exps/generate_routerd_lab.py")
+        raise RuntimeError("Unable to load src/clab/scripts/generate_routerd_lab.py")
     module = importlib.util.module_from_spec(spec)
     sys.modules[spec.name] = module
     spec.loader.exec_module(module)
@@ -22,7 +22,7 @@ def test_resolve_source_topology_file_from_profile() -> None:
     args = argparse.Namespace(profile="ring6", topology_file="")
     resolved = module.resolve_source_topology_file(args)
     assert resolved.name == "ring6.clab.yaml"
-    assert resolved.parent.name == "clab_topologies"
+    assert resolved.parent.name == "topologies"
 
 
 def test_resolve_source_topology_file_prefers_explicit_file(tmp_path: Path) -> None:
