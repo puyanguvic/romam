@@ -100,7 +100,7 @@ Key aspects of \textsc{Romam}'s modularity include:
 \section{Design and Implementation Methodology}\label{sec:D&I}
 
 \begin{figure*}[t]
-\centerline{\includegraphics[width=0.9\textwidth]{fig/Romam_Arch.pdf}}
+\centerline{\includegraphics[width=0.9\textwidth]{figs/Romam_Arch.pdf}}
 \caption{\textsc{Romam}-based routing operates between the transport layer and the network interface card (NIC). The architecture decouples information collection from algorithmic processes and combines static and dynamic data inputs. This flexible and scalable framework supports customizable routing protocols and the integration of advanced routing strategies, enabling dynamic responses to network conditions.}
 \label{fig:RomamArch}
 \end{figure*}
@@ -152,27 +152,27 @@ AccessDatabase & DatabaseID & Provides interfaces for robust database interactio
 \begin{figure}[htbp]
 \centering
 \begin{subfigure}[b]{0.42\columnwidth}
-\includegraphics[width=0.9\columnwidth]{fig/Romam_Arch-topo.pdf}
+\includegraphics[width=0.9\columnwidth]{figs/Romam_Arch-topo.pdf}
 \caption{Topology}
 \label{fig:topo}
 \end{subfigure}
 \hfill
 \begin{subfigure}[b]{0.42\columnwidth}
-\includegraphics[width=0.9\columnwidth]{fig/Romam_Arch-spt.pdf}
+\includegraphics[width=0.9\columnwidth]{figs/Romam_Arch-spt.pdf}
 \caption{Shortest Path Tree (SPT)}
 \label{fig:spt}
 \end{subfigure}
 \newline
 \newline
 \begin{subfigure}[b]{0.95\columnwidth}
-\includegraphics[width=0.95\columnwidth]{fig/Romam_Arch-spf.pdf}
+\includegraphics[width=0.95\columnwidth]{figs/Romam_Arch-spf.pdf}
 \caption{Shortest Path Forest (SPF)}
 \label{fig:spf}
 \end{subfigure}
 \newline
 \newline
 \begin{subfigure}[b]{0.7\columnwidth}
-\includegraphics[width=\columnwidth]{fig/routing_table.pdf}
+\includegraphics[width=\columnwidth]{figs/routing_table.pdf}
 \caption{Routing Information Base (RIB)}
 \label{fig:rib}
 \end{subfigure}
@@ -265,14 +265,14 @@ Each protocol implementation required less than 500 lines of code changes to the
 \begin{figure*}[t]
   \centering
   \begin{subfigure}[b]{0.46\textwidth}
-    \includegraphics[width=\textwidth]{fig/exps/exp1_cpu.pdf}
+    \includegraphics[width=\textwidth]{figs/exps/exp1_cpu.pdf}
     \caption{CPU time for protocol initialization.}
     \label{fig:rm:a}
   \end{subfigure}
   % \hfill % 
   \hspace{12pt}
   \begin{subfigure}[b]{0.46\textwidth}
-    \includegraphics[width=\textwidth]{fig/exps/exp1_memory.pdf}
+    \includegraphics[width=\textwidth]{figs/exps/exp1_memory.pdf}
     \caption{Memory cost for RIB.}
     \label{fig:rm:b}
   \end{subfigure}
@@ -289,7 +289,7 @@ CPU and memory consumption are crucial metrics for assessing the deployment cost
 Compared to OSPF, advanced routing protocols consume approximately $2\times$ to $3\times$ more CPU and memory resources. This increased resource usage is necessary for discovering multiple routes and maintaining a larger RIB. Despite the heightened complexity, these protocols do not introduce significant computational overhead when compared to large-scale learning-based information processing. Moreover, they do not necessitate additional hardware such as GPUs, rendering them highly compatible with existing network equipment.
 
 \begin{figure}[htbp]
-\centerline{\includegraphics[width=0.9\columnwidth]{fig/exps/exp2_converge.pdf}}
+\centerline{\includegraphics[width=0.9\columnwidth]{figs/exps/exp2_converge.pdf}}
 \caption{Convergence of the average packet delay of the Octopus protocol. This figure illustrates the dynamic adaptation of the Octopus protocol by showing the evolution of the average packet delay. Over time, the protocol's routing decisions increasingly favor paths with reduced delays, demonstrating its ability to learn and iteratively optimize routing efficiency.}
 \label{fig:converge}
 \end{figure}
@@ -297,27 +297,27 @@ Compared to OSPF, advanced routing protocols consume approximately $2\times$ to 
 \begin{figure*}[t]
   \centering
   \begin{subfigure}[b]{0.47\textwidth}
-    \includegraphics[width=\textwidth]{fig/exps/exp3_abilene.pdf}
+    \includegraphics[width=\textwidth]{figs/exps/exp3_abilene.pdf}
     \caption{Packet delay distribution at Abilene}
     \label{fig:cdf:a}
   \end{subfigure}
   % \hfill 
   \hspace{2pt}
   \begin{subfigure}[b]{0.47\textwidth}
-    \includegraphics[width=\textwidth]{fig/exps/exp3_att.pdf}
+    \includegraphics[width=\textwidth]{figs/exps/exp3_att.pdf}
     \caption{Packet delay distribution at AT\&T}
     \label{fig:cdf:b}
   \end{subfigure}
   \newline
   \begin{subfigure}[b]{0.47\textwidth}
-    \includegraphics[width=\textwidth]{fig/exps/exp3_cernet.pdf}
+    \includegraphics[width=\textwidth]{figs/exps/exp3_cernet.pdf}
     \caption{Packet delay distribution at CERNET}
     \label{fig:cdf:c}
   \end{subfigure}
   % \hfill % 
   \hspace{2pt}
   \begin{subfigure}[b]{0.47\textwidth}
-    \includegraphics[width=\textwidth]{fig/exps/exp3_geant.pdf}
+    \includegraphics[width=\textwidth]{figs/exps/exp3_geant.pdf}
     \caption{Packet delay distribution at GEANT}
     \label{fig:cdf:d}
   \end{subfigure}
