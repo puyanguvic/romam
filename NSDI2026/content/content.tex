@@ -1,0 +1,440 @@
+% Consolidated content file for easier editing.
+% Generated from chapter files under NSDI2026/content/.
+
+% ===== Begin: 0-abstract.tex =====
+\begin{abstract}
+The rapid evolution of network applications and environments necessitates advanced, customized routing protocols. However, the lack of comprehensive development and testing platforms often impedes progress in this field. We introduce \textsc{Romam}, an intra-autonomous system (AS) routing framework designed to accelerate the research and development of routing protocols. \textsc{Romam}'s key innovation lies in its modular, highly adaptable framework that integrates both static and dynamic network information, enabling swift prototyping and assessment of advanced routing solutions. We demonstrate \textsc{Romam}'s capabilities through five progressive use cases, spanning from traditional protocols to traffic and QoS-aware approaches. These cases showcase \textsc{Romam}'s versatility in supporting the evolution of routing strategies. In addition, we present a comprehensive monitoring toolchain for pre-deployment evaluation of routing solutions. Our empirical evaluations reveal that \textsc{Romam} can reduce development efforts by up to $90\%$ while providing robust support for advanced routing algorithms. By bridging the gap between theoretical concepts and practical implementation, \textsc{Romam} can be a versatile tool to speed up network routing research, paving the way for next-generation adaptive routing protocols.
+\end{abstract}
+
+
+
+% An abstract include three key points.
+% Highlight the chanllegnes
+% Your solution to evolve the challenges.
+% the overview of the paper's contribution.
+
+
+% [Objective] 现状：与本文相关的研究，它们有哪些不足
+% [Method] 方法： 我的研究做了什么
+% [Result] 结论： 我的结果是什么样的
+% [Significance] 意义：我的成果牛在哪里，比之前的人好在哪
+
+
+% \begin{abstract}
+% The proliferation of new applications and network scenarios demands customized and intelligent routing protocols to meet diverse service requirements effectively. However, the absence of robust development and testing platforms often impedes progress in this area.
+
+% To address these challenges, we propose \textsc{Romam}, an intra-autonomous system (AS) routing architecture to accelerate the research and development of intelligent routing protocols. \textsc{Romam} leverages a modular and highly versatile platform that facilitates rapid prototyping and evaluation of new routing solutions. It consists of four main modules: an Information Collection Module for the flexible acquisition of both static topology/link state information and dynamic traffic conditions, a Route Discovery Module to facilitate the discovery of all possible paths in a collaborative, distributed manner, a Traffic Detection Module for detecting and predicting network dynamics, and an Intelligent Forwarding Module for intelligently selecting paths discovered considering cost, network dynamics, and service requirements.
+
+% This paper highlights five diverse use cases that demonstrate the practical benefits of utilizing \textsc{Romam} for routing research. In addition, we introduce a comprehensive monitoring toolchain for evaluating new routing solutions before deployment. Our empirical tests reveal that \textsc{Romam} can reduce coding efforts by up to $90\%$ and offers high compatibility with emerging learning technologies, showcasing its potential to substantially advance the field of network routing.
+% \end{abstract}
+% ===== End: 0-abstract.tex =====
+
+% ===== Begin: 1-introduction.tex =====
+\section{Introduction}\label{intro}
+
+Traditional Internet routing, designed primarily for simplicity and scalability, aimed to deliver packets in a best-effort manner \cite{huitema1995routing}. Today's network demands, driven by emerging applications such as AR/VR/XR and real-time control, require different dimensions such as ultra-high reliability, ultra-low latency, and minimal jitter \cite{dang2020should}. These requirements exceed the capabilities of conventional routing protocols. Moreover, modern networks are increasingly heterogeneous and dynamic, encompassing land, air, sea, and space domains, utilizing diverse networking devices from ground to satellites \cite{liu2018space}. This complexity introduces new challenges, making traditional ``one-size-fits-all" routing protocols inadequate.
+
+In response, large network operators have begun developing customized routing protocols tailored to specific environments, such as Software Defined Networks (SDNs) \cite{jouppi2017datacenter, shao2021accessing, kalia2019datacenter, koch2023painter} for data centers and Content Delivery Networks (CDNs) \cite{chen2023darwin, song2020learning} for efficient content distribution. While these specialized protocols address niche needs effectively, they lack the flexibility to be applied across varied network types and scenarios.
+
+Furthermore, routing protocol development is hampered by the inherent complexity, high cost, and limitations of existing development frameworks. While SDN frameworks like OpenFlow \cite{mckeown2008openflow} and P4 \cite{bosshart2014p4} offer powerful capabilities for programming the data plane and centralizing network control, they were not specifically designed to support the development of distributed routing protocols. These frameworks focus on network-wide programmability rather than providing a structured approach for designing and implementing new distributed routing algorithms. Similarly, platforms such as FRRouting \cite{frrouting2017}, Bird \cite{bird}, and OpenWRT \cite{openwrt}, designed with legacy systems in mind, do not provide the tools or architectural support necessary to develop intelligent, adaptive routing protocols that can respond autonomously to changing network conditions and user demands.
+
+To address these challenges and support the rapid evolution of network technologies, we present \textbf{\textsc{Romam}}\footnote{\textsc{Romam} is the accusative of direction in Latin meaning ``to Rome", symbolizing our framework's goal of exploring multiple routing possibilities, much like the diverse roads that once led to Rome.}~(ROuting MAnage Modules), a novel intra-autonomous system (AS) routing framework. By modularizing the routing protocol development process, \textsc{Romam} not only simplifies the creation of advanced routing algorithms but also enhances the adaptability of network operations to dynamic conditions, significantly improving packet-level Quality of Service (QoS). The architecture supports a flexible assembly of its components, allowing for customized solutions that address the specific requirements of modern network environments.
+
+We demonstrate the effectiveness of \textsc{Romam} through the implementation of five routing protocols in ns-3, showcasing substantial improvements in service quality and network efficiency. Our contributions include:
+
+\begin{itemize}
+    \item We present \textsc{Romam}, a novel modular framework for developing routing protocols. This framework decomposes routing functions into reusable components, allowing rapid prototyping and development of different routing strategies. By leveraging this modular design, \textsc{Romam} reduces coding effort by up to $90\%$ compared to traditional approaches, significantly streamlining the protocol development process.
+    
+    \item We develop an extensive library of routing algorithms, queue disciplines, and traffic detection methods within the \textsc{Romam} framework. This comprehensive library serves as a foundation for researchers and developers to quickly experiment with and innovate new routing protocols, thereby accelerating the network routing research and development process.
+    
+    \item \textsc{Romam} integrates static network topology information with real-time traffic data, enabling the development of adaptive routing protocols. This integration allows protocols to effectively respond to changing network conditions, which is critical for improving packet-level Quality of Service (QoS) in dynamic network environments.
+    
+    \item We demonstrate the capabilities of \textsc{Romam} by implementing five different routing protocols, including two traditional and three innovative designs. These implementations showcase \textsc{Romam}'s flexibility in supporting a wide range of routing strategies, from basic approaches to highly sophisticated, adaptive protocols, illustrating its versatility in addressing various network routing challenges.
+\end{itemize}
+
+The rest of the paper is organized as follows: Sec.~\ref{sec:principle} outlines the design principles of \textsc{Romam}. Sec.~\ref{sec:D&I} details the architecture and implementation methodology. Sec.~\ref{sec:usecases} presents five use cases demonstrating \textsc{Romam}'s capabilities. Sec.~\ref{sec:evaluation} provides a comprehensive evaluation of \textsc{Romam}'s performance. Sec.~\ref{sec:related_work} discusses related work, and Sec.~\ref{sec:conc} concludes the paper with insights into future directions.
+
+\textsc{Romam} is open source, and all codes are anonymously available at \url{https://anonymous.4open.science/r/romam-7BC0/}.
+% ===== End: 1-introduction.tex =====
+
+% ===== Begin: 2-design_principle.tex =====
+\section{\textsc{Romam} Design Principles}\label{sec:principle}
+
+The \textsc{Romam} framework is built upon two principles: the strategic utilization of both static and dynamic network information, and a modular system architecture. These principles are designed to address the complex challenges of modern network routing while providing a flexible and efficient development framework.
+
+\subsection{Leveraging Static and Dynamic Information}
+The primary objective of intelligent routing is to determine optimal paths for data packet delivery, aligning with specific QoS requirements at minimal cost. Achieving this goal within dynamic network environments involves navigating two critical trade-offs:
+
+
+\begin{itemize}
+    \item \textbf{Scope of Information Collection vs. Associated Cost:} Expanding the scope of information collection improves routing decision accuracy but increases computational and bandwidth overhead.
+
+    \item \textbf{Timeliness of Information vs. Inherent Collection Delays:} Timely information enables responsive routing, but data collection introduces delays, potentially leading to inaccurate or outdated information for decision-making.
+
+\end{itemize}
+
+To address these challenges, \textsc{Romam} employs a dual-information approach:
+
+\subsubsection{Static Information}
+This includes network topology, link capacities, and other infrequently changing attributes. Static information forms the basis for forwarding direction exploration, providing a stable framework for initial route computation and regular operations.
+
+\subsubsection{Dynamic Information}
+This encompasses rapidly changing network conditions such as traffic volumes, link statuses, and queue lengths. Dynamic information is vital for making real-time adjustments to routing decisions.
+
+By leveraging static and dynamic information, \textsc{Romam} give routing developers the flexibility to make a trade-off between information scope and cost, as well as timeliness and accuracy. This tradeoff provides adaptability of routing protocols, allowing them to meet diverse network demands efficiently. For instance, \textsc{Romam} might use static topology information for baseline path computation, while dynamically adjusting routes based on real-time congestion data. This methodology facilitates both proactive resource management and dynamic adaptation to current network conditions, thereby improving overall network efficiency and responsiveness.
+
+\subsection{Modularity Principle}
+
+Inspired by the open-closed principle in software engineering, \textsc{Romam} redefines routing protocol architecture by decomposing it into smaller, reconfigurable components. This modular approach significantly enhances development efficiency, enabling rapid and flexible protocol development.
+
+Key aspects of \textsc{Romam}'s modularity include:
+
+\begin{itemize}
+    \item \textbf{Component Isolation:} Each module (e.g., route discovery, traffic detection) functions independently yet interoperates seamlessly with others.
+    \item \textbf{Standardized Interfaces:} Well-defined interfaces between modules facilitate easy integration and replacement of components.
+    \item \textbf{Reusability:} Common functionalities are encapsulated in reusable modules, reducing redundant development efforts.
+\end{itemize}
+% ===== End: 2-design_principle.tex =====
+
+% ===== Begin: 3-Design&Implement.tex =====
+\section{Design and Implementation Methodology}\label{sec:D&I}
+
+\begin{figure*}[t]
+\centerline{\includegraphics[width=0.9\textwidth]{fig/Romam_Arch.pdf}}
+\caption{\textsc{Romam}-based routing operates between the transport layer and the network interface card (NIC). The architecture decouples information collection from algorithmic processes and combines static and dynamic data inputs. This flexible and scalable framework supports customizable routing protocols and the integration of advanced routing strategies, enabling dynamic responses to network conditions.}
+\label{fig:RomamArch}
+\end{figure*}
+
+
+\textsc{Romam} architecture decouples the routing process into two main stages: route discovery and route selection. In the discovery stage, routing protocols utilize static network data to compile comprehensive lists of potential routes. The route selection stage is dynamic, with decisions made based on real-time traffic conditions and specific QoS requirements to optimize network performance.
+
+To facilitate these stages, we define four core modules for \textsc{Romam}: the Information Collection Module (ICM), the Route Discovery Module (RDM), the Traffic Detection Module (TDM), and the Intelligent Forwarding Module (IFM). Fig.~\ref{fig:RomamArch} illustrates the overall architecture and the interactions between these modules.
+
+\subsection{Information Collection Module (ICM)}\label{subsec:icm}
+
+The Information Collection Module (ICM) is a cornerstone component of \textsc{Romam}, crucial for optimizing control plane operations and facilitating efficient, scalable data exchange across the network infrastructure. The ICM's architecture is designed to decouple data management from computational processes, significantly enhancing system flexibility and operational efficiency.
+
+Key functionalities of the ICM include:
+
+\begin{itemize}
+    \item Advanced packet format management and parsing, supporting multiple protocol standards.
+    \item High-performance, distributed database operations for control plane data.
+    \item Dynamic configuration capabilities through a sophisticated Finite State Machine (FSM) implementation.
+    \item Real-time network state collection and dissemination.
+\end{itemize}
+
+The ICM's modular design represents a paradigm shift from traditional monolithic architectures, offering unprecedented customization to address diverse network requirements. This approach enables fine-grained control over data collection granularity, frequency, and scope, allowing for optimized resource utilization and enhanced network visibility.
+
+Table~\ref{tab:icm_primitives} delineates the core primitives provided by the ICM. These primitives form a comprehensive toolkit for network information exchange and storage, enabling efficient implementation of complex routing protocols and adaptive network management strategies.
+
+\begin{table*}[t]
+\caption{Primitives in the ICM for network information exchange and storage.}
+\begin{center}
+\begin{tabular}{lcp{10cm}}
+\toprule
+\textbf{Primitive} & \textbf{Input Arguments} & \textbf{Description} \\
+\midrule
+PacketParse & Packet & Parses incoming control packets to extract vital information, ensuring effective data handling and routing decisions. \\
+\hdashline[0.5pt/5pt]
+UnicastInfo & IPv4 Address & Manages the unicast of packets to specified IPv4 addresses, facilitating directed communication within the network. \\
+\hdashline[0.5pt/5pt]
+BroadcastInfo & TTL & Executes packet broadcasting across the network, with propagation controlled by the Time-To-Live (TTL) parameter to prevent looping. \\
+\hdashline[0.5pt/5pt]
+FormatData & Packet & Ensures data packets conform to the database schema for efficient storage and retrieval, enhancing data integrity and accessibility. \\
+\hdashline[0.5pt/5pt]
+AccessDatabase & DatabaseID & Provides interfaces for robust database interactions, enabling efficient data queries and updates essential for dynamic routing decisions. \\
+\bottomrule
+\end{tabular}
+\label{tab:icm_primitives}
+\end{center}
+\end{table*}
+
+\begin{figure}[htbp]
+\centering
+\begin{subfigure}[b]{0.42\columnwidth}
+\includegraphics[width=0.9\columnwidth]{fig/Romam_Arch-topo.pdf}
+\caption{Topology}
+\label{fig:topo}
+\end{subfigure}
+\hfill
+\begin{subfigure}[b]{0.42\columnwidth}
+\includegraphics[width=0.9\columnwidth]{fig/Romam_Arch-spt.pdf}
+\caption{Shortest Path Tree (SPT)}
+\label{fig:spt}
+\end{subfigure}
+\newline
+\newline
+\begin{subfigure}[b]{0.95\columnwidth}
+\includegraphics[width=0.95\columnwidth]{fig/Romam_Arch-spf.pdf}
+\caption{Shortest Path Forest (SPF)}
+\label{fig:spf}
+\end{subfigure}
+\newline
+\newline
+\begin{subfigure}[b]{0.7\columnwidth}
+\includegraphics[width=\columnwidth]{fig/routing_table.pdf}
+\caption{Routing Information Base (RIB)}
+\label{fig:rib}
+\end{subfigure}
+\caption{Illustration of the \textsc{Romam} architecture's routing information base process. Fig.~\ref{fig:topo} shows an undirected graph representing a mesh network topology with node A seeking routes to other nodes. Fig.~\ref{fig:spt} displays the SPT generated by Dijkstra's algorithm from node A. Fig.~\ref{fig:spf} highlights the Shortest Path Forest (SPF) algorithm results, creating multiple SPTs, each rooted at a different neighbor of node A to explore diverse routing paths. Fig.~\ref{fig:rib} details the RIB used by both SPT and SPF algorithms, with dotted enclosures indicating new fields for SPF support, enhancing the RIB's adaptability to dynamic network conditions.}
+\label{fig:path_discovery}
+\end{figure}
+
+
+\subsection{Route Discovery Module (RDM)}\label{design:routeDiscovery}
+
+The RDM tasked with identifying potential routes to destinations utilizing static network map data. This module houses a comprehensive library of routing algorithms and maintains a Routing Information Base (RIB) that stores route information. This information can be customized to align with the diverse objectives of different routing protocols, enhancing the adaptability and effectiveness of the routing process.
+
+A key design feature of the RDM is its ability to leverage the extensive path diversity inherent in mesh networks. This capability is crucial for adapting routing strategies based on changing network conditions and for maximizing network throughput and reliability. In mesh networks, the number of potential paths increases exponentially with the size of the network. For example, in a $10 \times 10$ grid network, the number of 18-hop paths between two diagonal nodes can reach 48,620. Managing this complexity efficiently without overwhelming the RIB is a primary challenge that the RDM addresses.
+
+\textsc{Romam} utilizes a distributed routing approach, allowing each network node to maintain multiple route options, each directed through one of its neighbors. This collaborative strategy enables the exploration of all possible paths, expanding the RIB linearly with the number of neighbors, which is manageable even as the network scales.
+
+Fig.~\ref{fig:path_discovery} illustrates how the \textsc{Romam} RIB is structured based on the network topology shown in Fig.~\ref{fig:topo}. Unlike traditional Shortest Path Tree (SPT) methods that identify a single shortest path from one node to all others, the Shortest Path Forest (SPF) method generates multiple paths through each neighbor of a node, significantly enriching the RIB (Fig.~\ref{fig:rib}). This approach not only supports the standard SPT algorithm but also accommodates advanced multi-path routing algorithms, enhancing the routing system’s ability to handle network dynamics and congestion.
+
+Moreover, the RDM includes next-hop interface information in the RIB, which is critical for making informed routing decisions, especially in scenarios where certain interfaces may experience congestion. This feature significantly aids in proactive routing adjustments, ensuring more reliable and efficient packet delivery.
+
+The RDM supports a variety of popular routing algorithms, including Dijkstra’s algorithm for unicast forwarding and ECMP routing, widely used in OSPF and IS-IS protocols. It also incorporates advanced algorithms like the Shortest Path Forest (SPF) and Recursive Shortest Path Forest (RecurSPF), facilitating the exploration of alternate routes and enhancing the network’s resilience to congestion and failures. This modular approach not only streamlines the development of new routing protocols but also fosters innovation by allowing researchers to easily integrate or modify existing algorithms to meet specific network requirements.
+
+\subsection{Traffic Detection Module (TDM)}\label{design:tdm}
+The TDM enhances router capabilities by enabling the processing and prediction of dynamic traffic conditions, which are inherently more variable than static map data.
+
+This function actively gathers dynamic traffic data such as link status, queue lengths, and traffic volumes. In \textsc{Romam}, these tasks are managed flexibly through a Finite State Machine (FSM), utilizing a suite of primitives from the Information Collection Module (ICM). Developers can specify the data type, its lifespan, and exchange scope based on routing needs, ensuring that collected data is pertinent and timely. Once gathered, this data is formatted and stored via database operations to support immediate and future routing decisions.
+
+Additionally, the traffic prediction aspect of the TDM extends the module’s utility by incorporating statistical and machine learning methods to forecast traffic conditions. Basic statistical tools provide initial insights by analyzing historical data to predict future traffic patterns. Moreover, a Markov chain model forecasts near-term traffic conditions from these trends. For more complex predictions, the module integrates advanced forecasting techniques such as time series analysis and Long Short-Term Memory (LSTM) networks, enhancing the router's ability to anticipate and adapt to changing network dynamics.
+
+This dual approach not only supports real-time adaptive routing decisions but also bolsters the network’s overall responsiveness and efficiency by leveraging both current and predictive traffic data insights.
+
+\subsection{Intelligent Forwarding Module (IFM)}\label{design:intelligentForward}
+
+The IFM serves as the decision-making core of the routing process, dynamically synthesizing information from the RDM and the TDM to enhance routing decisions. Unlike traditional routing protocols, which predominantly rely on static routing table lookups, the IFM enables adaptive route selection based on real-time traffic data and network conditions, aligning with specific network performance objectives.
+
+The IFM leverages the modular architecture of \textsc{Romam} to facilitate the development of sophisticated routing solutions. For example, Equal-Cost Multi-Path (ECMP) routing can randomly select among multiple routes of equivalent cost. However, the definition of `cost' can be strategically adapted to consider various factors such as latency, hop count, or bandwidth, depending on the routing objectives.
+
+A crucial aspect of intelligent forwarding is the avoidance of routing loops, especially when multiple paths are considered at each hop. Traditional techniques like Reverse Path Forwarding (RPF), commonly used to prevent multicast loops, do not suffice due to the asymmetric nature of multi-path routing. \textsc{Romam} employs a distance-based loop avoidance strategy, ensuring that packets progressively move closer to their destination at each hop, effectively preventing loops. The definition of 'distance' can vary, including metrics such as hop count, delay, or even geographical distance, thus allowing for flexibility in loop avoidance strategies.
+
+In addition, \textsc{Romam} supports the incorporation of advanced forwarding algorithms, such as probabilistic route selection, Multi-Armed Bandit (MAB) or other reinforcement learning based approaches~\cite{joulani2013online, awerbuch2003adapting, bubeck2012regret, apostolaki2021performance}. Such methods enable a dynamic balance between exploring various paths and exploiting the most rewarding ones, based on observed network performance. This adaptive mechanism facilitates continuous refinement of routing decisions in response to changing network conditions, allowing ROMAM-based protocols to evolve and optimize their behavior over time.
+
+Moreover, advancements in hardware capabilities and artificial intelligence have significantly expanded the computational capacity of network devices, enabling more complex decision-making processes. The IFM of \textsc{Romam} standardizes output interfaces for forwarding decisions, ensuring compatibility with these advanced technologies. This compatibility facilitates the integration of innovative, learning-based routing strategies, further enhancing the adaptability and efficiency of network operations.
+% ===== End: 3-Design&Implement.tex =====
+
+% ===== Begin: 5-use_cases.tex =====
+\section{\textsc{Romam} Use Cases}\label{sec:usecases}
+
+This section outlines five use cases demonstrating the versatility of the \textsc{Romam} framework in developing, adapting, and enhancing routing protocols. These cases progressively introduce increasingly sophisticated routing strategies that exemplify the framework's ability to support and enhance Quality of Service (QoS) and adapt to dynamic network conditions.
+
+\subsection{Overview of Implemented Protocols}
+\subsubsection{OSPF: Open Shortest Path First Protocol}\label{subsec:ospf}
+
+OSPF~\cite{rfc2328}, is a foundational protocol that calculates efficient routing paths using link-state information. Within \textsc{Romam}, OSPF's core functionalities of link-state data collection and path computation are seamlessly integrated, showcasing efficient protocol replication.
+
+However, OSPF is essentially a static protocol that does not dynamically adjust to fluctuating network conditions. Its support for Equal-Cost Multi-Path (ECMP) routing, while useful, often falls short in dynamically congested networks due to the rarity of truly equal-cost paths.
+
+\subsubsection{K-Shortest Path Routing Protocols}\label{subsec:kshortest}
+
+Building on OSPF's capabilities, K-Shortest Path protocols~\cite{liu2017finding}, explore multiple shortest paths to enhance routing choices, particularly under congested network conditions. These protocols leverage \textsc{Romam}'s capabilities for path computation and dynamic path selection based on current traffic states. This integration allows for an adaptive routing response to real-time network conditions, showcasing an improvement in handling network dynamics compared to OSPF.
+
+\subsubsection{Octopus: A MAB-based Intelligent Forwarding}\label{subsec:octopus}
+
+Octopus advances the concept of adaptive routing by incorporating Multi-Armed Bandit (MAB) algorithms, specifically the lightweight Exp3 algorithm~\cite{auer2002nonstochastic}, for dynamic path selection. This protocol, developed under the \textsc{Romam} framework, utilizes route information combined with real-time traffic data. Octopus's design, detailed in the Appendix~\ref{apdx}, illustrates its ability to continuously refine its routing decisions based on ongoing network feedback, enhancing the adaptability of routing protocols to traffic dynamics.
+
+\subsubsection{DGR: Delay Guaranteed Routing Protocol}\label{subsec:dgr}
+
+DGR~\cite{pu2023dgr} protocol introduces delay sensitivity into routing decisions, prioritizing routes that meet specific packet delivery deadlines. It utilizes both static and dynamic network data to dynamically adjust routes in response to detected traffic conditions. The integration of a priority management function ensures that packets with critical deadlines are expedited, enhancing the QoS support over previous protocols.
+
+\subsubsection{DDR: Deadline-Driven Routing Protocol}\label{subsec:ddr}
+
+DDR~\cite{yang2024ddr} protocol addresses inaccuracies in traffic information due to delays in network data transmission, which can crucially impact routing decisions. By implementing a predictive traffic state function, DDR uses historical and current data to make more accurate routing decisions. This enhancement helps compensate for the latency issues inherent in dynamic network environments, significantly improving the reliability and performance of routing decisions under real-world conditions.
+
+\subsection{Coding Efficiency}
+
+The \textsc{Romam} framework allows developers to focus solely on the unique aspects of each protocol, eliminating the need to rewrite redundant code. This approach leads to remarkable efficiency in protocol development:
+
+\begin{itemize}
+    \item K-Shortest Path implementation primarily focuses on the routing algorithm and RIB format.
+    \item Octopus concentrates on the MAB-based intelligent route selection function design.
+    \item DGR's implementation centers on traffic information exchanges among neighbors and handling packet deadlines during route selection.
+    \item DDR introduces a Markov chain-based prediction model for traffic and related path selection functions.
+\end{itemize}
+
+Each protocol implementation required less than 500 lines of code changes to the existing \textsc{Romam} framework, whereas implementing these protocols from scratch or modifying non-\textsc{Romam} implementations typically requires over 10,000 lines of code per protocol~\cite{frrouting2017, jakma2014introduction}. This comparison demonstrates that \textsc{Romam} achieves more than a $90\%$ reduction in coding efforts.
+% ===== End: 5-use_cases.tex =====
+
+% ===== Begin: 6_evaluation.tex =====
+\section{Evaluation}\label{sec:evaluation}
+
+\begin{figure*}[t]
+  \centering
+  \begin{subfigure}[b]{0.46\textwidth}
+    \includegraphics[width=\textwidth]{fig/exps/exp1_cpu.pdf}
+    \caption{CPU time for protocol initialization.}
+    \label{fig:rm:a}
+  \end{subfigure}
+  % \hfill % 
+  \hspace{12pt}
+  \begin{subfigure}[b]{0.46\textwidth}
+    \includegraphics[width=\textwidth]{fig/exps/exp1_memory.pdf}
+    \caption{Memory cost for RIB.}
+    \label{fig:rm:b}
+  \end{subfigure}
+  \caption{Resource Consumption Monitoring. The CPU and memory usage during the initialization of routing protocols across network topologies of Abilene, ATT, CERNET, and GEANT.  Fig.~\ref{fig:rm:a} displays the CPU time consumed from the installation of the routing protocol to the completion of the routing tables, indicating when routers are operational. Fig.~\ref{fig:rm:b} illustrates the memory utilization for maintaining the RIB and queue states.}
+  \label{fig:resource_monitoring}
+\end{figure*}
+
+
+We implemented the aforementioned five routing protocols using the \textsc{Romam} framework and deployed them on four well-known network topologies, Abilene, AT\&T, CERNET, and GEANT,  sourced from the Internet Topology Zoo dataset~\cite{knight2011internet}. The implementations and tests were run on ns-3~\cite{Riley2010} to facilitate evaluation on various networks. The evaluations were performed on a consumer-grade computer with an Ubuntu 22.04 operating system, an Intel i7-12700 CPU, and 32 GB of RAM. Using \textsc{Romam}'s monitoring tools we developed, we can observe the protocol cost metrics such as CPU usage and memory usage, and the network performance metrics such as packet delay.
+
+\subsection{CPU and Memory Usage}
+CPU and memory consumption are crucial metrics for assessing the deployment costs of routing protocols. Fig.~\ref{fig:resource_monitoring} illustrates the CPU time and memory consumption needed to initialize different routing protocols across four network topologies. Among the five algorithms evaluated, OSPF exhibits the lowest CPU and memory usage, attributed to its straightforward initialization process. Conversely, DDR, DGR, K-Shortest, and Octopus demonstrate higher CPU and memory consumption, with Octopus being slightly more resource-intensive than the others. This is primarily due to additional initialization requirements, such as calculating cumulative path losses, which necessitate greater computational resources.
+
+Compared to OSPF, advanced routing protocols consume approximately $2\times$ to $3\times$ more CPU and memory resources. This increased resource usage is necessary for discovering multiple routes and maintaining a larger RIB. Despite the heightened complexity, these protocols do not introduce significant computational overhead when compared to large-scale learning-based information processing. Moreover, they do not necessitate additional hardware such as GPUs, rendering them highly compatible with existing network equipment.
+
+\begin{figure}[htbp]
+\centerline{\includegraphics[width=0.9\columnwidth]{fig/exps/exp2_converge.pdf}}
+\caption{Convergence of the average packet delay of the Octopus protocol. This figure illustrates the dynamic adaptation of the Octopus protocol by showing the evolution of the average packet delay. Over time, the protocol's routing decisions increasingly favor paths with reduced delays, demonstrating its ability to learn and iteratively optimize routing efficiency.}
+\label{fig:converge}
+\end{figure}
+
+\begin{figure*}[t]
+  \centering
+  \begin{subfigure}[b]{0.47\textwidth}
+    \includegraphics[width=\textwidth]{fig/exps/exp3_abilene.pdf}
+    \caption{Packet delay distribution at Abilene}
+    \label{fig:cdf:a}
+  \end{subfigure}
+  % \hfill 
+  \hspace{2pt}
+  \begin{subfigure}[b]{0.47\textwidth}
+    \includegraphics[width=\textwidth]{fig/exps/exp3_att.pdf}
+    \caption{Packet delay distribution at AT\&T}
+    \label{fig:cdf:b}
+  \end{subfigure}
+  \newline
+  \begin{subfigure}[b]{0.47\textwidth}
+    \includegraphics[width=\textwidth]{fig/exps/exp3_cernet.pdf}
+    \caption{Packet delay distribution at CERNET}
+    \label{fig:cdf:c}
+  \end{subfigure}
+  % \hfill % 
+  \hspace{2pt}
+  \begin{subfigure}[b]{0.47\textwidth}
+    \includegraphics[width=\textwidth]{fig/exps/exp3_geant.pdf}
+    \caption{Packet delay distribution at GEANT}
+    \label{fig:cdf:d}
+  \end{subfigure}
+  \caption{Packet delay distribution under single-point congestion across different network topologies. This boxplot illustrates the impact of network congestion on packet delay across five routing protocols. Each protocol's response to congestion is depicted through median, quartiles, and outliers, highlighting their performance in terms of resilience and load balancing. OSPF experiences significant delay spikes under congestion, relying on a single path. In contrast, K-Shortest Path, DDR, DGR, and Octopus distribute traffic across multiple paths, enhancing network resilience. Particularly, Octopus, after training, shows superior performance by selecting paths with lower latencies through its MAB algorithm. DDR and DGR demonstrate the best performance by preemptively filtering out non-viable paths and exploring alternative optimal routes before congestion escalates, thus maintaining reliable and timely data transmission.}
+\label{fig:delay_cdf}
+\end{figure*}
+
+\subsection{Convergence of Octopus}
+For Octopus, its convergence performance is a key issue. In the conducted experiments, each topology entailed the selection of random source-destination pairs, and the protocol's performance was assessed by continuously measuring the end-to-end delay of each delivered packet. During the experiment, each router provided queuing delay reports to one-hop neighbors. This information was crucial for updating the cumulative loss associated with each routing choice for Octopus. 
+
+Fig.~\ref{fig:converge} shows how network performance evolves over time when Octopus is deployed. Throughout the experiment, Octopus demonstrates its adaptability and learning efficiency, as evidenced by the gradually decreasing trend in average packet delay. In other words, routers increasingly favor more efficient paths based on accumulated experiences.
+
+\textbf{Observations:} The gap introduced by the inherent uncertainties in real networks poses significant challenges in bridging theoretical models with their practical engineering deployment. This discrepancy is particularly relevant when training the Octopus protocol, where the feedback necessary for the learning algorithm ($d_{i'}$) is inherently delayed.
+
+To effectively implement the Octopus protocol in such conditions, it is essential to employ a strategy known as learning with delayed feedback model, as detailed in \cite{joulani2013online}. In this model, updates to the learning algorithm do not necessarily occur within the same iteration as the decision-making process. For example, if a routing decision for a packet must be made before feedback from the previous iteration is available, the current model's state is used to make the decision. 
+%Feedback, tagged with the packet ID and the probability of the chosen path, updates the model immediately upon receipt.
+
+However, as \cite{joulani2013online} highlights, the implications of delayed feedback vary based on the nature of the environment. In stochastic settings, separating decision-making and model updating incurs only an additive penalty. Conversely, in adversarial environments, delayed feedback can significantly impair the convergence of MAB, affecting it in a multiplicative manner. This remains an important further research issue. 
+
+
+\subsection{Packet Delay Comparison}
+
+In this set of experiments, we compare the five routing protocols by measuring the end-to-end delay of a source-destination pair for each network topology under single-point congestion. The single-point congestion was introduced by first determining the optimal routing path in an ideal network free of competing traffic, then randomly selecting a node along this path and imposing heavy background traffic to saturate the bandwidth of the node's outgoing link. This experiment aims to mimic a scenario where a bottleneck occurs along a routing path, testing whether the routing algorithms can intelligently reroute around the congested link.
+
+We collected the end-to-end delay of packets received at the destination. The measured delay distribution allowed us to analyze the effectiveness of each routing protocol under practical conditions. It is important to note that the performance statistics for the Octopus protocol shown in Fig.~\ref{fig:delay_cdf} are based on results after the protocol underwent an extensive training period of $10,000$ packets.
+
+Fig.~\ref{fig:delay_cdf} compares the delay distribution of the five routing protocols across four different network topologies with single-point congestion, presented as box plots. A box plot is a standardized way of displaying data distribution based on a five-number summary: minimum, first quartile (Q1), median, third quartile (Q3), and maximum, where the box is drawn from Q1 to Q3 with a horizontal line inside to denote the mean delay, and whiskers from the minimum to the maximum delay. Any data that are outside of the whiskers are outliers. 
+
+From Fig.~\ref{fig:delay_cdf}, across the four topologies, DDR, and DGR exhibit the best delay performance compared to OSPF, Octopus and K-Shortest. Their performance difference is mainly due to the different forwarding strategies employed by each protocol. OSPF suffers large delays, as the single-path routing protocol cannot adapt to network congestion. 
+
+Although K-Shortest can select multiple paths for packet delivery, its decisions are made randomly and lack responsiveness to real-time network conditions.  Consequently, while some packets may achieve low delay, the overall delay performance of K-Shortest tends to be suboptimal.
+
+Octopus outperforms K-Shortest. This is because, after training, the Exp3 algorithm tends to choose paths with lower latency, and it can keep track the neighborhood queue length reports to adapt to network dynamics accordingly. 
+
+DDR and DGR further outperform Octopus. This is because, based on their design, aiming to ensure the end-to-end delay is below the packet delay requirement (which is set to $50$~ms in our experiment), the forwarding function effectively filters out paths that do not meet the delay requirements, resulting in all packets with delay below the threshold.  DDR is better than DGR, as DGR uses the received neighborhood queue reports directly, while DDR further uses a traffic prediction function to estimate the future queue lengths of each node's one-hop neighbors. Such prediction can effectively help the node choose the most suitable paths. 
+
+Due to space limitations, we only report the results of a small set of experiments in this paper, and more experiments have been conducted that show a similar trend. The codes are available at \url{https://anonymous.4open.science/r/romam-7BC0/}, so the experiments can be reproduced with any setting.  Overall, when there is no congestion, single-path routing such as OSPF can achieve decent performance. When network congestion or link failure occurs, multi-path routing protocols are more advantageous, provided that the protocols (like DGR, DDR and Octopus) are aware of neighborhood situations and can adjust forwarding decisions accordingly. If the traffic hotspot changes over time, advanced traffic detection and prediction methods (e.g., the one used by DDR) are beneficial.
+
+% ===== End: 6_evaluation.tex =====
+
+% ===== Begin: related_work.tex =====
+\section{Related Work}\label{sec:related_work}
+
+\subsection{Routing Protocol Suites}
+
+Conventional routing protocol development has largely relied on comprehensive software suites. FRRouting \cite{frrouting2017}, an evolution of Quagga, provides a collection of IP routing protocols for Unix platforms, while XORP \cite{handley2003xorp} offers a programmable routing platform supporting multiple protocols. These suites, while offering stability and wide protocol support, lack the flexibility and modularity required for rapid prototyping of novel routing strategies.
+
+Recent efforts like ONOS~\cite{berde2014onos} have created more programmable environments, but they focus primarily on SDN scenarios rather than distributed routing protocols. xBGP~\cite{wirtgen2023xbgp} enhances BGP with custom code execution, aligning with \textsc{Romam}'s goals of modularity and extensibility. However, xBGP is limited to BGP-specific enhancements, whereas \textsc{Romam} provides a comprehensive framework applicable to a variety of intra-AS routing protocols.
+
+
+\subsection{SDN and Programmable Networking}
+
+The advent of Software-Defined Networking has introduced new paradigms in network programmability. OpenFlow~\cite{mckeown2008openflow} pioneered the separation of control and data planes, while P4~\cite{bosshart2014p4} enabled protocol-independent packet processors. These approaches primarily focus on centralized control and data plane programmability, which, while powerful, have limitations in distributed environments. Developments such as Intel Tofino chip~\cite{barefoot2018tofino}, have pushed the boundaries of programmable networking hardware. While these efforts have advanced hardware and programming languages, they lack a routing framework for rapid protocol development. \textsc{Romam} fills this gap by combining distributed routing with modular design principles, enabling the creation of adaptive, intelligent routing protocols that can operate effectively in both centralized and distributed environments.
+
+\subsection{Machine Learning in Routing}
+
+Recent years have seen growing interest in applying machine learning to networking problems. Mestres et al. \cite{mestres2017knowledge} introduced the concept of Knowledge-Defined Networking, proposing a new paradigm that incorporates machine learning in network operations. Klaine et al. \cite{klaine2017survey} surveyed machine learning techniques in self-organizing networks, highlighting the potential of AI in this domain.
+
+While these works demonstrate the promise of AI in networking, they often remain theoretical or limited in scope. For instance, RouteNet~\cite{rusek2020routenet} shows promising results in predicting network performance but doesn't provide a framework for implementing ML-driven routing protocols. \textsc{Romam} bridges this gap by providing native support for integrating machine learning algorithms into practical routing decisions, enabling the development and deployment of intelligent, adaptive routing protocols.
+% ===== End: related_work.tex =====
+
+% ===== Begin: 7-conclusion.tex =====
+\section{Conclusion}\label{sec:conc}
+
+\textsc{Romam} is a platform designed to facilitate the development of intelligent distributed routing protocols. By integrating modular components that foster the adoption of advanced routing algorithms and traffic management strategies, \textsc{Romam} offers substantial benefits to network researchers and developers, enabling them to efficiently develop and deploy sophisticated customized routing protocols. In addition, it provides a modularized library that simplifies the customization and extension of routing capabilities, making it easier to adapt to varying network requirements and conditions.
+
+We have showcased the capability of \textsc{Romam} by implementing five routing protocols, underscoring its and effectiveness as a research tool. Looking forward, \textsc{Romam} is poised to play a crucial role in the intersection of artificial intelligence and network management, potentially driving the evolution of next-generation intelligent routing technologies.
+
+\textsc{Romam} would be more useful if it can be test using real-world network traffic data. Currently, \textsc{Romam} relies on ns-3 for generating network traffic, using random generators for TCP/UDP traffic. This approach falls short of capture the complexity and variability of actual network traffic, creating a gap that may limit our ability to obtain realistic network state. Given the promising results, our future plans include implementing \textsc{Romam} in re-programmable routers.
+% ===== End: 7-conclusion.tex =====
+
+% ===== Begin: 8-appendix.tex =====
+\appendix \label{apdx}
+
+In a nutshell, Octopus uses the SPF algorithm in the RDM to find possible routes. With SPF, each node will generate an RIB, where each destination is associated with multiple entries. The number of entries equals the number of neighbors with a smaller ''distance'' to the destination (to avoid loop). 
+
+Each entry in the RIB includes the interface of the current node to use, the estimated cost if using this interface, and the next-hop's interface along the path to the destination. For Octopus, the estimated cost in the RIB is determined as the minimum path delay (assuming zero queueing delay along the path) from the current node to the destination via the next-hop node associated with each entry. Subsequently, the traffic information within the one-hop neighborhood is utilized to calculate the reward of each routing decision, effectively limiting communication overheads.
+
+Formally, consider a graph $\mathcal{G} = (V, E)$. For each node $v \in V$, denote by $N_v$ the set of its neighbor nodes. Denote by $D_v = V \setminus v$ the set of all possible destinations for packets to be forwarded by $v$. 
+
+After running SPF, for each destination $d \in D_v$,  $v$ finds a set of available paths, associated with its interface set $v_d$. Each path (interface) $i \in v_d$ is associated with the cost $c_i$ (i.e., the minimum path delay if choosing interface $i$ to $d$ without queueing delay) and the next-hop interface $i^\prime$. Here, $c_i$ is considered static unless there is any topology changes.
+
+The fast-changing part in the network is the queueing delays. The traffic information exchange between neighbor nodes can occur frequently, as the number of bits needed for traffic information between neighbors is quite negligible.
+Therefore, Octopus can use the queuing delay of both current and next-hop interfaces for path selection. 
+
+With a slight abuse of notation, we denote by $d_i$ the queueing delay for a packet going through interface $i$. Then, we define the loss of selecting $i \in v_d$ for forwarding one packet as 
+$$l_i:= 1-e^{ -(c_i + d_i+ d_{i^\prime})},$$
+where $d_{i^\prime}$ is the queuing delay for interface $i^\prime$ on the next-hop nodes. Note that $d_i$ can be observed by the current node, and $d_{i^\prime}$ requires the feedback from the next-hop neighbor. $l_i$ increases when delay increases.  
+
+\begin{algorithm}
+\caption{Octopus Routing Selection on Node $v \in V$}\label{alg:oct}
+\begin{algorithmic}[1]
+\Require $v_d, \forall d \in D_v$ after running SPF
+% \Ensure $y = x^n$
+\For{$d \in D_v$} \Comment{Initialization for all destinations}
+\State $N_d = 0$
+\For{$i \in v_d$}
+\State $L_i \gets 1 - e^{-c_i}$
+\EndFor
+\EndFor
+\While{Packet}
+\State $d \gets$ Packet.destination
+\State $N_d \gets N_d + 1$
+\State $\eta_d = \sqrt{\frac{|v_d|\ln |v_d|}{N_d}}$
+\State $p_i \gets \frac{e^{-\eta_d L_i}}{\sum\limits_{j \in v_d}e^{-\eta_d L_j }}, \forall i \in v_d$
+\State Forward Packet to interface $i$ according to $p_i$
+\State Observe the queuing delay $d_{i^\prime}$ on the next-hop interface $i^\prime$
+\State Update $L_i \gets L_i + \frac{l_i}{p_i}$
+\EndWhile
+\end{algorithmic}
+\end{algorithm}
+
+With the above notations, Octopus is given in Algorithm~\ref{alg:oct}.
+For each destination $d \in D_v$,  a counter $N_d$ is used to count how many packets have been forwarded to $d$, and for each route entry $i$, we maintain a variable $L_i$, which keeps track of the cumulative loss for forwarding packets to $d$ via $i$. $N_d$ and $L_i$ are initialized in the for-loop of lines $1$ to $5$ in Algorithm~\ref{alg:oct}. 
+
+Path selection in Octopus fundamentally operates with two processes: observing queue reports from neighboring routers and adjusting its forwarding decisions accordingly. Neighbors sent queue length reports through all active links. 
+
+The reception of a one-hop queuing delay report can be used to obtain $d_{i^\prime}$ to update $l_i$ and $L_i$.  $L_i$ and the learning rate $\eta_d$ (determined by $N_d$), in line $10$, is used to calculate the probability of selecting $i$, $p_i$ in line $11$ of Algorithm~\ref{alg:oct}. Finally, the forwarding decision is sampled from the distribution $p_i$. 
+% ===== End: 8-appendix.tex =====
+
