@@ -309,9 +309,28 @@ def sanitize_label(value: str, max_len: int = 48) -> str:
 
 def validate_protocol(protocol: str) -> str:
     normalized = str(protocol).strip().lower()
-    if normalized not in {"ospf", "rip", "irp"}:
-        raise ValueError("protocol must be one of: ospf, rip, irp")
+    if normalized not in {"ospf", "rip", "irp", "ddr"}:
+        raise ValueError("protocol must be one of: ospf, rip, irp, ddr")
     return normalized
+
+
+def extract_ddr_routing_params(routing: dict[str, Any]) -> dict[str, Any]:
+    ddr_cfg = dict(routing.get("ddr", {}) or {})
+    return {
+        "k_paths": int(ddr_cfg.get("k_paths", routing.get("k_paths", 3))),
+        "deadline_ms": float(ddr_cfg.get("deadline_ms", routing.get("deadline_ms", 100.0))),
+        "flow_size_bytes": float(
+            ddr_cfg.get("flow_size_bytes", routing.get("flow_size_bytes", 64000.0))
+        ),
+        "link_bandwidth_bps": float(
+            ddr_cfg.get("link_bandwidth_bps", routing.get("link_bandwidth_bps", 9600000.0))
+        ),
+        "queue_sample_interval": float(
+            ddr_cfg.get(
+                "queue_sample_interval", routing.get("queue_sample_interval", 1.0)
+            )
+        ),
+    }
 
 
 def append_runlab_generator_args(runlab_cmd: list[str], config: dict[str, Any]) -> None:
@@ -365,6 +384,7 @@ def build_run_routerd_lab_cmd(
     precheck_tail_lines: int,
     routing_alpha: float | None = None,
     routing_beta: float | None = None,
+    ddr_params: dict[str, Any] | None = None,
     lab_name_override: str = "",
 ) -> list[str]:
     runlab_cmd = [
@@ -393,6 +413,19 @@ def build_run_routerd_lab_cmd(
             str(float(routing_alpha)),
             "--routing-beta",
             str(float(routing_beta)),
+        ])
+    if protocol == "ddr" and ddr_params is not None:
+        runlab_cmd.extend([
+            "--ddr-k-paths",
+            str(int(ddr_params.get("k_paths", 3))),
+            "--ddr-deadline-ms",
+            str(float(ddr_params.get("deadline_ms", 100.0))),
+            "--ddr-flow-size-bytes",
+            str(float(ddr_params.get("flow_size_bytes", 64000.0))),
+            "--ddr-link-bandwidth-bps",
+            str(float(ddr_params.get("link_bandwidth_bps", 9600000.0))),
+            "--ddr-queue-sample-interval",
+            str(float(ddr_params.get("queue_sample_interval", 1.0))),
         ])
     append_runlab_generator_args(runlab_cmd, config)
     if lab_name_override.strip():
@@ -1335,6 +1368,7 @@ def run_scenario_mode(
     routing = dict(config.get("routing", {}) or {})
     routing_alpha = float(routing.get("alpha", 1.0))
     routing_beta = float(routing.get("beta", 2.0))
+    ddr_params = extract_ddr_routing_params(routing)
 
     duration_s = max(1.0, float(config.get("duration_s", 60.0)))
     poll_interval_s = max(0.2, float(args.poll_interval_s))
@@ -1351,6 +1385,7 @@ def run_scenario_mode(
         precheck_tail_lines=int(config.get("precheck_tail_lines", 120)),
         routing_alpha=routing_alpha,
         routing_beta=routing_beta,
+        ddr_params=ddr_params,
     )
     runlab = launch_run_routerd_lab(
         cmd=runlab_cmd,
@@ -1580,6 +1615,7 @@ def run_scenario_mode(
         "routing": {
             "alpha": routing_alpha,
             "beta": routing_beta,
+            "ddr": ddr_params if protocol == "ddr" else {},
         },
         "convergence": {
             "initial_converged_at_s": converged_at_s,
@@ -1699,6 +1735,7 @@ def run_convergence_benchmark_mode(
     routing = dict(config.get("routing", {}) or {})
     routing_alpha = float(routing.get("alpha", 1.0))
     routing_beta = float(routing.get("beta", 2.0))
+    ddr_params = extract_ddr_routing_params(routing)
 
     bench_cfg = dict(config.get("benchmark", {}) or {})
     repeats = max(1, int(bench_cfg.get("repeats", config.get("repeats", 1))))
@@ -1743,6 +1780,7 @@ def run_convergence_benchmark_mode(
             precheck_tail_lines=precheck_tail_lines,
             routing_alpha=routing_alpha,
             routing_beta=routing_beta,
+            ddr_params=ddr_params,
         )
         if lab_name_prefix and not explicit_lab_name:
             auto_lab_name = (

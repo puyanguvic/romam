@@ -9,6 +9,7 @@ use serde_json::Value;
 pub enum MessageKind {
     Hello,
     OspfLsa,
+    DdrLsa,
     RipUpdate,
 }
 

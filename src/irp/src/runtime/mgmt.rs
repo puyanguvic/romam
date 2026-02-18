@@ -20,6 +20,7 @@ pub struct NeighborSnapshot {
     pub address: String,
     pub port: u16,
     pub cost: f64,
+    pub interface_name: Option<String>,
     pub is_up: bool,
     pub last_seen: Option<f64>,
 }
@@ -43,6 +44,7 @@ pub struct DaemonSnapshot {
     pub dead_interval: f64,
     pub forwarding_enabled: bool,
     pub forwarding_table: u32,
+    pub protocol_metrics: serde_json::Map<String, serde_json::Value>,
     pub neighbors: Vec<NeighborSnapshot>,
     pub routes: Vec<RouteSnapshot>,
     pub fib: Vec<RouteSnapshot>,
@@ -57,6 +59,7 @@ impl DaemonSnapshot {
         tick_interval: f64,
         dead_interval: f64,
         forwarding_cfg: &ForwardingConfig,
+        protocol_metrics: std::collections::BTreeMap<String, serde_json::Value>,
         now: f64,
         neighbors: Vec<NeighborInfo>,
         routes: Vec<Route>,
@@ -72,6 +75,7 @@ impl DaemonSnapshot {
             dead_interval,
             forwarding_enabled: forwarding_cfg.enabled,
             forwarding_table: forwarding_cfg.table,
+            protocol_metrics: protocol_metrics.into_iter().collect(),
             neighbors: neighbors
                 .into_iter()
                 .map(|item| NeighborSnapshot {
@@ -79,6 +83,7 @@ impl DaemonSnapshot {
                     address: item.address,
                     port: item.port,
                     cost: item.cost,
+                    interface_name: item.interface_name,
                     is_up: item.is_up,
                     last_seen: item.last_seen,
                 })
@@ -236,6 +241,7 @@ fn handle_http_stream(
                 "fib_count": state.fib.len(),
                 "forwarding_enabled": state.forwarding_enabled,
                 "forwarding_table": state.forwarding_table,
+                "protocol_metrics": state.protocol_metrics,
             })
         }
         "/v1/kernel-routes" => {

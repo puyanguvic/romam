@@ -1,0 +1,24 @@
+topology: line_3
+protocol: ddr
+
+routing:
+  ddr:
+    k_paths: 3
+    deadline_ms: 80
+    flow_size_bytes: 32768
+    link_bandwidth_bps: 25000000
+    queue_sample_interval: 0.5
+
+traffic:
+  enabled: true
+  proto: udp
+  model: bulk
+  src_node: r1
+  dst_node: r3
+  flows: 3
+  rate_mbps: 12
+  packet_size: 512
+  port: 9000
+
+precheck_max_wait_s: 30
+duration_s: 60

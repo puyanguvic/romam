@@ -2,6 +2,7 @@ use std::collections::BTreeMap;
 
 use crate::model::messages::ControlMessage;
 use crate::model::routing::Route;
+use serde_json::Value;
 
 #[derive(Debug, Clone)]
 pub struct RouterLink {
@@ -9,6 +10,7 @@ pub struct RouterLink {
     pub cost: f64,
     pub address: String,
     pub port: u16,
+    pub interface_name: Option<String>,
     pub is_up: bool,
 }
 
@@ -30,4 +32,7 @@ pub trait ProtocolEngine: Send {
     fn start(&mut self, ctx: &ProtocolContext) -> ProtocolOutputs;
     fn on_timer(&mut self, ctx: &ProtocolContext) -> ProtocolOutputs;
     fn on_message(&mut self, ctx: &ProtocolContext, message: &ControlMessage) -> ProtocolOutputs;
+    fn metrics(&self) -> BTreeMap<String, Value> {
+        BTreeMap::new()
+    }
 }

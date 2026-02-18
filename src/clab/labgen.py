@@ -42,6 +42,11 @@ class LabGenParams:
     mgmt_grpc_enabled: bool = True
     mgmt_grpc_bind: str = "0.0.0.0"
     mgmt_grpc_port_base: int = 19000
+    ddr_k_paths: int = 3
+    ddr_deadline_ms: float = 100.0
+    ddr_flow_size_bytes: float = 64000.0
+    ddr_link_bandwidth_bps: float = 9600000.0
+    ddr_queue_sample_interval: float = 1.0
 
 
 def generate_routerd_lab(params: LabGenParams) -> Dict[str, str]:
@@ -124,6 +129,7 @@ def _build_routerd_config(
             "address": str(item["neighbor_ip"]),
             "port": int(params.bind_port),
             "cost": float(item["cost"]),
+            "iface": str(item["iface"]),
         }
         for item in sorted(local_ifaces, key=lambda x: int(x["neighbor_id"]))
     ]
@@ -171,6 +177,19 @@ def _build_routerd_config(
                 "neighbor_timeout": float(params.rip_neighbor_timeout),
                 "infinity_metric": float(params.rip_infinity_metric),
                 "poison_reverse": bool(params.rip_poison_reverse),
+            }
+        }
+    elif params.protocol == "ddr":
+        cfg["protocol_params"] = {
+            "ddr": {
+                "hello_interval": float(params.ospf_hello_interval),
+                "lsa_interval": float(params.ospf_lsa_interval),
+                "lsa_max_age": float(params.ospf_lsa_max_age),
+                "queue_sample_interval": float(params.ddr_queue_sample_interval),
+                "k_paths": int(params.ddr_k_paths),
+                "deadline_ms": float(params.ddr_deadline_ms),
+                "flow_size_bytes": float(params.ddr_flow_size_bytes),
+                "link_bandwidth_bps": float(params.ddr_link_bandwidth_bps),
             }
         }
     else:

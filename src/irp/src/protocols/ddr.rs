@@ -1,0 +1,795 @@
+use std::cmp::Ordering;
+use std::collections::BTreeMap;
+use std::process::Command;
+
+use serde_json::{json, Value};
+
+use crate::model::messages::{ControlMessage, MessageKind};
+use crate::model::routing::Route;
+use crate::model::state::LinkStateDb;
+use crate::protocols::base::{ProtocolContext, ProtocolEngine, ProtocolOutputs};
+
+#[derive(Debug, Clone)]
+pub struct DdrTimers {
+    pub hello_interval: f64,
+    pub lsa_interval: f64,
+    pub lsa_max_age: f64,
+    pub queue_sample_interval: f64,
+}
+
+impl Default for DdrTimers {
+    fn default() -> Self {
+        Self {
+            hello_interval: 1.0,
+            lsa_interval: 3.0,
+            lsa_max_age: 15.0,
+            queue_sample_interval: 1.0,
+        }
+    }
+}
+
+#[derive(Debug, Clone)]
+pub struct DdrParams {
+    pub timers: DdrTimers,
+    pub k_paths: usize,
+    pub deadline_ms: f64,
+    pub flow_size_bytes: f64,
+    pub link_bandwidth_bps: f64,
+}
+
+impl Default for DdrParams {
+    fn default() -> Self {
+        Self {
+            timers: DdrTimers::default(),
+            k_paths: 3,
+            deadline_ms: 100.0,
+            flow_size_bytes: 64_000.0,
+            link_bandwidth_bps: 9_600_000.0,
+        }
+    }
+}
+
+#[derive(Debug, Clone, Default)]
+struct KernelBacklog {
+    bytes: Option<f64>,
+    packets: Option<f64>,
+}
+
+#[derive(Debug, Clone)]
+struct PathCandidate {
+    nodes: Vec<u32>,
+    cost: f64,
+}
+
+#[derive(Debug, Clone)]
+struct RouteChoice {
+    next_hop: u32,
+    completion_ms: f64,
+    hop_count: usize,
+}
+
+pub struct DdrProtocol {
+    params: DdrParams,
+    msg_seq: u64,
+    lsa_seq: i64,
+    last_hello_at: f64,
+    last_lsa_at: f64,
+    last_queue_sample_at: f64,
+    last_local_links: BTreeMap<u32, f64>,
+    lsdb: LinkStateDb,
+    queue_depth_bytes: BTreeMap<u32, f64>,
+    arrivals_since_sample_bytes: BTreeMap<u32, f64>,
+    estimated_queue_delay_ms: BTreeMap<u32, f64>,
+    queue_sample_source: BTreeMap<u32, String>,
+}
+
+impl DdrProtocol {
+    pub fn new(params: DdrParams) -> Self {
+        Self {
+            params,
+            msg_seq: 0,
+            lsa_seq: 0,
+            last_hello_at: -1e9,
+            last_lsa_at: -1e9,
+            last_queue_sample_at: -1e9,
+            last_local_links: BTreeMap::new(),
+            lsdb: LinkStateDb::default(),
+            queue_depth_bytes: BTreeMap::new(),
+            arrivals_since_sample_bytes: BTreeMap::new(),
+            estimated_queue_delay_ms: BTreeMap::new(),
+            queue_sample_source: BTreeMap::new(),
+        }
+    }
+
+    fn drive(&mut self, ctx: &ProtocolContext, force_lsa: bool) -> ProtocolOutputs {
+        let mut outputs = ProtocolOutputs::default();
+        let now = ctx.now;
+        let mut should_recompute = false;
+
+        if self.sample_queue_delay(ctx) {
+            should_recompute = true;
+        }
+
+        if (now - self.last_hello_at) >= self.params.timers.hello_interval {
+            outputs.outbound.extend(self.send_hello(ctx));
+            self.last_hello_at = now;
+        }
+
+        let links: BTreeMap<u32, f64> = ctx
+            .links
+            .iter()
+            .filter_map(|(router_id, link)| link.is_up.then_some((*router_id, link.cost)))
+            .collect();
+
+        let mut should_originate = force_lsa || links != self.last_local_links;
+        if (now - self.last_lsa_at) >= self.params.timers.lsa_interval {
+            should_originate = true;
+        }
+
+        if should_originate {
+            self.lsa_seq += 1;
+            self.last_local_links = links.clone();
+            self.lsdb
+                .upsert(ctx.router_id, self.lsa_seq, links.clone(), now);
+            outputs
+                .outbound
+                .extend(self.flood_local_lsa(ctx, &links, None));
+            self.last_lsa_at = now;
+            should_recompute = true;
+        }
+
+        let aged = self.lsdb.age_out(now, self.params.timers.lsa_max_age);
+        if aged {
+            should_recompute = true;
+        }
+        if should_recompute {
+            outputs.routes = Some(self.compute_routes(ctx));
+        }
+
+        outputs
+    }
+
+    fn note_arrival_bytes(&mut self, neighbor_id: u32, bytes: f64) {
+        if bytes <= 0.0 {
+            return;
+        }
+        let entry = self
+            .arrivals_since_sample_bytes
+            .entry(neighbor_id)
+            .or_insert(0.0);
+        *entry += bytes;
+    }
+
+    fn fallback_packet_size_bytes() -> f64 {
+        1200.0
+    }
+
+    fn effective_bandwidth_bps(&self) -> f64 {
+        self.params.link_bandwidth_bps.max(1e-9)
+    }
+
+    fn packets_to_bytes(packets: f64) -> f64 {
+        packets.max(0.0) * Self::fallback_packet_size_bytes()
+    }
+
+    fn bytes_to_delay_ms(&self, bytes: f64) -> f64 {
+        1_000.0 * 8.0 * bytes.max(0.0) / self.effective_bandwidth_bps().max(1e-9)
+    }
+
+    fn sample_queue_delay(&mut self, ctx: &ProtocolContext) -> bool {
+        let sample_interval = self.params.timers.queue_sample_interval.max(0.05);
+        let elapsed = ctx.now - self.last_queue_sample_at;
+        if elapsed < sample_interval {
+            return false;
+        }
+
+        let mut changed = false;
+        let link_service_bytes =
+            (elapsed.max(sample_interval) * self.effective_bandwidth_bps() / 8.0).max(1e-9);
+
+        for (neighbor_id, link) in &ctx.links {
+            if !link.is_up {
+                if self.queue_depth_bytes.remove(neighbor_id).is_some() {
+                    changed = true;
+                }
+                if self.estimated_queue_delay_ms.remove(neighbor_id).is_some() {
+                    changed = true;
+                }
+                self.queue_sample_source.remove(neighbor_id);
+                self.arrivals_since_sample_bytes.remove(neighbor_id);
+                continue;
+            }
+
+            if let Some(iface) = link
+                .interface_name
+                .as_deref()
+                .map(str::trim)
+                .filter(|name| !name.is_empty())
+            {
+                if let Some(backlog) = Self::read_kernel_backlog(iface) {
+                    self.arrivals_since_sample_bytes.remove(neighbor_id);
+
+                    let queue_bytes = backlog
+                        .bytes
+                        .unwrap_or_else(|| Self::packets_to_bytes(backlog.packets.unwrap_or(0.0)));
+                    let queue_delay_ms = self.bytes_to_delay_ms(queue_bytes);
+
+                    let old_q_bytes = self
+                        .queue_depth_bytes
+                        .insert(*neighbor_id, queue_bytes)
+                        .unwrap_or(-1.0);
+                    let old_delay = self
+                        .estimated_queue_delay_ms
+                        .insert(*neighbor_id, queue_delay_ms)
+                        .unwrap_or(-1.0);
+                    self.queue_sample_source.insert(
+                        *neighbor_id,
+                        if backlog.bytes.is_some() {
+                            "kernel_tc_bytes".to_string()
+                        } else {
+                            "kernel_tc_packets_est_bytes".to_string()
+                        },
+                    );
+
+                    if (old_q_bytes - queue_bytes).abs() > 1e-6
+                        || (old_delay - queue_delay_ms).abs() > 1e-6
+                    {
+                        changed = true;
+                    }
+                    continue;
+                }
+            }
+
+            let q_prev_bytes = self
+                .queue_depth_bytes
+                .get(neighbor_id)
+                .copied()
+                .unwrap_or(0.0);
+            let arrivals_bytes = self
+                .arrivals_since_sample_bytes
+                .remove(neighbor_id)
+                .unwrap_or(0.0);
+            let serviced_bytes = (q_prev_bytes + arrivals_bytes).min(link_service_bytes);
+            let q_next_bytes = (q_prev_bytes + arrivals_bytes - serviced_bytes).max(0.0);
+            let queue_delay_ms = self.bytes_to_delay_ms(q_next_bytes);
+
+            let old_q_bytes = self
+                .queue_depth_bytes
+                .insert(*neighbor_id, q_next_bytes)
+                .unwrap_or(-1.0);
+            let old_delay = self
+                .estimated_queue_delay_ms
+                .insert(*neighbor_id, queue_delay_ms)
+                .unwrap_or(-1.0);
+            self.queue_sample_source
+                .insert(*neighbor_id, "local_model_bytes".to_string());
+
+            if (old_q_bytes - q_next_bytes).abs() > 1e-6
+                || (old_delay - queue_delay_ms).abs() > 1e-6
+            {
+                changed = true;
+            }
+        }
+
+        self.last_queue_sample_at = ctx.now;
+        changed
+    }
+
+    fn read_kernel_backlog(iface: &str) -> Option<KernelBacklog> {
+        let output = Command::new("tc")
+            .args(["-s", "qdisc", "show", "dev", iface])
+            .output()
+            .ok()?;
+        if !output.status.success() {
+            return None;
+        }
+        let text = String::from_utf8(output.stdout).ok()?;
+        Self::parse_kernel_backlog(&text)
+    }
+
+    fn parse_kernel_backlog(text: &str) -> Option<KernelBacklog> {
+        for line in text.lines() {
+            let tokens: Vec<&str> = line.split_whitespace().collect();
+            for (idx, token) in tokens.iter().enumerate() {
+                if *token != "backlog" {
+                    continue;
+                }
+                let mut bytes = None;
+                let mut packets = None;
+                for candidate in tokens.iter().skip(idx + 1).take(6) {
+                    if let Some(raw) = candidate.strip_suffix('b') {
+                        if let Ok(value) = raw.parse::<f64>() {
+                            bytes = Some(value.max(0.0));
+                        }
+                    }
+                    if let Some(raw) = candidate.strip_suffix('p') {
+                        if let Ok(value) = raw.parse::<f64>() {
+                            packets = Some(value.max(0.0));
+                        }
+                    }
+                }
+                if bytes.is_some() || packets.is_some() {
+                    return Some(KernelBacklog { bytes, packets });
+                }
+            }
+        }
+        None
+    }
+
+    fn send_hello(&mut self, ctx: &ProtocolContext) -> Vec<(u32, ControlMessage)> {
+        const CONTROL_ARRIVAL_BYTES: f64 = 256.0;
+        let mut out = Vec::new();
+        for neighbor_id in ctx.links.keys() {
+            let mut payload = BTreeMap::new();
+            payload.insert("router_id".to_string(), json!(ctx.router_id));
+            out.push((
+                *neighbor_id,
+                self.new_message(ctx.router_id, MessageKind::Hello, payload, ctx.now),
+            ));
+            self.note_arrival_bytes(*neighbor_id, CONTROL_ARRIVAL_BYTES);
+        }
+        out
+    }
+
+    fn flood_local_lsa(
+        &mut self,
+        ctx: &ProtocolContext,
+        links: &BTreeMap<u32, f64>,
+        exclude: Option<u32>,
+    ) -> Vec<(u32, ControlMessage)> {
+        let links_payload: Vec<Value> = links
+            .iter()
+            .map(|(neighbor_id, cost)| json!({"neighbor_id": neighbor_id, "cost": cost}))
+            .collect();
+        let mut payload = BTreeMap::new();
+        payload.insert("origin_router_id".to_string(), json!(ctx.router_id));
+        payload.insert("lsa_seq".to_string(), json!(self.lsa_seq));
+        payload.insert("links".to_string(), Value::Array(links_payload));
+        self.flood_message(ctx, &payload, exclude)
+    }
+
+    fn flood_message(
+        &mut self,
+        ctx: &ProtocolContext,
+        payload: &BTreeMap<String, Value>,
+        exclude: Option<u32>,
+    ) -> Vec<(u32, ControlMessage)> {
+        const CONTROL_ARRIVAL_BYTES: f64 = 256.0;
+        let mut out = Vec::new();
+        for neighbor_id in ctx.links.keys() {
+            if exclude == Some(*neighbor_id) {
+                continue;
+            }
+            out.push((
+                *neighbor_id,
+                self.new_message(ctx.router_id, MessageKind::DdrLsa, payload.clone(), ctx.now),
+            ));
+            self.note_arrival_bytes(*neighbor_id, CONTROL_ARRIVAL_BYTES);
+        }
+        out
+    }
+
+    fn new_message(
+        &mut self,
+        router_id: u32,
+        kind: MessageKind,
+        payload: BTreeMap<String, Value>,
+        now: f64,
+    ) -> ControlMessage {
+        self.msg_seq += 1;
+        ControlMessage {
+            protocol: self.name().to_string(),
+            kind,
+            src_router_id: router_id,
+            seq: self.msg_seq,
+            payload,
+            ts: now,
+        }
+    }
+
+    fn parse_links(raw_links: &[Value]) -> BTreeMap<u32, f64> {
+        let mut links = BTreeMap::new();
+        for item in raw_links {
+            let Some(obj) = item.as_object() else {
+                continue;
+            };
+            let Some(neighbor_id) = obj
+                .get("neighbor_id")
+                .and_then(Value::as_u64)
+                .and_then(|v| u32::try_from(v).ok())
+            else {
+                continue;
+            };
+            let Some(cost) = obj.get("cost").and_then(Value::as_f64) else {
+                continue;
+            };
+            if cost.is_finite() && cost >= 0.0 {
+                links.insert(neighbor_id, cost);
+            }
+        }
+        links
+    }
+
+    fn build_graph(&self, ctx: &ProtocolContext) -> BTreeMap<u32, BTreeMap<u32, f64>> {
+        let mut graph: BTreeMap<u32, BTreeMap<u32, f64>> = BTreeMap::new();
+        for record in self.lsdb.records() {
+            graph.entry(record.router_id).or_default();
+            for (neighbor_id, cost) in record.links {
+                if !cost.is_finite() || cost < 0.0 {
+                    continue;
+                }
+                graph
+                    .entry(record.router_id)
+                    .or_default()
+                    .insert(neighbor_id, cost);
+                graph.entry(neighbor_id).or_default();
+            }
+        }
+        graph.entry(ctx.router_id).or_default();
+        graph
+    }
+
+    fn k_shortest_paths(
+        &self,
+        graph: &BTreeMap<u32, BTreeMap<u32, f64>>,
+        src: u32,
+        dst: u32,
+    ) -> Vec<PathCandidate> {
+        let max_hops = graph.len().max(2);
+        let max_results = self.params.k_paths.max(1);
+        let mut frontier = vec![PathCandidate {
+            nodes: vec![src],
+            cost: 0.0,
+        }];
+        let mut out = Vec::new();
+        let mut expanded = 0usize;
+        let expand_limit = graph.len().saturating_mul(graph.len().max(2)) * max_results.max(2);
+
+        while !frontier.is_empty() && out.len() < max_results && expanded <= expand_limit {
+            let best_idx = frontier
+                .iter()
+                .enumerate()
+                .min_by(|(_, a), (_, b)| Self::compare_path_candidate(a, b))
+                .map(|(idx, _)| idx)
+                .unwrap_or(0);
+            let state = frontier.swap_remove(best_idx);
+            let u = *state.nodes.last().unwrap_or(&src);
+
+            if u == dst {
+                out.push(state);
+                continue;
+            }
+            if state.nodes.len() >= max_hops {
+                continue;
+            }
+
+            if let Some(neighbors) = graph.get(&u) {
+                for (neighbor, cost) in neighbors {
+                    if state.nodes.contains(neighbor) {
+                        continue;
+                    }
+                    if !cost.is_finite() || *cost < 0.0 {
+                        continue;
+                    }
+                    let mut next_nodes = state.nodes.clone();
+                    next_nodes.push(*neighbor);
+                    frontier.push(PathCandidate {
+                        nodes: next_nodes,
+                        cost: state.cost + *cost,
+                    });
+                }
+            }
+            expanded += 1;
+        }
+        out
+    }
+
+    fn transfer_delay_ms(&self) -> f64 {
+        self.bytes_to_delay_ms(self.params.flow_size_bytes.max(1.0))
+    }
+
+    fn evaluate_path(&self, path: &PathCandidate) -> Option<RouteChoice> {
+        if path.nodes.len() < 2 {
+            return None;
+        }
+        let next_hop = path.nodes[1];
+        let queue_delay_ms = self
+            .estimated_queue_delay_ms
+            .get(&next_hop)
+            .copied()
+            .unwrap_or(0.0);
+        let completion_ms = path.cost + queue_delay_ms + self.transfer_delay_ms();
+        Some(RouteChoice {
+            next_hop,
+            completion_ms,
+            hop_count: path.nodes.len() - 1,
+        })
+    }
+
+    fn route_choice_better(a: &RouteChoice, b: &RouteChoice) -> bool {
+        match a.completion_ms.partial_cmp(&b.completion_ms) {
+            Some(Ordering::Less) => true,
+            Some(Ordering::Greater) => false,
+            _ => {
+                if a.next_hop != b.next_hop {
+                    a.next_hop < b.next_hop
+                } else {
+                    a.hop_count < b.hop_count
+                }
+            }
+        }
+    }
+
+    fn compare_path_candidate(a: &PathCandidate, b: &PathCandidate) -> Ordering {
+        match a.cost.partial_cmp(&b.cost) {
+            Some(Ordering::Less) => Ordering::Less,
+            Some(Ordering::Greater) => Ordering::Greater,
+            _ => a.nodes.cmp(&b.nodes),
+        }
+    }
+
+    fn compute_routes(&self, ctx: &ProtocolContext) -> Vec<Route> {
+        let graph = self.build_graph(ctx);
+        let mut routes = Vec::new();
+
+        for destination in graph.keys() {
+            if *destination == ctx.router_id {
+                continue;
+            }
+            let paths = self.k_shortest_paths(&graph, ctx.router_id, *destination);
+            if paths.is_empty() {
+                continue;
+            }
+
+            let mut best_any: Option<RouteChoice> = None;
+            let mut best_deadline: Option<RouteChoice> = None;
+            for path in &paths {
+                let Some(choice) = self.evaluate_path(path) else {
+                    continue;
+                };
+
+                let better_than_any = match best_any.as_ref() {
+                    None => true,
+                    Some(current) => Self::route_choice_better(&choice, current),
+                };
+                if better_than_any {
+                    best_any = Some(choice.clone());
+                }
+                let better_than_deadline = match best_deadline.as_ref() {
+                    None => true,
+                    Some(current) => Self::route_choice_better(&choice, current),
+                };
+                if choice.completion_ms <= self.params.deadline_ms && better_than_deadline {
+                    best_deadline = Some(choice);
+                }
+            }
+
+            let Some(chosen) = best_deadline.or(best_any) else {
+                continue;
+            };
+            routes.push(Route {
+                destination: *destination,
+                next_hop: chosen.next_hop,
+                metric: chosen.completion_ms,
+                protocol: self.name().to_string(),
+            });
+        }
+
+        routes
+    }
+}
+
+impl ProtocolEngine for DdrProtocol {
+    fn name(&self) -> &'static str {
+        "ddr"
+    }
+
+    fn start(&mut self, ctx: &ProtocolContext) -> ProtocolOutputs {
+        self.drive(ctx, true)
+    }
+
+    fn on_timer(&mut self, ctx: &ProtocolContext) -> ProtocolOutputs {
+        self.drive(ctx, false)
+    }
+
+    fn on_message(&mut self, ctx: &ProtocolContext, message: &ControlMessage) -> ProtocolOutputs {
+        let mut outputs = ProtocolOutputs::default();
+
+        if message.kind == MessageKind::Hello {
+            return outputs;
+        }
+        if message.kind != MessageKind::DdrLsa {
+            return outputs;
+        }
+
+        let origin = message
+            .payload
+            .get("origin_router_id")
+            .and_then(Value::as_u64)
+            .and_then(|v| u32::try_from(v).ok())
+            .unwrap_or(message.src_router_id);
+        let lsa_seq = message
+            .payload
+            .get("lsa_seq")
+            .and_then(Value::as_i64)
+            .unwrap_or(-1);
+        let links = message
+            .payload
+            .get("links")
+            .and_then(Value::as_array)
+            .map_or_else(BTreeMap::new, |raw| Self::parse_links(raw));
+
+        let changed = self.lsdb.upsert(origin, lsa_seq, links, ctx.now);
+        if !changed {
+            return outputs;
+        }
+
+        outputs.outbound.extend(self.flood_message(
+            ctx,
+            &message.payload,
+            Some(message.src_router_id),
+        ));
+        outputs.routes = Some(self.compute_routes(ctx));
+        outputs
+    }
+
+    fn metrics(&self) -> BTreeMap<String, Value> {
+        let mut out = BTreeMap::new();
+
+        let queue_delay_ms = self
+            .estimated_queue_delay_ms
+            .iter()
+            .map(|(neighbor_id, value)| (neighbor_id.to_string(), json!(value)))
+            .collect::<serde_json::Map<String, Value>>();
+        let queue_depth_bytes = self
+            .queue_depth_bytes
+            .iter()
+            .map(|(neighbor_id, value)| (neighbor_id.to_string(), json!(value)))
+            .collect::<serde_json::Map<String, Value>>();
+        let sample_source = self
+            .queue_sample_source
+            .iter()
+            .map(|(neighbor_id, value)| (neighbor_id.to_string(), json!(value)))
+            .collect::<serde_json::Map<String, Value>>();
+
+        out.insert("queue_delay_ms".to_string(), Value::Object(queue_delay_ms));
+        out.insert(
+            "queue_depth_bytes".to_string(),
+            Value::Object(queue_depth_bytes),
+        );
+        out.insert("sample_source".to_string(), Value::Object(sample_source));
+        out.insert("k_paths".to_string(), json!(self.params.k_paths));
+        out.insert("deadline_ms".to_string(), json!(self.params.deadline_ms));
+        out.insert(
+            "effective_bandwidth_bps".to_string(),
+            json!(self.effective_bandwidth_bps()),
+        );
+        out.insert(
+            "queue_sample_interval_s".to_string(),
+            json!(self.params.timers.queue_sample_interval),
+        );
+        out
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use std::collections::BTreeMap;
+
+    use super::*;
+    use crate::protocols::base::RouterLink;
+
+    #[test]
+    fn ddr_start_installs_direct_route() {
+        let mut ddr = DdrProtocol::new(DdrParams::default());
+        let mut links = BTreeMap::new();
+        links.insert(
+            2,
+            RouterLink {
+                neighbor_id: 2,
+                cost: 1.0,
+                address: "10.0.12.2".to_string(),
+                port: 5500,
+                interface_name: None,
+                is_up: true,
+            },
+        );
+        let ctx = ProtocolContext {
+            router_id: 1,
+            now: 0.0,
+            links,
+        };
+
+        let outputs = ddr.start(&ctx);
+        let routes = outputs.routes.expect("start should output routes");
+        assert!(routes.iter().any(|route| {
+            route.destination == 2 && route.next_hop == 2 && route.protocol == "ddr"
+        }));
+    }
+
+    #[test]
+    fn ddr_prefers_meeting_deadline() {
+        let mut ddr = DdrProtocol::new(DdrParams {
+            deadline_ms: 80.0,
+            flow_size_bytes: 1200.0,
+            link_bandwidth_bps: 9_600_000.0,
+            ..DdrParams::default()
+        });
+        ddr.estimated_queue_delay_ms.insert(2, 100.0);
+        ddr.estimated_queue_delay_ms.insert(3, 1.0);
+
+        let mut links = BTreeMap::new();
+        links.insert(
+            2,
+            RouterLink {
+                neighbor_id: 2,
+                cost: 1.0,
+                address: "10.0.12.2".to_string(),
+                port: 5500,
+                interface_name: None,
+                is_up: true,
+            },
+        );
+        links.insert(
+            3,
+            RouterLink {
+                neighbor_id: 3,
+                cost: 2.0,
+                address: "10.0.13.3".to_string(),
+                port: 5500,
+                interface_name: None,
+                is_up: true,
+            },
+        );
+        let ctx = ProtocolContext {
+            router_id: 1,
+            now: 0.0,
+            links,
+        };
+
+        ddr.lsdb
+            .upsert(1, 1, BTreeMap::from([(2_u32, 1.0), (3_u32, 2.0)]), 0.0);
+        ddr.lsdb.upsert(2, 1, BTreeMap::from([(4_u32, 1.0)]), 0.0);
+        ddr.lsdb.upsert(3, 1, BTreeMap::from([(4_u32, 1.0)]), 0.0);
+
+        let routes = ddr.compute_routes(&ctx);
+        let to_4 = routes
+            .iter()
+            .find(|route| route.destination == 4)
+            .expect("route to 4 should exist");
+        assert_eq!(to_4.next_hop, 3);
+    }
+
+    #[test]
+    fn parse_kernel_backlog_from_tc_output() {
+        let text = "\
+qdisc fq_codel 0: dev eth1 root refcnt 2 limit 10240p\n\
+ Sent 1234 bytes 12 pkt (dropped 0, overlimits 0 requeues 0)\n\
+ backlog 0b 7p requeues 0\n";
+        let parsed = DdrProtocol::parse_kernel_backlog(text).expect("backlog parsed");
+        assert_eq!(parsed.bytes, Some(0.0));
+        assert_eq!(parsed.packets, Some(7.0));
+    }
+
+    #[test]
+    fn parse_kernel_backlog_with_bytes_only() {
+        let text = "\
+qdisc fq_codel 0: dev eth1 root refcnt 2 limit 10240p\n\
+ backlog 8192b 0p requeues 0\n";
+        let parsed = DdrProtocol::parse_kernel_backlog(text).expect("backlog parsed");
+        assert_eq!(parsed.bytes, Some(8192.0));
+        assert_eq!(parsed.packets, Some(0.0));
+    }
+
+    #[test]
+    fn ddr_metrics_contains_queue_maps() {
+        let mut ddr = DdrProtocol::new(DdrParams::default());
+        ddr.queue_depth_bytes.insert(2, 6000.0);
+        ddr.estimated_queue_delay_ms.insert(2, 2.5);
+        ddr.queue_sample_source.insert(2, "kernel_tc".to_string());
+        let metrics = ddr.metrics();
+        assert!(metrics.contains_key("queue_delay_ms"));
+        assert!(metrics.contains_key("queue_depth_bytes"));
+        assert!(metrics.contains_key("sample_source"));
+    }
+}

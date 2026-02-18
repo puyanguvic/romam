@@ -46,6 +46,8 @@ Control/observability paths:
 - Protocol engines:
   - OSPF-like link-state: `src/irp/src/protocols/ospf.rs`
   - RIP distance-vector: `src/irp/src/protocols/rip.rs`
+  - DDR deadline-driven routing: `src/irp/src/protocols/ddr.rs`
+    - uses `tc -s qdisc` backlog when neighbor `iface` is present in config; converts queue bytes to delay via `link_bandwidth_bps` (falls back to local estimator otherwise)
   - IRP mode entry: `protocol: irp` (currently routed through the OSPF-style core with IRP params)
 - Decision/policy hook: `src/irp/src/algo/mod.rs`
 - Management API: `src/irp/src/runtime/mgmt.rs` (HTTP + gRPC placeholder)
@@ -185,7 +187,16 @@ python3 tools/generate_routerd_lab.py \
   --topology-file src/clab/topologies/spineleaf2x4.clab.yaml
 ```
 
-`--protocol` is independent from topology file, so the same file can run `ospf`, `rip`, or `irp`.
+`--protocol` is independent from topology file, so the same file can run `ospf`, `rip`, `ddr`, or `irp`.
+
+DDR validation config example:
+
+```bash
+PYTHONPATH=src python3 tools/run_unified_experiment.py \
+  --config experiments/routerd_examples/unified_experiments/line3_ddr_validation.yaml \
+  --poll-interval-s 1 \
+  --sudo
+```
 
 ## One-Command Lab Run
 

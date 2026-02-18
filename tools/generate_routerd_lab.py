@@ -34,7 +34,7 @@ def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(
         description="Generate routerd-enabled containerlab topology and per-node configs."
     )
-    parser.add_argument("--protocol", choices=["ospf", "rip", "irp"], default="ospf")
+    parser.add_argument("--protocol", choices=["ospf", "rip", "irp", "ddr"], default="ospf")
     parser.add_argument(
         "--routing-alpha",
         type=float,
@@ -78,6 +78,11 @@ def parse_args() -> argparse.Namespace:
         default=True,
         help="Enable poison reverse in RIP updates (default: enabled).",
     )
+    parser.add_argument("--ddr-k-paths", type=int, default=3)
+    parser.add_argument("--ddr-deadline-ms", type=float, default=100.0)
+    parser.add_argument("--ddr-flow-size-bytes", type=float, default=64000.0)
+    parser.add_argument("--ddr-link-bandwidth-bps", type=float, default=9600000.0)
+    parser.add_argument("--ddr-queue-sample-interval", type=float, default=1.0)
     parser.add_argument(
         "--lab-name",
         default="",
@@ -206,6 +211,11 @@ def main() -> int:
         mgmt_grpc_enabled=bool(args.mgmt_grpc_enabled),
         mgmt_grpc_bind=str(args.mgmt_grpc_bind),
         mgmt_grpc_port_base=int(args.mgmt_grpc_port_base),
+        ddr_k_paths=int(args.ddr_k_paths),
+        ddr_deadline_ms=float(args.ddr_deadline_ms),
+        ddr_flow_size_bytes=float(args.ddr_flow_size_bytes),
+        ddr_link_bandwidth_bps=float(args.ddr_link_bandwidth_bps),
+        ddr_queue_sample_interval=float(args.ddr_queue_sample_interval),
     )
     result = generate_routerd_lab(params)
     clab_bin = shutil.which("containerlab") or "containerlab"
@@ -217,6 +227,12 @@ def main() -> int:
     if str(args.protocol) == "irp":
         print(f"routing_alpha: {float(args.routing_alpha)}")
         print(f"routing_beta: {float(args.routing_beta)}")
+    if str(args.protocol) == "ddr":
+        print(f"ddr_k_paths: {int(args.ddr_k_paths)}")
+        print(f"ddr_deadline_ms: {float(args.ddr_deadline_ms)}")
+        print(f"ddr_flow_size_bytes: {float(args.ddr_flow_size_bytes)}")
+        print(f"ddr_link_bandwidth_bps: {float(args.ddr_link_bandwidth_bps)}")
+        print(f"ddr_queue_sample_interval: {float(args.ddr_queue_sample_interval)}")
     print(f"source_topology_file: {source_topology_file}")
     print(f"topology_file: {result['topology_file']}")
     print(f"configs_dir: {result['configs_dir']}")

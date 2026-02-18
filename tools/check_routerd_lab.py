@@ -60,7 +60,7 @@ def parse_args() -> argparse.Namespace:
     )
     parser.add_argument(
         "--expect-protocol",
-        choices=["ospf", "rip", "irp"],
+        choices=["ospf", "rip", "irp", "ddr"],
         default="",
         help="If set, fail when daemon protocol differs.",
     )

@@ -108,6 +108,35 @@ def test_build_run_routerd_lab_cmd_includes_irp_params() -> None:
     assert "--lab-name my-lab" in text
 
 
+def test_build_run_routerd_lab_cmd_includes_ddr_params() -> None:
+    module = _load_module()
+    cmd = module.build_run_routerd_lab_cmd(
+        protocol="ddr",
+        topology_key="profile",
+        topology_value="line3",
+        use_sudo=False,
+        config={},
+        precheck_min_routes=0,
+        precheck_max_wait_s=20,
+        precheck_poll_interval_s=1.0,
+        precheck_tail_lines=120,
+        ddr_params={
+            "k_paths": 4,
+            "deadline_ms": 80.0,
+            "flow_size_bytes": 32768.0,
+            "link_bandwidth_bps": 25000000.0,
+            "queue_sample_interval": 0.5,
+        },
+    )
+    text = " ".join(cmd)
+    assert "--protocol ddr" in text
+    assert "--ddr-k-paths 4" in text
+    assert "--ddr-deadline-ms 80.0" in text
+    assert "--ddr-flow-size-bytes 32768.0" in text
+    assert "--ddr-link-bandwidth-bps 25000000.0" in text
+    assert "--ddr-queue-sample-interval 0.5" in text
+
+
 def test_write_standard_run_artifacts(tmp_path: Path) -> None:
     module = _load_module()
     topology_file = tmp_path / "demo.clab.yaml"

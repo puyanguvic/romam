@@ -12,6 +12,7 @@ pub struct NeighborConfig {
     pub address: String,
     pub port: u16,
     pub cost: f64,
+    pub interface_name: Option<String>,
 }
 
 #[derive(Debug, Clone)]
@@ -88,6 +89,7 @@ struct RawNeighbor {
     address: String,
     port: Option<u16>,
     cost: Option<f64>,
+    iface: Option<String>,
 }
 
 #[derive(Debug, Deserialize, Default)]
@@ -160,6 +162,10 @@ pub fn load_daemon_config(path: &Path) -> Result<DaemonConfig> {
             address: item.address,
             port: item.port.unwrap_or(5500),
             cost: item.cost.unwrap_or(1.0),
+            interface_name: item
+                .iface
+                .map(|name| name.trim().to_string())
+                .filter(|name| !name.is_empty()),
         })
         .collect();
 

@@ -12,6 +12,7 @@ use crate::model::messages::{decode_message, encode_message};
 use crate::model::routing::{ForwardingTable, RouteTable};
 use crate::model::state::{NeighborInfo, NeighborTable};
 use crate::protocols::base::{ProtocolContext, ProtocolEngine, RouterLink};
+use crate::protocols::ddr::{DdrParams, DdrProtocol, DdrTimers};
 use crate::protocols::ospf::{OspfProtocol, OspfTimers};
 use crate::protocols::rip::{RipProtocol, RipTimers};
 use crate::runtime::config::DaemonConfig;
@@ -46,6 +47,7 @@ impl RouterDaemon {
                 address: neighbor.address.clone(),
                 port: neighbor.port,
                 cost: neighbor.cost,
+                interface_name: neighbor.interface_name.clone(),
                 last_seen: None,
                 is_up: false,
             })
@@ -65,6 +67,7 @@ impl RouterDaemon {
             cfg.tick_interval,
             cfg.dead_interval,
             &cfg.forwarding,
+            protocol.metrics(),
             0.0,
             neighbors.clone(),
             Vec::new(),
@@ -243,6 +246,7 @@ impl RouterDaemon {
                         cost: info.cost,
                         address: info.address.clone(),
                         port: info.port,
+                        interface_name: info.interface_name.clone(),
                         is_up: info.is_up,
                     },
                 )
@@ -280,6 +284,7 @@ impl RouterDaemon {
             self.cfg.tick_interval,
             self.cfg.dead_interval,
             &self.cfg.forwarding,
+            self.protocol.metrics(),
             now,
             neighbors,
             routes,
@@ -317,6 +322,32 @@ impl RouterDaemon {
                     infinity_metric,
                     poison_reverse,
                 )))
+            }
+            "ddr" => {
+                let hello_interval = param_f64(params, "hello_interval", 1.0);
+                let lsa_interval = param_f64(params, "lsa_interval", 3.0);
+                let lsa_max_age =
+                    param_f64(params, "lsa_max_age", (cfg.dead_interval * 3.0).max(10.0));
+                let queue_sample_interval =
+                    param_f64(params, "queue_sample_interval", cfg.tick_interval.max(0.5));
+                let k_paths = param_usize(params, "k_paths", 3);
+                let deadline_ms = param_f64(params, "deadline_ms", 100.0);
+                let flow_size_bytes = param_f64(params, "flow_size_bytes", 64_000.0).max(1.0);
+                let link_bandwidth_bps =
+                    param_f64(params, "link_bandwidth_bps", 9_600_000.0).max(1.0);
+
+                Ok(Box::new(DdrProtocol::new(DdrParams {
+                    timers: DdrTimers {
+                        hello_interval,
+                        lsa_interval,
+                        lsa_max_age,
+                        queue_sample_interval,
+                    },
+                    k_paths,
+                    deadline_ms,
+                    flow_size_bytes,
+                    link_bandwidth_bps,
+                })))
             }
             "irp" => {
                 let alpha = param_f64(params, "alpha", 1.0);
@@ -356,6 +387,17 @@ fn param_bool(params: &Map<String, Value>, key: &str, default: bool) -> bool {
             "0" | "false" | "no" => false,
             _ => default,
         },
+        _ => default,
+    }
+}
+
+fn param_usize(params: &Map<String, Value>, key: &str, default: usize) -> usize {
+    match params.get(key) {
+        Some(Value::Number(num)) => num
+            .as_u64()
+            .and_then(|v| usize::try_from(v).ok())
+            .unwrap_or(default),
+        Some(Value::String(text)) => text.parse::<usize>().unwrap_or(default),
         _ => default,
     }
 }

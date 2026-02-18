@@ -6,6 +6,7 @@ pub struct NeighborInfo {
     pub address: String,
     pub port: u16,
     pub cost: f64,
+    pub interface_name: Option<String>,
     pub last_seen: Option<f64>,
     pub is_up: bool,
 }

@@ -276,6 +276,7 @@ mod tests {
                 cost: 1.0,
                 address: "10.0.12.2".to_string(),
                 port: 5500,
+                interface_name: None,
                 is_up: true,
             },
         );
