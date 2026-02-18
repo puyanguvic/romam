@@ -1,0 +1,16 @@
+topology: line_3
+protocol: rip
+
+traffic:
+  enabled: true
+  proto: udp
+  model: bulk
+  src_node: r1
+  dst_node: r3
+  flows: 3
+  rate_mbps: 12
+  packet_size: 512
+  port: 9000
+
+precheck_max_wait_s: 30
+duration_s: 60

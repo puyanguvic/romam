@@ -73,26 +73,6 @@ PROBE_WARMUP_S ?= 0.7
 PROBE_TIMEOUT_S ?= 120
 PROBE_OUTPUT_JSON ?=
 PROBE_USE_SUDO ?= 1
-LINE_EXP_TOPOLOGY_FILE ?=
-LINE_EXP_PORT ?= 9000
-LINE_EXP_PACKET_SIZE ?= 512
-LINE_EXP_COUNT ?= 5000
-LINE_EXP_DURATION_S ?= 0
-LINE_EXP_PPS ?= 1000
-LINE_EXP_REPORT_INTERVAL_S ?= 1
-LINE_EXP_WARMUP_S ?= 0.7
-LINE_EXP_TIMEOUT_S ?= 120
-LINE_EXP_LAB_CHECK_MIN_ROUTES ?= 0
-LINE_EXP_LAB_CHECK_MAX_WAIT_S ?= 20
-LINE_EXP_LAB_CHECK_POLL_INTERVAL_S ?= 1
-LINE_EXP_CONVERGE_TAIL_LINES ?= 120
-LINE_EXP_CONVERGE_MAX_WAIT_S ?= 60
-LINE_EXP_CONVERGE_POLL_INTERVAL_S ?= 1
-LINE_EXP_CONVERGE_MIN_ROUTES ?= -1
-LINE_EXP_ALLOW_UNCONVERGED_SEND ?= 0
-LINE_EXP_OUTPUT_JSON ?=
-LINE_EXP_USE_SUDO ?= 1
-LINE_EXP_KEEP_LAB ?= 0
 TRAFFIC_GO_BIN ?= bin/traffic_app
 TRAFFIC_GOOS ?= linux
 TRAFFIC_GOARCH ?= amd64
@@ -102,7 +82,7 @@ INSTALL_TRAFFIC_BIN_TOPOLOGY_FILE ?=
 INSTALL_TRAFFIC_BIN_NODES ?=
 INSTALL_TRAFFIC_BIN_USE_SUDO ?= 1
 
-.PHONY: install test lint build-routerd-rs run-routerd-rs build-routerd-node-image build-traffic-app-go install-traffic-app-bin run-containerlab-exp run-ospf-convergence-exp gen-routerd-lab gen-classic-routerd-lab check-routerd-lab run-routerd-lab run-traffic-app run-traffic-plan run-unified-experiment run-traffic-probe run-line-ospf-udp-exp clean
+.PHONY: install test lint build-routerd-rs run-routerd-rs build-routerd-node-image build-traffic-app-go install-traffic-app-bin run-containerlab-exp run-ospf-convergence-exp gen-routerd-lab gen-classic-routerd-lab check-routerd-lab run-routerd-lab run-traffic-app run-traffic-plan run-unified-experiment run-traffic-probe clean
 
 install:
 	$(PIP) install -e .[dev]
@@ -261,28 +241,5 @@ run-traffic-probe:
 		$(if $(strip $(PROBE_OUTPUT_JSON)),--output-json $(PROBE_OUTPUT_JSON),) \
 		$(if $(filter 1 yes true,$(PROBE_USE_SUDO)),--sudo,--no-sudo)
 
-run-line-ospf-udp-exp:
-	PYTHONPATH=$(PYTHONPATH) $(PYTHON) exps/run_line_ospf_udp_exp.py \
-		$(if $(strip $(LINE_EXP_TOPOLOGY_FILE)),--topology-file $(LINE_EXP_TOPOLOGY_FILE),) \
-		--port $(LINE_EXP_PORT) \
-		--packet-size $(LINE_EXP_PACKET_SIZE) \
-		--count $(LINE_EXP_COUNT) \
-		--duration-s $(LINE_EXP_DURATION_S) \
-		--pps $(LINE_EXP_PPS) \
-	--report-interval-s $(LINE_EXP_REPORT_INTERVAL_S) \
-	--warmup-s $(LINE_EXP_WARMUP_S) \
-	--sender-timeout-s $(LINE_EXP_TIMEOUT_S) \
-	--lab-check-min-routes $(LINE_EXP_LAB_CHECK_MIN_ROUTES) \
-	--lab-check-max-wait-s $(LINE_EXP_LAB_CHECK_MAX_WAIT_S) \
-	--lab-check-poll-interval-s $(LINE_EXP_LAB_CHECK_POLL_INTERVAL_S) \
-	--converge-tail-lines $(LINE_EXP_CONVERGE_TAIL_LINES) \
-	--converge-max-wait-s $(LINE_EXP_CONVERGE_MAX_WAIT_S) \
-	--converge-poll-interval-s $(LINE_EXP_CONVERGE_POLL_INTERVAL_S) \
-	--converge-min-routes $(LINE_EXP_CONVERGE_MIN_ROUTES) \
-	$(if $(filter 1 yes true,$(LINE_EXP_ALLOW_UNCONVERGED_SEND)),--allow-unconverged-send,) \
-	$(if $(strip $(LINE_EXP_OUTPUT_JSON)),--output-json $(LINE_EXP_OUTPUT_JSON),) \
-	$(if $(filter 1 yes true,$(LINE_EXP_USE_SUDO)),--sudo,--no-sudo) \
-	$(if $(filter 1 yes true,$(LINE_EXP_KEEP_LAB)),--keep-lab,)
-
 clean:
-	rm -rf .pytest_cache .ruff_cache dist build *.egg-info src/irp/target bin/routingd bin/irp_routerd_rs bin/node_supervisor
+	rm -rf .pytest_cache .ruff_cache __pycache__ exps/__pycache__ src/__pycache__ tests/__pycache__ scripts/__pycache__ dist build *.egg-info src/irp/target bin/routingd bin/irp_routerd_rs bin/node_supervisor

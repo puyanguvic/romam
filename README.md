@@ -25,7 +25,7 @@ Control/observability paths:
 - Node process supervisor: `src/irp/src/bin/node_supervisor.rs`
 - Topology file loader + lab tools: `src/topology/clab_loader.py`, `src/topology/labgen.py`
 - Example daemon configs: `exps/routerd_examples/`
-- Experiment utilities: `exps/ospf_convergence_exp.py`
+- Experiment utilities index: `exps/README.md`
 
 ## Setup
 
@@ -226,6 +226,16 @@ By default checker waits up to `10s` for early convergence logs (`CHECK_MAX_WAIT
 
 ## Run OSPF Convergence Demo
 
+Recommended (unified benchmark config):
+
+```bash
+make run-unified-experiment \
+  UNIFIED_CONFIG_FILE=exps/routerd_examples/unified_experiments/ring6_ospf_convergence_benchmark.yaml \
+  UNIFIED_USE_SUDO=1
+```
+
+Legacy-compatible wrapper (still supported):
+
 ```bash
 make run-ospf-convergence-exp EXP_TOPOLOGY_FILE=clab_topologies/ring6.clab.yaml EXP_REPEATS=1
 ```
@@ -305,17 +315,19 @@ Plan runner:
 - ordered per-node task launch (`run_traffic_app.py`)
 - supports background sink and delayed sender start
 
-## Unified Experiment YAML (Deploy + Apps + Poll)
+## Unified Experiment YAML (Scenario + Benchmark)
 
-Use one top-level YAML to run the full loop:
-- deploy topology + inject protocol config,
-- write app specs into each node's `node_supervisor` config and restart supervisor,
-- launch app processes from config (same node can run multiple sender/sink),
-- poll `/v1/routes` + `/v1/metrics` every second and compute convergence.
+Use one top-level YAML to run the full loop in either mode:
+- `mode: scenario` (default): deploy topology + inject protocol config, write app specs
+  into `node_supervisor`, launch apps, inject faults, and poll `/v1/routes` + `/v1/metrics`.
+- `mode: convergence_benchmark`: run repeated deploy/precheck/ping-probe loops and export
+  summary JSON/CSV.
 
 Examples:
 - `exps/routerd_examples/unified_experiments/line3_irp_onoff_fault.yaml`
 - `exps/routerd_examples/unified_experiments/line3_irp_multi_apps.yaml`
+- `exps/routerd_examples/unified_experiments/line3_rip_validation.yaml`
+- `exps/routerd_examples/unified_experiments/ring6_ospf_convergence_benchmark.yaml`
 
 Recommended run flow (verified on this repo):
 
@@ -335,8 +347,17 @@ PYTHONPATH=src python3 exps/run_unified_experiment.py \
   --sudo
 ```
 
-Default report output path:
-- `results/runs/unified_experiments/<lab_name>/report_<timestamp>.json`
+RIP validation on 3-node line topology:
+
+```bash
+make run-unified-experiment \
+  UNIFIED_CONFIG_FILE=exps/routerd_examples/unified_experiments/line3_rip_validation.yaml \
+  UNIFIED_USE_SUDO=1
+```
+
+Default outputs:
+- `mode: scenario`: `results/runs/unified_experiments/<lab_name>/report_<timestamp>.json`
+- `mode: convergence_benchmark`: `results/tables/<protocol>_convergence_unified_<topology>.json` and `.csv`
 
 The unified config supports fault injection, e.g.:
 - `link_down` with `faults[].link: [r2, r3]`
@@ -351,6 +372,7 @@ sudo containerlab destroy -t clab_topologies/line3.clab.yaml --name <lab_name> -
 ### Multi-app AppSpec schema
 
 `run_unified_experiment.py` supports:
+- `mode`: `scenario` (default) or `convergence_benchmark`
 - `node_apps`: list of `{node_id, apps[]}`
 - `apps`: flat list where each app includes `node` or `node_id`
 
@@ -441,31 +463,6 @@ make run-traffic-probe \
 ```
 
 It prints a JSON report with sender throughput and sink log tail.
-
-## Line Topology OSPF UDP Experiment (r1 -> rN)
-
-This experiment uses the line topology (`line5`) and OSPF, then sends UDP traffic from
-the first node to the last node (for `line5`: `r1 -> r5`).
-Before sending, it now runs an explicit convergence wait check (`check_routerd_lab`).
-
-```bash
-make run-line-ospf-udp-exp \
-  LINE_EXP_PACKET_SIZE=512 \
-  LINE_EXP_COUNT=5000 \
-  LINE_EXP_PPS=1000 \
-  LINE_EXP_OUTPUT_JSON=results/runs/line_ospf_udp_exp.json
-```
-
-Useful options:
-- `LINE_EXP_USE_SUDO=1` (default) for docker/containerlab operations.
-- `LINE_EXP_KEEP_LAB=1` to keep the lab after probe.
-- `LINE_EXP_TOPOLOGY_FILE=<path>` to override built-in `line5` topology.
-- This experiment enables routerd forwarding automatically (`--forwarding-enabled --no-forwarding-dry-run`).
-- `LINE_EXP_LAB_CHECK_MIN_ROUTES=0` (default) relaxes route-count gating in lab pre-check.
-- `LINE_EXP_LAB_CHECK_MAX_WAIT_S=20` controls OSPF pre-check wait window.
-- `LINE_EXP_CONVERGE_MAX_WAIT_S=60` controls explicit convergence wait before send.
-- `LINE_EXP_CONVERGE_MIN_ROUTES=-1` means `n_nodes-1` routes required before send.
-- `LINE_EXP_ALLOW_UNCONVERGED_SEND=1` can force-send even if convergence check fails.
 
 ## Outputs
 

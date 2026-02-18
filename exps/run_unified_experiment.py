@@ -3,15 +3,20 @@
 from __future__ import annotations
 
 import argparse
+import csv
 import json
+import math
 import os
+import re
 import shlex
 import shutil
 import subprocess
 import sys
 import time
 from dataclasses import asdict, dataclass
+from datetime import datetime, timezone
 from pathlib import Path
+from statistics import mean
 from typing import Any
 
 import yaml
@@ -33,6 +38,8 @@ TOPOLOGY_ALIAS = {
     "ring_6": "ring6",
     "ring6": "ring6",
 }
+PING_SUMMARY_RE = re.compile(r"(\d+) packets transmitted, (\d+) (?:packets )?received")
+PING_RTT_RE = re.compile(r"(?:rtt|round-trip) min/avg/max(?:/mdev|/stddev)? = ([0-9.]+)/([0-9.]+)/")
 
 
 @dataclass(frozen=True)
@@ -61,7 +68,8 @@ def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(
         description=(
             "Run unified routing experiment from a single YAML config: "
-            "deploy, launch apps, inject faults, and sample /v1/routes+/v1/metrics every second."
+            "scenario mode (apps/faults/polling) or convergence benchmark mode "
+            "(repeated deploy + ping probes + summary)."
         )
     )
     parser.add_argument("--config", required=True, help="Path to unified experiment YAML.")
@@ -288,6 +296,198 @@ def fetch_supervisor_state(*, use_sudo: bool, container: str) -> dict[str, Any]:
         return {"value": data}
     except json.JSONDecodeError:
         return {"error": "non_json", "raw": payload[:400]}
+
+
+def parse_ping_output(output: str) -> tuple[int, int, float | None]:
+    tx = 0
+    rx = 0
+    avg_rtt = None
+
+    summary_match = PING_SUMMARY_RE.search(output)
+    if summary_match:
+        tx = int(summary_match.group(1))
+        rx = int(summary_match.group(2))
+
+    rtt_match = PING_RTT_RE.search(output)
+    if rtt_match:
+        avg_rtt = float(rtt_match.group(2))
+    return tx, rx, avg_rtt
+
+
+def percentile(values: list[float], p: float) -> float | None:
+    if not values:
+        return None
+    xs = sorted(values)
+    idx = int(math.ceil(len(xs) * p)) - 1
+    idx = max(0, min(idx, len(xs) - 1))
+    return xs[idx]
+
+
+def sanitize_label(value: str, max_len: int = 48) -> str:
+    text = re.sub(r"[^a-z0-9-]", "-", str(value).lower()).strip("-")
+    return (text or "lab")[:max_len]
+
+
+def append_runlab_generator_args(runlab_cmd: list[str], config: dict[str, Any]) -> None:
+    lab_cfg = dict(config.get("lab", {}) or {})
+    lab_name = str(lab_cfg.get("lab_name", config.get("lab_name", ""))).strip()
+    if lab_name:
+        runlab_cmd.extend(["--lab-name", lab_name])
+
+    node_image = str(
+        lab_cfg.get("node_image", config.get("node_image", ""))
+    ).strip()
+    if node_image:
+        runlab_cmd.extend(["--node-image", node_image])
+
+    mgmt_network_name = str(
+        lab_cfg.get("mgmt_network_name", config.get("mgmt_network_name", ""))
+    ).strip()
+    if mgmt_network_name:
+        runlab_cmd.extend(["--mgmt-network-name", mgmt_network_name])
+
+    mgmt_ipv4_subnet = str(
+        lab_cfg.get("mgmt_ipv4_subnet", config.get("mgmt_ipv4_subnet", ""))
+    ).strip()
+    if mgmt_ipv4_subnet:
+        runlab_cmd.extend(["--mgmt-ipv4-subnet", mgmt_ipv4_subnet])
+
+    mgmt_ipv6_subnet = str(
+        lab_cfg.get("mgmt_ipv6_subnet", config.get("mgmt_ipv6_subnet", ""))
+    ).strip()
+    if mgmt_ipv6_subnet:
+        runlab_cmd.extend(["--mgmt-ipv6-subnet", mgmt_ipv6_subnet])
+
+    mgmt_external_access = lab_cfg.get(
+        "mgmt_external_access",
+        config.get("mgmt_external_access", False),
+    )
+    if bool(mgmt_external_access):
+        runlab_cmd.append("--mgmt-external-access")
+
+
+def apply_link_delay_for_all_links(
+    *,
+    use_sudo: bool,
+    lab_name: str,
+    topo: ClabTopology,
+    delay_ms: float,
+) -> None:
+    text = f"{float(delay_ms):.3f}".rstrip("0").rstrip(".")
+    tc_delay = f"{text}ms"
+    for link in topo.links:
+        for node, iface in [
+            (str(link.left_node), str(link.left_iface)),
+            (str(link.right_node), str(link.right_iface)),
+        ]:
+            container = container_name(lab_name, node)
+            run_cmd(
+                with_sudo(
+                    ["docker", "exec", container, "ip", "link", "set", "dev", iface, "up"],
+                    use_sudo,
+                ),
+                check=True,
+                capture_output=True,
+            )
+            run_cmd(
+                with_sudo(
+                    [
+                        "docker",
+                        "exec",
+                        container,
+                        "tc",
+                        "qdisc",
+                        "replace",
+                        "dev",
+                        iface,
+                        "root",
+                        "netem",
+                        "delay",
+                        tc_delay,
+                    ],
+                    use_sudo,
+                ),
+                check=True,
+                capture_output=True,
+            )
+
+
+def run_link_ping_probes(
+    *,
+    use_sudo: bool,
+    lab_name: str,
+    topo: ClabTopology,
+    ping_count: int,
+    ping_timeout_s: int,
+) -> tuple[list[dict[str, Any]], int, int, list[float]]:
+    details: list[dict[str, Any]] = []
+    success = 0
+    failed = 0
+    rtts: list[float] = []
+
+    for link in topo.links:
+        src_node = str(link.left_node)
+        dst_node = str(link.right_node)
+        target_ip = str(link.right_ip or "")
+        if not target_ip:
+            failed += 1
+            details.append(
+                {
+                    "src_node": src_node,
+                    "dst_node": dst_node,
+                    "target_ip": None,
+                    "packets_tx": 0,
+                    "packets_rx": 0,
+                    "avg_rtt_ms": None,
+                    "success": False,
+                    "error": "missing dst data-plane ip",
+                }
+            )
+            continue
+
+        ping_proc = run_cmd(
+            with_sudo(
+                [
+                    "docker",
+                    "exec",
+                    container_name(lab_name, src_node),
+                    "ping",
+                    "-n",
+                    "-c",
+                    str(max(1, int(ping_count))),
+                    "-W",
+                    str(max(1, int(ping_timeout_s))),
+                    target_ip,
+                ],
+                use_sudo,
+            ),
+            check=False,
+            capture_output=True,
+        )
+        ping_out = ping_proc.stdout or ""
+        tx, rx, avg_rtt = parse_ping_output(ping_out)
+        ok = tx > 0 and tx == rx
+        if ok:
+            success += 1
+        else:
+            failed += 1
+        if avg_rtt is not None:
+            rtts.append(avg_rtt)
+        details.append(
+            {
+                "src_node": src_node,
+                "dst_node": dst_node,
+                "src_iface": str(link.left_iface),
+                "dst_iface": str(link.right_iface),
+                "target_ip": target_ip,
+                "packets_tx": tx,
+                "packets_rx": rx,
+                "avg_rtt_ms": avg_rtt,
+                "success": ok,
+            }
+        )
+
+    return details, success, failed, rtts
 
 
 def load_faults(raw_faults: Any) -> list[FaultSpec]:
@@ -1023,17 +1223,12 @@ def apps_from_supervisor_obj(node: str, supervisor_obj: dict[str, Any]) -> list[
     return sorted(out, key=lambda x: str(x.get("name", "")))
 
 
-def main() -> int:
-    args = parse_args()
-    cfg_path = Path(str(args.config)).expanduser().resolve()
-    if not cfg_path.exists():
-        raise FileNotFoundError(f"config file not found: {cfg_path}")
-
-    with cfg_path.open("r", encoding="utf-8") as f:
-        config = yaml.safe_load(f) or {}
-    if not isinstance(config, dict):
-        raise ValueError("config must be a mapping")
-
+def run_scenario_mode(
+    *,
+    args: argparse.Namespace,
+    cfg_path: Path,
+    config: dict[str, Any],
+) -> int:
     topology_key, topology_value = resolve_topology_spec(str(config.get("topology", "")))
     protocol = str(config.get("protocol", "ospf")).strip().lower()
     if protocol not in {"ospf", "rip", "irp"}:
@@ -1073,6 +1268,7 @@ def main() -> int:
             "--routing-beta",
             str(routing_beta),
         ])
+    append_runlab_generator_args(runlab_cmd, config)
 
     print("[1/3] deploy + bootstrap lab")
     print("cmd:", " ".join(shlex.quote(x) for x in runlab_cmd))
@@ -1348,6 +1544,285 @@ def main() -> int:
         print("keep_lab enabled: skip destroy")
 
     return 0
+
+
+def save_benchmark_table_outputs(summary: dict[str, Any], prefix: str) -> tuple[Path, Path]:
+    prefix_path = (REPO_ROOT / str(prefix)).resolve()
+    ensure_dir(prefix_path.parent)
+
+    json_path = prefix_path.with_suffix(".json")
+    with json_path.open("w", encoding="utf-8") as f:
+        json.dump(summary, f, ensure_ascii=False, indent=2, sort_keys=True)
+
+    csv_path = prefix_path.with_suffix(".csv")
+    fields = [
+        "run_id",
+        "name",
+        "run_idx",
+        "protocol",
+        "n_nodes",
+        "topology",
+        "source_topology_file",
+        "edge_count",
+        "link_delay_ms",
+        "node_image",
+        "lab_name",
+        "mgmt_network_name",
+        "mgmt_ipv4_subnet",
+        "mgmt_ipv6_subnet",
+        "mgmt_external_access",
+        "successful_probes",
+        "failed_probes",
+        "probe_success_ratio",
+        "converged",
+        "avg_rtt_ms",
+        "p95_rtt_ms",
+    ]
+    with csv_path.open("w", encoding="utf-8", newline="") as f:
+        writer = csv.DictWriter(f, fieldnames=fields)
+        writer.writeheader()
+        for row in list(summary.get("runs", []) or []):
+            writer.writerow({k: row.get(k) for k in fields})
+    return json_path, csv_path
+
+
+def run_convergence_benchmark_mode(
+    *,
+    args: argparse.Namespace,
+    cfg_path: Path,
+    config: dict[str, Any],
+) -> int:
+    topology_key, topology_value = resolve_topology_spec(str(config.get("topology", "")))
+    protocol = str(config.get("protocol", "ospf")).strip().lower() or "ospf"
+    if protocol not in {"ospf", "rip", "irp"}:
+        raise ValueError("protocol must be one of: ospf, rip, irp")
+
+    bench_cfg = dict(config.get("benchmark", {}) or {})
+    repeats = max(1, int(bench_cfg.get("repeats", config.get("repeats", 1))))
+    ping_count = max(1, int(bench_cfg.get("ping_count", 3)))
+    ping_timeout_s = max(1, int(bench_cfg.get("ping_timeout_s", 1)))
+    startup_wait_s = max(0.0, float(bench_cfg.get("startup_wait_s", 0.8)))
+    link_delay_ms = max(0.0, float(bench_cfg.get("link_delay_ms", 1.0)))
+    precheck_max_wait_s = max(1.0, float(config.get("precheck_max_wait_s", 20.0)))
+    precheck_poll_interval_s = max(
+        0.2, float(config.get("precheck_poll_interval_s", 1.0))
+    )
+    precheck_tail_lines = max(20, int(config.get("precheck_tail_lines", 120)))
+    precheck_min_routes = int(config.get("precheck_min_routes", -1))
+    lab_cfg = dict(config.get("lab", {}) or {})
+    lab_name_prefix = str(
+        lab_cfg.get("lab_name_prefix", config.get("lab_name_prefix", ""))
+    ).strip()
+    explicit_lab_name = str(
+        lab_cfg.get("lab_name", config.get("lab_name", ""))
+    ).strip()
+    run_output_dir = str(
+        bench_cfg.get(
+            "run_output_dir",
+            "results/runs/unified_experiments/convergence_benchmark",
+        )
+    ).strip() or "results/runs/unified_experiments/convergence_benchmark"
+
+    rows: list[dict[str, Any]] = []
+    topologies_seen: list[str] = []
+
+    for run_idx in range(1, repeats + 1):
+        runlab_cmd = [
+            sys.executable,
+            str(REPO_ROOT / "exps" / "run_routerd_lab.py"),
+            "--protocol",
+            protocol,
+            "--keep-lab",
+            "--check-min-routes",
+            str(precheck_min_routes),
+            "--check-max-wait-s",
+            str(precheck_max_wait_s),
+            "--check-poll-interval-s",
+            str(precheck_poll_interval_s),
+            "--check-tail-lines",
+            str(precheck_tail_lines),
+            "--sudo" if bool(args.sudo) else "--no-sudo",
+        ]
+        if topology_key == "profile":
+            runlab_cmd.extend(["--profile", topology_value])
+        else:
+            runlab_cmd.extend(["--topology-file", topology_value])
+        append_runlab_generator_args(runlab_cmd, config)
+        if lab_name_prefix and not explicit_lab_name:
+            auto_lab_name = (
+                f"{sanitize_label(lab_name_prefix, 28)}-r{run_idx}-{now_tag().lower()}"
+            )
+            runlab_cmd.extend(["--lab-name", auto_lab_name])
+
+        topology_file: Path | None = None
+        lab_name = ""
+        deploy_env: dict[str, str] = {}
+        try:
+            print(f"[run {run_idx}/{repeats}] deploy + bootstrap + precheck")
+            print("cmd:", " ".join(shlex.quote(x) for x in runlab_cmd))
+            runlab_proc = run_cmd(runlab_cmd, check=False, capture_output=True)
+            runlab_output = runlab_proc.stdout or ""
+            if runlab_output.strip():
+                print(runlab_output.strip())
+            parsed = parse_keyed_output(runlab_output)
+            missing = [k for k in KNOWN_KEYS if not parsed.get(k)]
+            if missing:
+                raise RuntimeError(
+                    "failed to parse run_routerd_lab output, missing keys: "
+                    + ", ".join(missing)
+                )
+            if runlab_proc.returncode != 0:
+                raise RuntimeError(
+                    f"run_routerd_lab failed ({runlab_proc.returncode}) in benchmark run {run_idx}"
+                )
+
+            topology_file = Path(parsed["topology_file"]).expanduser().resolve()
+            deploy_env_file = Path(parsed["deploy_env_file"]).expanduser().resolve()
+            lab_name = parsed["lab_name"]
+            deploy_env = load_env_file(deploy_env_file)
+            deploy_env["CLAB_LAB_NAME"] = lab_name
+            topo = load_clab_topology(topology_file)
+            topologies_seen.append(topology_file.name.removesuffix(".clab.yaml"))
+
+            if startup_wait_s > 0:
+                time.sleep(startup_wait_s)
+
+            print(f"[run {run_idx}/{repeats}] apply link delay + ping probes")
+            apply_link_delay_for_all_links(
+                use_sudo=bool(args.sudo),
+                lab_name=lab_name,
+                topo=topo,
+                delay_ms=link_delay_ms,
+            )
+            probes, successful, failed, rtts = run_link_ping_probes(
+                use_sudo=bool(args.sudo),
+                lab_name=lab_name,
+                topo=topo,
+                ping_count=ping_count,
+                ping_timeout_s=ping_timeout_s,
+            )
+
+            run_id = f"unified_conv_{protocol}_r{run_idx}_{now_tag().lower()}"
+            row: dict[str, Any] = {
+                "run_id": run_id,
+                "name": f"unified_convergence_{protocol}_r{run_idx}",
+                "run_idx": run_idx,
+                "protocol": protocol,
+                "n_nodes": len(topo.node_names),
+                "topology": topology_file.name.removesuffix(".clab.yaml"),
+                "source_topology_file": str(topo.source_path),
+                "edge_count": len(topo.links),
+                "link_delay_ms": link_delay_ms,
+                "node_image": str(deploy_env.get("CLAB_NODE_IMAGE", "")),
+                "lab_name": lab_name,
+                "mgmt_network_name": str(deploy_env.get("CLAB_MGMT_NETWORK", "")),
+                "mgmt_ipv4_subnet": str(deploy_env.get("CLAB_MGMT_IPV4_SUBNET", "")),
+                "mgmt_ipv6_subnet": str(deploy_env.get("CLAB_MGMT_IPV6_SUBNET", "")),
+                "mgmt_external_access": str(
+                    deploy_env.get("CLAB_MGMT_EXTERNAL_ACCESS", "")
+                ).lower()
+                in {"1", "true", "yes"},
+                "successful_probes": successful,
+                "failed_probes": failed,
+                "probe_success_ratio": round(successful / max(1, len(topo.links)), 6),
+                "converged": failed == 0,
+                "avg_rtt_ms": round(mean(rtts), 3) if rtts else None,
+                "p95_rtt_ms": round(float(percentile(rtts, 0.95)), 3) if rtts else None,
+            }
+            rows.append(row)
+
+            run_payload = {**row, "probes": probes, "config_file": str(cfg_path)}
+            run_dir = ensure_dir(REPO_ROOT / run_output_dir)
+            dump_json(run_dir / f"{run_id}.json", run_payload)
+        finally:
+            if topology_file is not None and lab_name and deploy_env:
+                if not bool(args.keep_lab):
+                    run_containerlab_destroy(
+                        topology_file=topology_file,
+                        lab_name=lab_name,
+                        deploy_env=deploy_env,
+                        use_sudo=bool(args.sudo),
+                    )
+                    print(f"[run {run_idx}/{repeats}] lab destroyed")
+                else:
+                    print(f"[run {run_idx}/{repeats}] keep_lab enabled: skip destroy")
+
+    topo_tag = topologies_seen[0] if topologies_seen else "topology"
+    summary: dict[str, Any] = {
+        "experiment": "unified_convergence_benchmark",
+        "config_file": str(cfg_path),
+        "created_at_utc": datetime.now(timezone.utc).isoformat(),
+        "mode": "convergence_benchmark",
+        "protocol": protocol,
+        "repeats": repeats,
+        "topology": topo_tag,
+        "link_delay_ms": link_delay_ms,
+        "ping_count": ping_count,
+        "ping_timeout_s": ping_timeout_s,
+        "avg_probe_success_ratio": round(
+            mean([float(row["probe_success_ratio"]) for row in rows]),
+            6,
+        ),
+        "convergence_success_rate": round(
+            mean([1.0 if bool(row["converged"]) else 0.0 for row in rows]),
+            6,
+        ),
+        "avg_rtt_ms": round(
+            mean([float(row["avg_rtt_ms"]) for row in rows if row["avg_rtt_ms"] is not None]),
+            3,
+        )
+        if any(row["avg_rtt_ms"] is not None for row in rows)
+        else None,
+        "avg_p95_rtt_ms": round(
+            mean([float(row["p95_rtt_ms"]) for row in rows if row["p95_rtt_ms"] is not None]),
+            3,
+        )
+        if any(row["p95_rtt_ms"] is not None for row in rows)
+        else None,
+        "runs": rows,
+    }
+
+    output_json = str(args.output_json).strip()
+    if output_json:
+        prefix = str((Path(output_json).expanduser().resolve()).with_suffix(""))
+    else:
+        prefix = str(
+            bench_cfg.get(
+                "result_prefix",
+                f"results/tables/{protocol}_convergence_unified_{topo_tag}",
+            )
+        ).strip() or f"results/tables/{protocol}_convergence_unified_{topo_tag}"
+
+    json_path, csv_path = save_benchmark_table_outputs(summary, prefix)
+    print(f"summary_json: {json_path}")
+    print(f"summary_csv: {csv_path}")
+    print(f"avg_probe_success_ratio: {summary['avg_probe_success_ratio']}")
+    print(f"convergence_success_rate: {summary['convergence_success_rate']}")
+    print(f"avg_rtt_ms: {summary['avg_rtt_ms']}")
+    print(f"avg_p95_rtt_ms: {summary['avg_p95_rtt_ms']}")
+    return 0
+
+
+def main() -> int:
+    args = parse_args()
+    cfg_path = Path(str(args.config)).expanduser().resolve()
+    if not cfg_path.exists():
+        raise FileNotFoundError(f"config file not found: {cfg_path}")
+
+    with cfg_path.open("r", encoding="utf-8") as f:
+        config = yaml.safe_load(f) or {}
+    if not isinstance(config, dict):
+        raise ValueError("config must be a mapping")
+
+    mode = str(config.get("mode", "scenario")).strip().lower() or "scenario"
+    if mode in {"scenario", "unified", "default"}:
+        return run_scenario_mode(args=args, cfg_path=cfg_path, config=config)
+    if mode in {"convergence_benchmark", "benchmark"}:
+        return run_convergence_benchmark_mode(args=args, cfg_path=cfg_path, config=config)
+
+    raise ValueError(
+        "unsupported mode. expected one of: scenario, convergence_benchmark"
+    )
 
 
 if __name__ == "__main__":
