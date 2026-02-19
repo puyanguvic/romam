@@ -25,6 +25,14 @@ def test_resolve_source_topology_file_from_profile() -> None:
     assert resolved.parent.name == "topologies"
 
 
+def test_resolve_source_topology_file_from_abilene_profile() -> None:
+    module = _load_module()
+    args = argparse.Namespace(profile="abilene", topology_file="")
+    resolved = module.resolve_source_topology_file(args)
+    assert resolved.name == "abilene.clab.yaml"
+    assert resolved.parent.name == "topologies"
+
+
 def test_resolve_source_topology_file_prefers_explicit_file(tmp_path: Path) -> None:
     module = _load_module()
     source = tmp_path / "x.clab.yaml"

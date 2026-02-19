@@ -1,0 +1,140 @@
+name: ${CLAB_LAB_NAME:=abilene}
+mgmt:
+  network: ${CLAB_MGMT_NETWORK:=clab-mgmt-abilene}
+  ipv4-subnet: ${CLAB_MGMT_IPV4_SUBNET:=10.240.15.0/24}
+  ipv6-subnet: ${CLAB_MGMT_IPV6_SUBNET:=fd00:f0:15::/64}
+  external-access: ${CLAB_MGMT_EXTERNAL_ACCESS:=false}
+topology:
+  kinds:
+    linux:
+      image: ${CLAB_NODE_IMAGE:=ghcr.io/srl-labs/network-multitool:latest}
+  nodes:
+    new_york:
+      kind: linux
+      exec:
+        - ip link set eth1 up
+        - ip addr replace 10.15.1.1/30 dev eth1
+        - ip link set eth2 up
+        - ip addr replace 10.15.2.1/30 dev eth2
+        - sysctl -w net.ipv4.ip_forward=1
+    chicago:
+      kind: linux
+      exec:
+        - ip link set eth1 up
+        - ip addr replace 10.15.1.2/30 dev eth1
+        - ip link set eth2 up
+        - ip addr replace 10.15.3.1/30 dev eth2
+        - sysctl -w net.ipv4.ip_forward=1
+    washington_dc:
+      kind: linux
+      exec:
+        - ip link set eth1 up
+        - ip addr replace 10.15.2.2/30 dev eth1
+        - ip link set eth2 up
+        - ip addr replace 10.15.4.1/30 dev eth2
+        - sysctl -w net.ipv4.ip_forward=1
+    seattle:
+      kind: linux
+      exec:
+        - ip link set eth1 up
+        - ip addr replace 10.15.5.1/30 dev eth1
+        - ip link set eth2 up
+        - ip addr replace 10.15.6.1/30 dev eth2
+        - sysctl -w net.ipv4.ip_forward=1
+    sunnyvale:
+      kind: linux
+      exec:
+        - ip link set eth1 up
+        - ip addr replace 10.15.5.2/30 dev eth1
+        - ip link set eth2 up
+        - ip addr replace 10.15.7.1/30 dev eth2
+        - ip link set eth3 up
+        - ip addr replace 10.15.8.1/30 dev eth3
+        - sysctl -w net.ipv4.ip_forward=1
+    los_angeles:
+      kind: linux
+      exec:
+        - ip link set eth1 up
+        - ip addr replace 10.15.7.2/30 dev eth1
+        - ip link set eth2 up
+        - ip addr replace 10.15.9.1/30 dev eth2
+        - sysctl -w net.ipv4.ip_forward=1
+    denver:
+      kind: linux
+      exec:
+        - ip link set eth1 up
+        - ip addr replace 10.15.6.2/30 dev eth1
+        - ip link set eth2 up
+        - ip addr replace 10.15.8.2/30 dev eth2
+        - ip link set eth3 up
+        - ip addr replace 10.15.10.1/30 dev eth3
+        - sysctl -w net.ipv4.ip_forward=1
+    kansas_city:
+      kind: linux
+      exec:
+        - ip link set eth1 up
+        - ip addr replace 10.15.10.2/30 dev eth1
+        - ip link set eth2 up
+        - ip addr replace 10.15.11.1/30 dev eth2
+        - ip link set eth3 up
+        - ip addr replace 10.15.12.1/30 dev eth3
+        - sysctl -w net.ipv4.ip_forward=1
+    houston:
+      kind: linux
+      exec:
+        - ip link set eth1 up
+        - ip addr replace 10.15.9.2/30 dev eth1
+        - ip link set eth2 up
+        - ip addr replace 10.15.11.2/30 dev eth2
+        - ip link set eth3 up
+        - ip addr replace 10.15.13.1/30 dev eth3
+        - sysctl -w net.ipv4.ip_forward=1
+    atlanta:
+      kind: linux
+      exec:
+        - ip link set eth1 up
+        - ip addr replace 10.15.4.2/30 dev eth1
+        - ip link set eth2 up
+        - ip addr replace 10.15.13.2/30 dev eth2
+        - ip link set eth3 up
+        - ip addr replace 10.15.14.1/30 dev eth3
+        - sysctl -w net.ipv4.ip_forward=1
+    indianapolis:
+      kind: linux
+      exec:
+        - ip link set eth1 up
+        - ip addr replace 10.15.3.2/30 dev eth1
+        - ip link set eth2 up
+        - ip addr replace 10.15.12.2/30 dev eth2
+        - ip link set eth3 up
+        - ip addr replace 10.15.14.2/30 dev eth3
+        - sysctl -w net.ipv4.ip_forward=1
+  links:
+    - endpoints: ["new_york:eth1", "chicago:eth1"]
+      tc: { rate: 100mbit }
+    - endpoints: ["new_york:eth2", "washington_dc:eth1"]
+      tc: { rate: 100mbit }
+    - endpoints: ["chicago:eth2", "indianapolis:eth1"]
+      tc: { rate: 100mbit }
+    - endpoints: ["washington_dc:eth2", "atlanta:eth1"]
+      tc: { rate: 100mbit }
+    - endpoints: ["seattle:eth1", "sunnyvale:eth1"]
+      tc: { rate: 100mbit }
+    - endpoints: ["seattle:eth2", "denver:eth1"]
+      tc: { rate: 100mbit }
+    - endpoints: ["sunnyvale:eth2", "los_angeles:eth1"]
+      tc: { rate: 100mbit }
+    - endpoints: ["sunnyvale:eth3", "denver:eth2"]
+      tc: { rate: 100mbit }
+    - endpoints: ["los_angeles:eth2", "houston:eth1"]
+      tc: { rate: 100mbit }
+    - endpoints: ["denver:eth3", "kansas_city:eth1"]
+      tc: { rate: 100mbit }
+    - endpoints: ["kansas_city:eth2", "houston:eth2"]
+      tc: { rate: 100mbit }
+    - endpoints: ["kansas_city:eth3", "indianapolis:eth2"]
+      tc: { rate: 100mbit }
+    - endpoints: ["houston:eth3", "atlanta:eth2"]
+      tc: { rate: 100mbit }
+    - endpoints: ["atlanta:eth3", "indianapolis:eth3"]
+      tc: { rate: 100mbit }

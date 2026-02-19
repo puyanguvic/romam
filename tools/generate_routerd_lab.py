@@ -27,6 +27,7 @@ PROFILE_TO_TOPOLOGY_FILE: dict[str, str] = {
     "line3": "src/clab/topologies/line3.clab.yaml",
     "line5": "src/clab/topologies/line5.clab.yaml",
     "ring6": "src/clab/topologies/ring6.clab.yaml",
+    "abilene": "src/clab/topologies/abilene.clab.yaml",
     "star6": "src/clab/topologies/star6.clab.yaml",
     "fullmesh4": "src/clab/topologies/fullmesh4.clab.yaml",
     "spineleaf2x4": "src/clab/topologies/spineleaf2x4.clab.yaml",

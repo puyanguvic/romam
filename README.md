@@ -180,6 +180,7 @@ Built-in profiles (few common topologies, one-arg selection):
 - `line3`
 - `line5`
 - `ring6`
+- `abilene`
 - `star6`
 - `fullmesh4`
 - `spineleaf2x4`

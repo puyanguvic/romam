@@ -17,6 +17,18 @@ def test_load_clab_topology_parses_real_ring_file() -> None:
     assert first.right_ip == "10.11.1.2"
 
 
+def test_load_clab_topology_parses_real_abilene_file() -> None:
+    source = load_clab_topology(Path("src/clab/topologies/abilene.clab.yaml"))
+    assert len(source.node_names) == 11
+    assert len(source.links) == 14
+    first = source.links[0]
+    assert first.left_node == "new_york"
+    assert first.left_iface == "eth1"
+    assert first.left_ip == "10.15.1.1"
+    assert first.right_node == "chicago"
+    assert first.right_ip == "10.15.1.2"
+
+
 def test_load_clab_topology_falls_back_when_link_ip_missing(tmp_path: Path) -> None:
     topology_file = tmp_path / "no-ip.clab.yaml"
     topology_file.write_text(
