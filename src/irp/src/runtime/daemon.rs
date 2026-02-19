@@ -15,6 +15,7 @@ use crate::protocols::base::{ProtocolContext, ProtocolEngine, RouterLink};
 use crate::protocols::ddr::{DdrParams, DdrProtocol, DdrTimers};
 use crate::protocols::ecmp::{EcmpParams, EcmpProtocol, EcmpTimers};
 use crate::protocols::ospf::{OspfProtocol, OspfTimers};
+use crate::protocols::profile::build_protocol_metrics;
 use crate::protocols::rip::{RipProtocol, RipTimers};
 use crate::protocols::topk::{TopkParams, TopkProtocol, TopkTimers};
 use crate::runtime::config::DaemonConfig;
@@ -69,7 +70,7 @@ impl RouterDaemon {
             cfg.tick_interval,
             cfg.dead_interval,
             &cfg.forwarding,
-            protocol.metrics(),
+            build_protocol_metrics(&cfg.protocol, protocol.metrics()),
             0.0,
             neighbors.clone(),
             Vec::new(),
@@ -286,7 +287,7 @@ impl RouterDaemon {
             self.cfg.tick_interval,
             self.cfg.dead_interval,
             &self.cfg.forwarding,
-            self.protocol.metrics(),
+            build_protocol_metrics(self.protocol.name(), self.protocol.metrics()),
             now,
             neighbors,
             routes,
@@ -378,6 +379,8 @@ impl RouterDaemon {
                 let queue_levels = param_usize(params, "queue_levels", 4).max(1);
                 let pressure_threshold = param_usize(params, "pressure_threshold", 2);
                 let queue_level_scale_ms = param_f64(params, "queue_level_scale_ms", 8.0).max(1e-6);
+                let neighbor_state_max_age_s =
+                    param_f64(params, "neighbor_state_max_age_s", 0.0).max(0.0);
                 let randomize_route_selection =
                     param_bool(params, "randomize_route_selection", false);
                 let rng_seed = param_u64(params, "rng_seed", 1);
@@ -397,6 +400,7 @@ impl RouterDaemon {
                         queue_levels,
                         pressure_threshold,
                         queue_level_scale_ms,
+                        neighbor_state_max_age_s,
                         randomize_route_selection,
                         rng_seed,
                     },
@@ -418,6 +422,8 @@ impl RouterDaemon {
                 let queue_levels = param_usize(params, "queue_levels", 4).max(1);
                 let pressure_threshold = param_usize(params, "pressure_threshold", 2);
                 let queue_level_scale_ms = param_f64(params, "queue_level_scale_ms", 8.0).max(1e-6);
+                let neighbor_state_max_age_s =
+                    param_f64(params, "neighbor_state_max_age_s", 0.0).max(0.0);
                 let randomize_route_selection =
                     param_bool(params, "randomize_route_selection", true);
                 let rng_seed = param_u64(params, "rng_seed", 1);
@@ -437,10 +443,57 @@ impl RouterDaemon {
                         queue_levels,
                         pressure_threshold,
                         queue_level_scale_ms,
+                        neighbor_state_max_age_s,
                         randomize_route_selection,
                         rng_seed,
                     },
                     "dgr",
+                )))
+            }
+            "octopus" => {
+                let hello_interval = param_f64(params, "hello_interval", 1.0);
+                let lsa_interval = param_f64(params, "lsa_interval", 3.0);
+                let lsa_max_age =
+                    param_f64(params, "lsa_max_age", (cfg.dead_interval * 3.0).max(10.0));
+                let queue_sample_interval =
+                    param_f64(params, "queue_sample_interval", cfg.tick_interval.max(0.5));
+                let k_paths = param_usize(params, "k_paths", 3);
+                // Octopus is queue-aware multipath with stochastic exploration, so deadline
+                // filtering defaults to effectively disabled unless explicitly configured.
+                let deadline_ms = param_f64(params, "deadline_ms", 1_000_000_000.0);
+                let flow_size_bytes = param_f64(params, "flow_size_bytes", 64_000.0).max(1.0);
+                let link_bandwidth_bps =
+                    param_f64(params, "link_bandwidth_bps", 9_600_000.0).max(1.0);
+                let queue_levels = param_usize(params, "queue_levels", 4).max(1);
+                let pressure_threshold =
+                    param_usize(params, "pressure_threshold", queue_levels - 1);
+                let queue_level_scale_ms = param_f64(params, "queue_level_scale_ms", 8.0).max(1e-6);
+                let neighbor_state_max_age_s =
+                    param_f64(params, "neighbor_state_max_age_s", 0.0).max(0.0);
+                let randomize_route_selection =
+                    param_bool(params, "randomize_route_selection", true);
+                let rng_seed = param_u64(params, "rng_seed", 1);
+
+                Ok(Box::new(DdrProtocol::new_with_name(
+                    DdrParams {
+                        timers: DdrTimers {
+                            hello_interval,
+                            lsa_interval,
+                            lsa_max_age,
+                            queue_sample_interval,
+                        },
+                        k_paths,
+                        deadline_ms,
+                        flow_size_bytes,
+                        link_bandwidth_bps,
+                        queue_levels,
+                        pressure_threshold,
+                        queue_level_scale_ms,
+                        neighbor_state_max_age_s,
+                        randomize_route_selection,
+                        rng_seed,
+                    },
+                    "octopus",
                 )))
             }
             "irp" => {

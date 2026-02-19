@@ -20,6 +20,7 @@ from tools.common import (
     load_topology_node_names,
     parse_bool_arg,
     parse_output_json,
+    summarize_neighbor_fast_state_from_metrics_map,
     resolve_clab_bin,
     resolve_path,
     run_clab_command,
@@ -208,6 +209,18 @@ def main() -> int:
             "payload": inspect_data,
         },
         "routingd_api": per_node,
+        "neighbor_fast_state_summary": summarize_neighbor_fast_state_from_metrics_map(
+            {
+                node: (
+                    (node_payload.get("apis", {}) or {})
+                    .get("/v1/metrics", {})
+                    .get("payload", {})
+                    if isinstance(node_payload, dict)
+                    else {}
+                )
+                for node, node_payload in per_node.items()
+            }
+        ),
     }
     out_path.write_text(json.dumps(report, ensure_ascii=False, indent=2), encoding="utf-8")
     print(f"saved: {out_path}")

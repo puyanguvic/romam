@@ -36,6 +36,11 @@ def test_percentile_p95() -> None:
     assert module.percentile([1.0, 2.0, 3.0, 10.0], 0.95) == 10.0
 
 
+def test_validate_protocol_accepts_octopus() -> None:
+    module = _load_module()
+    assert module.validate_protocol("octopus") == "octopus"
+
+
 def test_append_runlab_generator_args() -> None:
     module = _load_module()
     cmd = ["python3", "tools/run_routerd_lab.py"]
@@ -227,6 +232,45 @@ def test_build_run_routerd_lab_cmd_includes_dgr_params() -> None:
     assert "--ddr-queue-sample-interval 0.2" in text
     assert "--ddr-queue-levels 4" in text
     assert "--ddr-pressure-threshold 2" in text
+    assert "--ddr-queue-level-scale-ms 8.0" in text
+    assert "--ddr-rng-seed 2026" in text
+    assert "--ddr-randomized-selection" in text
+
+
+def test_build_run_routerd_lab_cmd_includes_octopus_params() -> None:
+    module = _load_module()
+    cmd = module.build_run_routerd_lab_cmd(
+        protocol="octopus",
+        topology_key="profile",
+        topology_value="line3",
+        use_sudo=False,
+        config={},
+        precheck_min_routes=0,
+        precheck_max_wait_s=20,
+        precheck_poll_interval_s=1.0,
+        precheck_tail_lines=120,
+        ddr_params={
+            "k_paths": 4,
+            "deadline_ms": 1000000000.0,
+            "flow_size_bytes": 24576.0,
+            "link_bandwidth_bps": 15000000.0,
+            "queue_sample_interval": 0.2,
+            "queue_levels": 4,
+            "pressure_threshold": 3,
+            "queue_level_scale_ms": 8.0,
+            "randomize_route_selection": True,
+            "rng_seed": 2026,
+        },
+    )
+    text = " ".join(cmd)
+    assert "--protocol octopus" in text
+    assert "--ddr-k-paths 4" in text
+    assert "--ddr-deadline-ms 1000000000.0" in text
+    assert "--ddr-flow-size-bytes 24576.0" in text
+    assert "--ddr-link-bandwidth-bps 15000000.0" in text
+    assert "--ddr-queue-sample-interval 0.2" in text
+    assert "--ddr-queue-levels 4" in text
+    assert "--ddr-pressure-threshold 3" in text
     assert "--ddr-queue-level-scale-ms 8.0" in text
     assert "--ddr-rng-seed 2026" in text
     assert "--ddr-randomized-selection" in text

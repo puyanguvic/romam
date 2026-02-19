@@ -39,6 +39,8 @@ Control/observability paths:
 - kernel route install/readback (netlink via `ip route`): `src/irp/src/runtime/forwarding.rs`
 - HTTP management API (`/v1/status`, `/v1/routes`, `/v1/fib`, `/v1/kernel-routes`): `src/irp/src/runtime/mgmt.rs`
 - node-level process state (`/tmp/node_supervisor_state.json`): `src/irp/src/bin/node_supervisor.rs`
+  - `/v1/metrics` now includes layered IRP design tags in `protocol_metrics`:
+    `design_profile`, `slow_state_scope`, `fast_state_scope`, `decision_layers`
 
 ## Main Components
 
@@ -50,7 +52,8 @@ Control/observability paths:
   - Top-K random multipath baseline: `src/irp/src/protocols/topk.rs`
   - DDR/DGR delay-aware routing core: `src/irp/src/protocols/ddr.rs`
     - uses `tc -s qdisc` backlog when neighbor `iface` is present in config; converts queue bytes to delay via `link_bandwidth_bps` (falls back to local estimator otherwise)
-  - IRP mode entry: `protocol: irp` (currently routed through the OSPF-style core with IRP params)
+  - Octopus (NSDI2026 profile) entry: `protocol: octopus` (queue-aware stochastic multipath on DDR/DGR core)
+  - IRP compatibility alias: `protocol: irp` (IRP is framework-level design; this entry keeps historical experiment configs runnable via OSPF-style baseline + IRP params)
 - Decision/policy hook: `src/irp/src/algo/mod.rs`
 - Management API: `src/irp/src/runtime/mgmt.rs` (HTTP + gRPC placeholder)
 - Runtime entrypoint: `src/irp/src/main.rs` (`routingd` binary)
@@ -125,7 +128,7 @@ RIP example config: `experiments/routerd_examples/rip_router1.yaml`
 
 ```yaml
 router_id: 1
-protocol: ospf  # or rip/ecmp/topk/ddr/dgr/irp
+protocol: ospf  # or rip/ecmp/topk/ddr/dgr/octopus/irp
 bind:
   address: 0.0.0.0
   port: 5500
@@ -189,7 +192,7 @@ python3 tools/generate_routerd_lab.py \
   --topology-file src/clab/topologies/spineleaf2x4.clab.yaml
 ```
 
-`--protocol` is independent from topology file, so the same file can run `ospf`, `rip`, `ecmp`, `topk`, `ddr`, `dgr`, or `irp`.
+`--protocol` is independent from topology file, so the same file can run `ospf`, `rip`, `ecmp`, `topk`, `ddr`, `dgr`, `octopus`, or `irp`.
 
 DDR validation config example:
 
@@ -227,10 +230,20 @@ PYTHONPATH=src python3 tools/run_unified_experiment.py \
   --sudo
 ```
 
-`dgr` routing params support queue-level back-pressure controls:
+Octopus validation config example:
+
+```bash
+PYTHONPATH=src python3 tools/run_unified_experiment.py \
+  --config experiments/routerd_examples/unified_experiments/line3_octopus_validation.yaml \
+  --poll-interval-s 1 \
+  --sudo
+```
+
+`dgr`/`octopus` routing params support queue-level back-pressure controls:
 - `queue_levels`
 - `pressure_threshold`
 - `queue_level_scale_ms`
+- `neighbor_state_max_age_s` (optional; `<= 0` keeps auto freshness window)
 - `randomize_route_selection`
 - `rng_seed`
 
@@ -407,6 +420,7 @@ Examples:
 - `experiments/routerd_examples/unified_experiments/line3_irp_onoff_fault.yaml`
 - `experiments/routerd_examples/unified_experiments/line3_irp_multi_apps.yaml`
 - `experiments/routerd_examples/unified_experiments/line3_rip_validation.yaml`
+- `experiments/routerd_examples/unified_experiments/line3_octopus_validation.yaml`
 - `experiments/routerd_examples/unified_experiments/ring6_ospf_convergence_benchmark.yaml`
 
 Recommended run flow (verified on this repo):

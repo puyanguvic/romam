@@ -132,3 +132,22 @@ def test_validate_scenario_accepts_dgr_protocol() -> None:
     mode, errors = module.validate_payload(payload, module.MODE_SCENARIO)
     assert mode == module.MODE_SCENARIO
     assert errors == []
+
+
+def test_validate_scenario_accepts_octopus_protocol() -> None:
+    module = _load_module()
+    payload = {
+        "config_file": "/tmp/x.yaml",
+        "lab_name": "demo",
+        "protocol": "octopus",
+        "topology_file": "/tmp/t.clab.yaml",
+        "duration_s": 10.0,
+        "poll_interval_s": 1.0,
+        "traffic": {},
+        "apps": {"mode": "explicit_apps", "count": 0, "specs": []},
+        "convergence": {"initial_converged_at_s": 1.2, "fault_reconvergence": []},
+        "samples": [{"t_s": 0.0, "node_data": {}}],
+    }
+    mode, errors = module.validate_payload(payload, module.MODE_SCENARIO)
+    assert mode == module.MODE_SCENARIO
+    assert errors == []

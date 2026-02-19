@@ -16,11 +16,14 @@ from typing import Any, Dict, List
 import yaml
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
+if str(REPO_ROOT) not in sys.path:
+    sys.path.insert(0, str(REPO_ROOT))
 SRC_DIR = REPO_ROOT / "src"
 if str(SRC_DIR) not in sys.path:
     sys.path.insert(0, str(SRC_DIR))
 
 from irp.utils.io import dump_json
+from tools.common import SUPPORTED_PROTOCOLS
 
 RIB_LOG_RE = re.compile(r"RIB/FIB updated:\s*(\[.*\])")
 START_LOG_RE = re.compile(r"routerd start: .*protocol=(\w+)")
@@ -60,7 +63,7 @@ def parse_args() -> argparse.Namespace:
     )
     parser.add_argument(
         "--expect-protocol",
-        choices=["ospf", "rip", "ecmp", "topk", "irp", "ddr", "dgr"],
+        choices=list(SUPPORTED_PROTOCOLS),
         default="",
         help="If set, fail when daemon protocol differs.",
     )

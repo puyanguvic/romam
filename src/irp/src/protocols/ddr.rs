@@ -6,8 +6,10 @@ use serde_json::{json, Value};
 
 use crate::model::messages::{ControlMessage, MessageKind};
 use crate::model::routing::Route;
-use crate::model::state::LinkStateDb;
+use crate::model::state::{NeighborFastStatePatch, NeighborStateDb};
 use crate::protocols::base::{ProtocolContext, ProtocolEngine, ProtocolOutputs};
+use crate::protocols::link_state::{LinkStateControlPlane, LinkStateTimers};
+use crate::protocols::route_compute::{k_shortest_simple_paths, PathCandidate};
 
 #[derive(Debug, Clone)]
 pub struct DdrTimers {
@@ -38,6 +40,7 @@ pub struct DdrParams {
     pub queue_levels: usize,
     pub pressure_threshold: usize,
     pub queue_level_scale_ms: f64,
+    pub neighbor_state_max_age_s: f64,
     pub randomize_route_selection: bool,
     pub rng_seed: u64,
 }
@@ -53,6 +56,7 @@ impl Default for DdrParams {
             queue_levels: 4,
             pressure_threshold: 2,
             queue_level_scale_ms: 8.0,
+            neighbor_state_max_age_s: 0.0,
             randomize_route_selection: false,
             rng_seed: 1,
         }
@@ -66,12 +70,6 @@ struct KernelBacklog {
 }
 
 #[derive(Debug, Clone)]
-struct PathCandidate {
-    nodes: Vec<u32>,
-    cost: f64,
-}
-
-#[derive(Debug, Clone)]
 struct RouteChoice {
     next_hop: u32,
     completion_ms: f64,
@@ -82,18 +80,13 @@ struct RouteChoice {
 pub struct DdrProtocol {
     protocol_name: &'static str,
     params: DdrParams,
-    msg_seq: u64,
-    lsa_seq: i64,
-    last_hello_at: f64,
-    last_lsa_at: f64,
     last_queue_sample_at: f64,
-    last_local_links: BTreeMap<u32, f64>,
-    lsdb: LinkStateDb,
+    control_plane: LinkStateControlPlane,
     queue_depth_bytes: BTreeMap<u32, f64>,
     arrivals_since_sample_bytes: BTreeMap<u32, f64>,
     estimated_queue_delay_ms: BTreeMap<u32, f64>,
     queue_sample_source: BTreeMap<u32, String>,
-    neighbor_queue_level: BTreeMap<u32, usize>,
+    neighbor_state_db: NeighborStateDb,
     rng_state: u64,
 }
 
@@ -107,61 +100,67 @@ impl DdrProtocol {
         Self {
             protocol_name,
             params,
-            msg_seq: 0,
-            lsa_seq: 0,
-            last_hello_at: -1e9,
-            last_lsa_at: -1e9,
             last_queue_sample_at: -1e9,
-            last_local_links: BTreeMap::new(),
-            lsdb: LinkStateDb::default(),
+            control_plane: LinkStateControlPlane::new(),
             queue_depth_bytes: BTreeMap::new(),
             arrivals_since_sample_bytes: BTreeMap::new(),
             estimated_queue_delay_ms: BTreeMap::new(),
             queue_sample_source: BTreeMap::new(),
-            neighbor_queue_level: BTreeMap::new(),
+            neighbor_state_db: NeighborStateDb::default(),
             rng_state: rng_seed,
+        }
+    }
+
+    fn neighbor_state_max_age_s(&self) -> f64 {
+        if self.params.neighbor_state_max_age_s > 0.0 {
+            self.params.neighbor_state_max_age_s
+        } else {
+            (self
+                .params
+                .timers
+                .hello_interval
+                .max(self.params.timers.queue_sample_interval)
+                * 3.0)
+                .max(1.0)
         }
     }
 
     fn drive(&mut self, ctx: &ProtocolContext, force_lsa: bool) -> ProtocolOutputs {
         let mut outputs = ProtocolOutputs::default();
-        let now = ctx.now;
         let mut should_recompute = false;
 
         if self.sample_queue_delay(ctx) {
             should_recompute = true;
         }
-
-        if (now - self.last_hello_at) >= self.params.timers.hello_interval {
-            outputs.outbound.extend(self.send_hello(ctx));
-            self.last_hello_at = now;
-        }
-
-        let links: BTreeMap<u32, f64> = ctx
-            .links
-            .iter()
-            .filter_map(|(router_id, link)| link.is_up.then_some((*router_id, link.cost)))
-            .collect();
-
-        let mut should_originate = force_lsa || links != self.last_local_links;
-        if (now - self.last_lsa_at) >= self.params.timers.lsa_interval {
-            should_originate = true;
-        }
-
-        if should_originate {
-            self.lsa_seq += 1;
-            self.last_local_links = links.clone();
-            self.lsdb
-                .upsert(ctx.router_id, self.lsa_seq, links.clone(), now);
-            outputs
-                .outbound
-                .extend(self.flood_local_lsa(ctx, &links, None));
-            self.last_lsa_at = now;
+        if self
+            .neighbor_state_db
+            .age_out(ctx.now, self.neighbor_state_max_age_s())
+        {
             should_recompute = true;
         }
 
-        let aged = self.lsdb.age_out(now, self.params.timers.lsa_max_age);
-        if aged {
+        let tick = self.control_plane.tick(
+            ctx,
+            LinkStateTimers {
+                hello_interval: self.params.timers.hello_interval,
+                lsa_interval: self.params.timers.lsa_interval,
+                lsa_max_age: self.params.timers.lsa_max_age,
+            },
+            force_lsa,
+        );
+
+        if tick.hello_due {
+            outputs.outbound.extend(self.send_hello(ctx));
+        }
+
+        if let Some(payload) = tick.lsa_payload.as_ref() {
+            outputs
+                .outbound
+                .extend(self.flood_message(ctx, payload, None));
+            should_recompute = true;
+        }
+
+        if tick.topology_changed {
             should_recompute = true;
         }
         if should_recompute {
@@ -219,7 +218,7 @@ impl DdrProtocol {
                 }
                 self.queue_sample_source.remove(neighbor_id);
                 self.arrivals_since_sample_bytes.remove(neighbor_id);
-                self.neighbor_queue_level.remove(neighbor_id);
+                self.neighbor_state_db.remove(*neighbor_id);
                 continue;
             }
 
@@ -341,38 +340,27 @@ impl DdrProtocol {
 
     fn send_hello(&mut self, ctx: &ProtocolContext) -> Vec<(u32, ControlMessage)> {
         const CONTROL_ARRIVAL_BYTES: f64 = 256.0;
-        let mut out = Vec::new();
-        for neighbor_id in ctx.links.keys() {
-            let mut payload = BTreeMap::new();
-            payload.insert("router_id".to_string(), json!(ctx.router_id));
-            payload.insert(
-                "queue_level".to_string(),
-                json!(self.queue_level_for_neighbor(*neighbor_id)),
-            );
-            out.push((
-                *neighbor_id,
-                self.new_message(ctx.router_id, MessageKind::Hello, payload, ctx.now),
-            ));
+        let queue_levels: BTreeMap<u32, usize> = ctx
+            .links
+            .keys()
+            .copied()
+            .map(|neighbor_id| (neighbor_id, self.queue_level_for_neighbor(neighbor_id)))
+            .collect();
+        let out = self
+            .control_plane
+            .send_hello(self.name(), ctx, |neighbor_id| {
+                let mut payload = BTreeMap::new();
+                payload.insert("router_id".to_string(), json!(ctx.router_id));
+                payload.insert(
+                    "queue_level".to_string(),
+                    json!(queue_levels.get(&neighbor_id).copied().unwrap_or(0)),
+                );
+                payload
+            });
+        for (neighbor_id, _) in &out {
             self.note_arrival_bytes(*neighbor_id, CONTROL_ARRIVAL_BYTES);
         }
         out
-    }
-
-    fn flood_local_lsa(
-        &mut self,
-        ctx: &ProtocolContext,
-        links: &BTreeMap<u32, f64>,
-        exclude: Option<u32>,
-    ) -> Vec<(u32, ControlMessage)> {
-        let links_payload: Vec<Value> = links
-            .iter()
-            .map(|(neighbor_id, cost)| json!({"neighbor_id": neighbor_id, "cost": cost}))
-            .collect();
-        let mut payload = BTreeMap::new();
-        payload.insert("origin_router_id".to_string(), json!(ctx.router_id));
-        payload.insert("lsa_seq".to_string(), json!(self.lsa_seq));
-        payload.insert("links".to_string(), Value::Array(links_payload));
-        self.flood_message(ctx, &payload, exclude)
     }
 
     fn flood_message(
@@ -382,133 +370,17 @@ impl DdrProtocol {
         exclude: Option<u32>,
     ) -> Vec<(u32, ControlMessage)> {
         const CONTROL_ARRIVAL_BYTES: f64 = 256.0;
-        let mut out = Vec::new();
-        for neighbor_id in ctx.links.keys() {
-            if exclude == Some(*neighbor_id) {
-                continue;
-            }
-            out.push((
-                *neighbor_id,
-                self.new_message(ctx.router_id, MessageKind::DdrLsa, payload.clone(), ctx.now),
-            ));
+        let out =
+            self.control_plane
+                .flood_lsa(self.name(), MessageKind::DdrLsa, ctx, payload, exclude);
+        for (neighbor_id, _) in &out {
             self.note_arrival_bytes(*neighbor_id, CONTROL_ARRIVAL_BYTES);
         }
         out
     }
 
-    fn new_message(
-        &mut self,
-        router_id: u32,
-        kind: MessageKind,
-        payload: BTreeMap<String, Value>,
-        now: f64,
-    ) -> ControlMessage {
-        self.msg_seq += 1;
-        ControlMessage {
-            protocol: self.name().to_string(),
-            kind,
-            src_router_id: router_id,
-            seq: self.msg_seq,
-            payload,
-            ts: now,
-        }
-    }
-
-    fn parse_links(raw_links: &[Value]) -> BTreeMap<u32, f64> {
-        let mut links = BTreeMap::new();
-        for item in raw_links {
-            let Some(obj) = item.as_object() else {
-                continue;
-            };
-            let Some(neighbor_id) = obj
-                .get("neighbor_id")
-                .and_then(Value::as_u64)
-                .and_then(|v| u32::try_from(v).ok())
-            else {
-                continue;
-            };
-            let Some(cost) = obj.get("cost").and_then(Value::as_f64) else {
-                continue;
-            };
-            if cost.is_finite() && cost >= 0.0 {
-                links.insert(neighbor_id, cost);
-            }
-        }
-        links
-    }
-
     fn build_graph(&self, ctx: &ProtocolContext) -> BTreeMap<u32, BTreeMap<u32, f64>> {
-        let mut graph: BTreeMap<u32, BTreeMap<u32, f64>> = BTreeMap::new();
-        for record in self.lsdb.records() {
-            graph.entry(record.router_id).or_default();
-            for (neighbor_id, cost) in record.links {
-                if !cost.is_finite() || cost < 0.0 {
-                    continue;
-                }
-                graph
-                    .entry(record.router_id)
-                    .or_default()
-                    .insert(neighbor_id, cost);
-                graph.entry(neighbor_id).or_default();
-            }
-        }
-        graph.entry(ctx.router_id).or_default();
-        graph
-    }
-
-    fn k_shortest_paths(
-        &self,
-        graph: &BTreeMap<u32, BTreeMap<u32, f64>>,
-        src: u32,
-        dst: u32,
-    ) -> Vec<PathCandidate> {
-        let max_hops = graph.len().max(2);
-        let max_results = self.params.k_paths.max(1);
-        let mut frontier = vec![PathCandidate {
-            nodes: vec![src],
-            cost: 0.0,
-        }];
-        let mut out = Vec::new();
-        let mut expanded = 0usize;
-        let expand_limit = graph.len().saturating_mul(graph.len().max(2)) * max_results.max(2);
-
-        while !frontier.is_empty() && out.len() < max_results && expanded <= expand_limit {
-            let best_idx = frontier
-                .iter()
-                .enumerate()
-                .min_by(|(_, a), (_, b)| Self::compare_path_candidate(a, b))
-                .map(|(idx, _)| idx)
-                .unwrap_or(0);
-            let state = frontier.swap_remove(best_idx);
-            let u = *state.nodes.last().unwrap_or(&src);
-
-            if u == dst {
-                out.push(state);
-                continue;
-            }
-            if state.nodes.len() >= max_hops {
-                continue;
-            }
-
-            if let Some(neighbors) = graph.get(&u) {
-                for (neighbor, cost) in neighbors {
-                    if state.nodes.contains(neighbor) {
-                        continue;
-                    }
-                    if !cost.is_finite() || *cost < 0.0 {
-                        continue;
-                    }
-                    let mut next_nodes = state.nodes.clone();
-                    next_nodes.push(*neighbor);
-                    frontier.push(PathCandidate {
-                        nodes: next_nodes,
-                        cost: state.cost + *cost,
-                    });
-                }
-            }
-            expanded += 1;
-        }
-        out
+        self.control_plane.build_graph(ctx.router_id, true)
     }
 
     fn transfer_delay_ms(&self) -> f64 {
@@ -538,15 +410,25 @@ impl DdrProtocol {
         level
     }
 
-    fn evaluate_path(&self, path: &PathCandidate) -> Option<RouteChoice> {
+    fn payload_non_negative_f64(payload: &BTreeMap<String, Value>, key: &str) -> Option<f64> {
+        payload
+            .get(key)
+            .and_then(Value::as_f64)
+            .filter(|value| value.is_finite() && *value >= 0.0)
+    }
+
+    fn payload_unit_interval_f64(payload: &BTreeMap<String, Value>, key: &str) -> Option<f64> {
+        Self::payload_non_negative_f64(payload, key).map(|value| value.min(1.0))
+    }
+
+    fn evaluate_path(&self, path: &PathCandidate, now: f64) -> Option<RouteChoice> {
         if path.nodes.len() < 2 {
             return None;
         }
         let next_hop = path.nodes[1];
         let pressure_level = self
-            .neighbor_queue_level
-            .get(&next_hop)
-            .copied()
+            .neighbor_state_db
+            .get_queue_level_fresh(next_hop, now, self.neighbor_state_max_age_s())
             .unwrap_or_else(|| self.queue_level_for_neighbor(next_hop));
         let queue_delay_ms = self
             .estimated_queue_delay_ms
@@ -608,14 +490,6 @@ impl DdrProtocol {
         Some(best)
     }
 
-    fn compare_path_candidate(a: &PathCandidate, b: &PathCandidate) -> Ordering {
-        match a.cost.partial_cmp(&b.cost) {
-            Some(Ordering::Less) => Ordering::Less,
-            Some(Ordering::Greater) => Ordering::Greater,
-            _ => a.nodes.cmp(&b.nodes),
-        }
-    }
-
     fn compute_routes(&mut self, ctx: &ProtocolContext) -> Vec<Route> {
         let graph = self.build_graph(ctx);
         let mut routes = Vec::new();
@@ -624,14 +498,15 @@ impl DdrProtocol {
             if *destination == ctx.router_id {
                 continue;
             }
-            let paths = self.k_shortest_paths(&graph, ctx.router_id, *destination);
+            let paths =
+                k_shortest_simple_paths(&graph, ctx.router_id, *destination, self.params.k_paths);
             if paths.is_empty() {
                 continue;
             }
 
             let mut by_next_hop: BTreeMap<u32, RouteChoice> = BTreeMap::new();
             for path in &paths {
-                let Some(choice) = self.evaluate_path(path) else {
+                let Some(choice) = self.evaluate_path(path, ctx.now) else {
                     continue;
                 };
                 let keep = match by_next_hop.get(&choice.next_hop) {
@@ -707,10 +582,20 @@ impl ProtocolEngine for DdrProtocol {
                 .and_then(|value| usize::try_from(value).ok())
                 .unwrap_or(0);
             let clamped = queue_level.min(self.params.queue_levels.saturating_sub(1));
-            let changed = self
-                .neighbor_queue_level
-                .insert(message.src_router_id, clamped)
-                != Some(clamped);
+            let patch = NeighborFastStatePatch {
+                queue_level: Some(clamped),
+                interface_utilization: Self::payload_unit_interval_f64(
+                    &message.payload,
+                    "interface_utilization",
+                ),
+                delay_ms: Self::payload_non_negative_f64(&message.payload, "delay_ms")
+                    .or_else(|| Self::payload_non_negative_f64(&message.payload, "queue_delay_ms")),
+                loss_rate: Self::payload_unit_interval_f64(&message.payload, "loss_rate")
+                    .or_else(|| Self::payload_unit_interval_f64(&message.payload, "drop_rate")),
+            };
+            let changed =
+                self.neighbor_state_db
+                    .upsert_fast_state(message.src_router_id, patch, ctx.now);
             if changed {
                 outputs.routes = Some(self.compute_routes(ctx));
             }
@@ -735,9 +620,13 @@ impl ProtocolEngine for DdrProtocol {
             .payload
             .get("links")
             .and_then(Value::as_array)
-            .map_or_else(BTreeMap::new, |raw| Self::parse_links(raw));
+            .map_or_else(BTreeMap::new, |raw| {
+                LinkStateControlPlane::parse_links(raw, true)
+            });
 
-        let changed = self.lsdb.upsert(origin, lsa_seq, links, ctx.now);
+        let changed = self
+            .control_plane
+            .upsert_lsa(origin, lsa_seq, links, ctx.now);
         if !changed {
             return outputs;
         }
@@ -780,9 +669,31 @@ impl ProtocolEngine for DdrProtocol {
             })
             .collect::<serde_json::Map<String, Value>>();
         let queue_level_neighbor = self
-            .neighbor_queue_level
+            .neighbor_state_db
+            .queue_levels_snapshot()
             .iter()
             .map(|(neighbor_id, value)| (neighbor_id.to_string(), json!(value)))
+            .collect::<serde_json::Map<String, Value>>();
+        let neighbor_fast_state = self
+            .neighbor_state_db
+            .fast_state_snapshot()
+            .iter()
+            .map(|(neighbor_id, state)| {
+                let mut fields = serde_json::Map::new();
+                if let Some(value) = state.queue_level {
+                    fields.insert("queue_level".to_string(), json!(value));
+                }
+                if let Some(value) = state.interface_utilization {
+                    fields.insert("interface_utilization".to_string(), json!(value));
+                }
+                if let Some(value) = state.delay_ms {
+                    fields.insert("delay_ms".to_string(), json!(value));
+                }
+                if let Some(value) = state.loss_rate {
+                    fields.insert("loss_rate".to_string(), json!(value));
+                }
+                (neighbor_id.to_string(), Value::Object(fields))
+            })
             .collect::<serde_json::Map<String, Value>>();
 
         out.insert("queue_delay_ms".to_string(), Value::Object(queue_delay_ms));
@@ -798,6 +709,10 @@ impl ProtocolEngine for DdrProtocol {
         out.insert(
             "queue_level_neighbor".to_string(),
             Value::Object(queue_level_neighbor),
+        );
+        out.insert(
+            "neighbor_fast_state".to_string(),
+            Value::Object(neighbor_fast_state),
         );
         out.insert("k_paths".to_string(), json!(self.params.k_paths));
         out.insert("deadline_ms".to_string(), json!(self.params.deadline_ms));
@@ -822,6 +737,14 @@ impl ProtocolEngine for DdrProtocol {
         out.insert(
             "queue_sample_interval_s".to_string(),
             json!(self.params.timers.queue_sample_interval),
+        );
+        out.insert(
+            "neighbor_state_max_age_s".to_string(),
+            json!(self.neighbor_state_max_age_s()),
+        );
+        out.insert(
+            "neighbor_state_max_age_configured_s".to_string(),
+            json!(self.params.neighbor_state_max_age_s),
         );
         out
     }
@@ -902,10 +825,12 @@ mod tests {
             links,
         };
 
-        ddr.lsdb
-            .upsert(1, 1, BTreeMap::from([(2_u32, 1.0), (3_u32, 2.0)]), 0.0);
-        ddr.lsdb.upsert(2, 1, BTreeMap::from([(4_u32, 1.0)]), 0.0);
-        ddr.lsdb.upsert(3, 1, BTreeMap::from([(4_u32, 1.0)]), 0.0);
+        ddr.control_plane
+            .upsert_lsa(1, 1, BTreeMap::from([(2_u32, 1.0), (3_u32, 2.0)]), 0.0);
+        ddr.control_plane
+            .upsert_lsa(2, 1, BTreeMap::from([(4_u32, 1.0)]), 0.0);
+        ddr.control_plane
+            .upsert_lsa(3, 1, BTreeMap::from([(4_u32, 1.0)]), 0.0);
 
         let routes = ddr.compute_routes(&ctx);
         let to_4 = routes
@@ -942,12 +867,22 @@ qdisc fq_codel 0: dev eth1 root refcnt 2 limit 10240p\n\
         ddr.queue_depth_bytes.insert(2, 6000.0);
         ddr.estimated_queue_delay_ms.insert(2, 2.5);
         ddr.queue_sample_source.insert(2, "kernel_tc".to_string());
+        ddr.neighbor_state_db.upsert_fast_state(
+            2,
+            NeighborFastStatePatch {
+                queue_level: Some(1),
+                interface_utilization: Some(0.4),
+                ..NeighborFastStatePatch::default()
+            },
+            0.0,
+        );
         let metrics = ddr.metrics();
         assert!(metrics.contains_key("queue_delay_ms"));
         assert!(metrics.contains_key("queue_depth_bytes"));
         assert!(metrics.contains_key("sample_source"));
         assert!(metrics.contains_key("queue_level_local"));
         assert!(metrics.contains_key("queue_level_neighbor"));
+        assert!(metrics.contains_key("neighbor_fast_state"));
     }
 
     #[test]
@@ -972,6 +907,9 @@ qdisc fq_codel 0: dev eth1 root refcnt 2 limit 10240p\n\
         };
         let mut payload = BTreeMap::new();
         payload.insert("queue_level".to_string(), json!(3));
+        payload.insert("interface_utilization".to_string(), json!(0.8));
+        payload.insert("delay_ms".to_string(), json!(3.2));
+        payload.insert("loss_rate".to_string(), json!(0.02));
         let msg = ControlMessage {
             protocol: "ddr".to_string(),
             kind: MessageKind::Hello,
@@ -981,7 +919,18 @@ qdisc fq_codel 0: dev eth1 root refcnt 2 limit 10240p\n\
             ts: 0.0,
         };
         ddr.on_message(&ctx, &msg);
-        assert_eq!(ddr.neighbor_queue_level.get(&2).copied(), Some(3));
+        assert_eq!(
+            ddr.neighbor_state_db
+                .get_queue_level_fresh(2, 0.0, ddr.neighbor_state_max_age_s()),
+            Some(3)
+        );
+        let state = ddr
+            .neighbor_state_db
+            .get_state_fresh(2, 0.0, ddr.neighbor_state_max_age_s())
+            .expect("neighbor state should be present");
+        assert_eq!(state.interface_utilization, Some(0.8));
+        assert_eq!(state.delay_ms, Some(3.2));
+        assert_eq!(state.loss_rate, Some(0.02));
     }
 
     #[test]
@@ -993,8 +942,8 @@ qdisc fq_codel 0: dev eth1 root refcnt 2 limit 10240p\n\
             link_bandwidth_bps: 9_600_000.0,
             ..DdrParams::default()
         });
-        ddr.neighbor_queue_level.insert(2, 3);
-        ddr.neighbor_queue_level.insert(3, 0);
+        ddr.neighbor_state_db.upsert_queue_level(2, 3, 0.0);
+        ddr.neighbor_state_db.upsert_queue_level(3, 0, 0.0);
 
         let mut links = BTreeMap::new();
         links.insert(
@@ -1024,10 +973,12 @@ qdisc fq_codel 0: dev eth1 root refcnt 2 limit 10240p\n\
             now: 0.0,
             links,
         };
-        ddr.lsdb
-            .upsert(1, 1, BTreeMap::from([(2_u32, 1.0), (3_u32, 1.0)]), 0.0);
-        ddr.lsdb.upsert(2, 1, BTreeMap::from([(4_u32, 1.0)]), 0.0);
-        ddr.lsdb.upsert(3, 1, BTreeMap::from([(4_u32, 1.0)]), 0.0);
+        ddr.control_plane
+            .upsert_lsa(1, 1, BTreeMap::from([(2_u32, 1.0), (3_u32, 1.0)]), 0.0);
+        ddr.control_plane
+            .upsert_lsa(2, 1, BTreeMap::from([(4_u32, 1.0)]), 0.0);
+        ddr.control_plane
+            .upsert_lsa(3, 1, BTreeMap::from([(4_u32, 1.0)]), 0.0);
 
         let routes = ddr.compute_routes(&ctx);
         let to_4 = routes
@@ -1035,5 +986,16 @@ qdisc fq_codel 0: dev eth1 root refcnt 2 limit 10240p\n\
             .find(|route| route.destination == 4)
             .expect("route to 4 should exist");
         assert_eq!(to_4.next_hop, 3);
+    }
+
+    #[test]
+    fn stale_neighbor_queue_report_expires() {
+        let mut ddr = DdrProtocol::new(DdrParams::default());
+        assert!(ddr.neighbor_state_db.upsert_queue_level(2, 3, 0.0));
+        assert_eq!(
+            ddr.neighbor_state_db.get_queue_level_fresh(2, 5.0, 1.0),
+            None
+        );
+        assert!(ddr.neighbor_state_db.age_out(5.0, 1.0));
     }
 }

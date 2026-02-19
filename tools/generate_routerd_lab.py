@@ -13,12 +13,15 @@ from pathlib import Path
 from typing import List
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
+if str(REPO_ROOT) not in sys.path:
+    sys.path.insert(0, str(REPO_ROOT))
 SRC_DIR = REPO_ROOT / "src"
 if str(SRC_DIR) not in sys.path:
     sys.path.insert(0, str(SRC_DIR))
 
 from clab.labgen import LabGenParams, generate_routerd_lab
 from irp.utils.io import now_tag
+from tools.common import ADAPTIVE_PROTOCOLS, STOCHASTIC_ADAPTIVE_PROTOCOLS, SUPPORTED_PROTOCOLS
 
 PROFILE_TO_TOPOLOGY_FILE: dict[str, str] = {
     "line3": "src/clab/topologies/line3.clab.yaml",
@@ -36,7 +39,7 @@ def parse_args() -> argparse.Namespace:
     )
     parser.add_argument(
         "--protocol",
-        choices=["ospf", "rip", "ecmp", "topk", "irp", "ddr", "dgr"],
+        choices=list(SUPPORTED_PROTOCOLS),
         default="ospf",
     )
     parser.add_argument(
@@ -87,10 +90,18 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--topk-explore-probability", type=float, default=0.3)
     parser.add_argument("--topk-selection-hold-time-s", type=float, default=3.0)
     parser.add_argument("--topk-rng-seed", type=int, default=1)
-    parser.add_argument("--ddr-k-paths", "--dgr-k-paths", dest="ddr_k_paths", type=int, default=3)
+    parser.add_argument(
+        "--ddr-k-paths",
+        "--dgr-k-paths",
+        "--octopus-k-paths",
+        dest="ddr_k_paths",
+        type=int,
+        default=3,
+    )
     parser.add_argument(
         "--ddr-deadline-ms",
         "--dgr-deadline-ms",
+        "--octopus-deadline-ms",
         dest="ddr_deadline_ms",
         type=float,
         default=100.0,
@@ -98,6 +109,7 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument(
         "--ddr-flow-size-bytes",
         "--dgr-flow-size-bytes",
+        "--octopus-flow-size-bytes",
         dest="ddr_flow_size_bytes",
         type=float,
         default=64000.0,
@@ -105,6 +117,7 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument(
         "--ddr-link-bandwidth-bps",
         "--dgr-link-bandwidth-bps",
+        "--octopus-link-bandwidth-bps",
         dest="ddr_link_bandwidth_bps",
         type=float,
         default=9600000.0,
@@ -112,6 +125,7 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument(
         "--ddr-queue-sample-interval",
         "--dgr-queue-sample-interval",
+        "--octopus-queue-sample-interval",
         dest="ddr_queue_sample_interval",
         type=float,
         default=1.0,
@@ -119,6 +133,7 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument(
         "--ddr-queue-levels",
         "--dgr-queue-levels",
+        "--octopus-queue-levels",
         dest="ddr_queue_levels",
         type=int,
         default=4,
@@ -126,6 +141,7 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument(
         "--ddr-pressure-threshold",
         "--dgr-pressure-threshold",
+        "--octopus-pressure-threshold",
         dest="ddr_pressure_threshold",
         type=int,
         default=2,
@@ -133,6 +149,7 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument(
         "--ddr-queue-level-scale-ms",
         "--dgr-queue-level-scale-ms",
+        "--octopus-queue-level-scale-ms",
         dest="ddr_queue_level_scale_ms",
         type=float,
         default=8.0,
@@ -140,6 +157,7 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument(
         "--ddr-randomized-selection",
         "--dgr-randomized-selection",
+        "--octopus-randomized-selection",
         dest="ddr_randomized_selection",
         action=argparse.BooleanOptionalAction,
         default=None,
@@ -147,6 +165,7 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument(
         "--ddr-rng-seed",
         "--dgr-rng-seed",
+        "--octopus-rng-seed",
         dest="ddr_rng_seed",
         type=int,
         default=1,
@@ -246,7 +265,7 @@ def main() -> int:
     randomized_selection = (
         bool(args.ddr_randomized_selection)
         if args.ddr_randomized_selection is not None
-        else str(args.protocol) == "dgr"
+        else str(args.protocol) in STOCHASTIC_ADAPTIVE_PROTOCOLS
     )
     source_topology_file = resolve_source_topology_file(args)
     topology_label = source_topology_file.name.removesuffix(".clab.yaml")
@@ -317,7 +336,7 @@ def main() -> int:
         print(f"topk_explore_probability: {float(args.topk_explore_probability)}")
         print(f"topk_selection_hold_time_s: {float(args.topk_selection_hold_time_s)}")
         print(f"topk_rng_seed: {int(args.topk_rng_seed)}")
-    if str(args.protocol) in {"ddr", "dgr"}:
+    if str(args.protocol) in ADAPTIVE_PROTOCOLS:
         print(f"ddr_k_paths: {int(args.ddr_k_paths)}")
         print(f"ddr_deadline_ms: {float(args.ddr_deadline_ms)}")
         print(f"ddr_flow_size_bytes: {float(args.ddr_flow_size_bytes)}")

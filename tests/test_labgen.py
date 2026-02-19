@@ -352,3 +352,60 @@ def test_generate_routerd_lab_supports_dgr_protocol(tmp_path: Path) -> None:
     assert dgr_cfg["queue_level_scale_ms"] == 8.0
     assert dgr_cfg["randomize_route_selection"] is True
     assert dgr_cfg["rng_seed"] == 2026
+
+
+def test_generate_routerd_lab_supports_octopus_protocol(tmp_path: Path) -> None:
+    out_dir = tmp_path / "lab-octopus"
+    params = LabGenParams(
+        protocol="octopus",
+        routing_alpha=1.0,
+        routing_beta=2.0,
+        topology_file=Path("src/clab/topologies/line3.clab.yaml"),
+        node_image="ghcr.io/srl-labs/network-multitool:latest",
+        bind_port=5500,
+        tick_interval=1.0,
+        dead_interval=4.0,
+        ospf_hello_interval=1.0,
+        ospf_lsa_interval=3.0,
+        ospf_lsa_max_age=15.0,
+        rip_update_interval=5.0,
+        rip_neighbor_timeout=15.0,
+        rip_infinity_metric=16.0,
+        rip_poison_reverse=True,
+        output_dir=out_dir,
+        lab_name="testlab-octopus",
+        log_level="INFO",
+        mgmt_network_name="testlab-octopus-mgmt",
+        mgmt_ipv4_subnet="10.250.17.0/24",
+        mgmt_ipv6_subnet="fd00:fa:17::/64",
+        mgmt_external_access=False,
+        forwarding_enabled=False,
+        forwarding_dry_run=True,
+        ddr_k_paths=4,
+        ddr_deadline_ms=1000000000.0,
+        ddr_flow_size_bytes=24576.0,
+        ddr_link_bandwidth_bps=15000000.0,
+        ddr_queue_sample_interval=0.2,
+        ddr_queue_levels=4,
+        ddr_pressure_threshold=3,
+        ddr_queue_level_scale_ms=8.0,
+        ddr_randomize_route_selection=True,
+        ddr_rng_seed=2026,
+    )
+
+    result = generate_routerd_lab(params)
+    cfg_r1 = yaml.safe_load(
+        Path(result["configs_dir"]).joinpath("r1.yaml").read_text(encoding="utf-8")
+    )
+    assert cfg_r1["protocol"] == "octopus"
+    octopus_cfg = dict(cfg_r1["protocol_params"]["octopus"])
+    assert octopus_cfg["k_paths"] == 4
+    assert octopus_cfg["deadline_ms"] == 1000000000.0
+    assert octopus_cfg["flow_size_bytes"] == 24576.0
+    assert octopus_cfg["link_bandwidth_bps"] == 15000000.0
+    assert octopus_cfg["queue_sample_interval"] == 0.2
+    assert octopus_cfg["queue_levels"] == 4
+    assert octopus_cfg["pressure_threshold"] == 3
+    assert octopus_cfg["queue_level_scale_ms"] == 8.0
+    assert octopus_cfg["randomize_route_selection"] is True
+    assert octopus_cfg["rng_seed"] == 2026

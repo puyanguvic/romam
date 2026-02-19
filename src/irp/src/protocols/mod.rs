@@ -1,6 +1,9 @@
 pub mod base;
 pub mod ddr;
 pub mod ecmp;
+pub mod link_state;
 pub mod ospf;
+pub mod profile;
 pub mod rip;
+pub mod route_compute;
 pub mod topk;

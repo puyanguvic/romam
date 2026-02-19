@@ -1,0 +1,29 @@
+topology: line_3
+protocol: octopus
+
+routing:
+  octopus:
+    k_paths: 3
+    deadline_ms: 1000000000
+    flow_size_bytes: 32768
+    link_bandwidth_bps: 25000000
+    queue_sample_interval: 0.5
+    queue_levels: 4
+    pressure_threshold: 3
+    queue_level_scale_ms: 8.0
+    randomize_route_selection: true
+    rng_seed: 2026
+
+traffic:
+  enabled: true
+  proto: udp
+  model: bulk
+  src_node: r1
+  dst_node: r3
+  flows: 3
+  rate_mbps: 12
+  packet_size: 512
+  port: 9000
+
+precheck_max_wait_s: 30
+duration_s: 60

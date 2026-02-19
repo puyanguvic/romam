@@ -29,7 +29,16 @@ if str(SRC_DIR) not in sys.path:
 
 from clab.clab_loader import ClabTopology, load_clab_topology
 from irp.utils.io import dump_json, ensure_dir, now_tag
-from tools.common import parse_env_file, parse_keyed_output, run_command
+from tools.common import (
+    ADAPTIVE_PROTOCOLS,
+    STOCHASTIC_ADAPTIVE_PROTOCOLS,
+    SUPPORTED_PROTOCOLS,
+    SUPPORTED_PROTOCOLS_SET,
+    parse_env_file,
+    parse_keyed_output,
+    summarize_neighbor_fast_state_from_metrics_map,
+    run_command,
+)
 
 KNOWN_KEYS = ("topology_file", "configs_dir", "deploy_env_file", "lab_name")
 TOPOLOGY_ALIAS = {
@@ -309,8 +318,10 @@ def sanitize_label(value: str, max_len: int = 48) -> str:
 
 def validate_protocol(protocol: str) -> str:
     normalized = str(protocol).strip().lower()
-    if normalized not in {"ospf", "rip", "ecmp", "topk", "irp", "ddr", "dgr"}:
-        raise ValueError("protocol must be one of: ospf, rip, ecmp, topk, irp, ddr, dgr")
+    if normalized not in SUPPORTED_PROTOCOLS_SET:
+        raise ValueError(
+            "protocol must be one of: " + ", ".join(SUPPORTED_PROTOCOLS)
+        )
     return normalized
 
 
@@ -322,9 +333,20 @@ def extract_ddr_routing_params(
     selected_cfg = dict(routing.get(protocol, {}) or {})
     fallback_cfg: dict[str, Any] = {}
     if protocol == "ddr":
-        fallback_cfg = dict(routing.get("dgr", {}) or {})
+        fallback_cfg = {
+            **dict(routing.get("dgr", {}) or {}),
+            **dict(routing.get("octopus", {}) or {}),
+        }
     elif protocol == "dgr":
-        fallback_cfg = dict(routing.get("ddr", {}) or {})
+        fallback_cfg = {
+            **dict(routing.get("ddr", {}) or {}),
+            **dict(routing.get("octopus", {}) or {}),
+        }
+    elif protocol == "octopus":
+        fallback_cfg = {
+            **dict(routing.get("ddr", {}) or {}),
+            **dict(routing.get("dgr", {}) or {}),
+        }
 
     def pick(key: str, default: Any) -> Any:
         if key in selected_cfg:
@@ -333,15 +355,20 @@ def extract_ddr_routing_params(
             return fallback_cfg[key]
         return routing.get(key, default)
 
-    randomize_default = protocol == "dgr"
+    queue_levels_default = int(pick("queue_levels", 4))
+    randomize_default = protocol in STOCHASTIC_ADAPTIVE_PROTOCOLS
+    deadline_default = 1_000_000_000.0 if protocol == "octopus" else 100.0
+    pressure_threshold_default = (
+        max(0, queue_levels_default - 1) if protocol == "octopus" else 2
+    )
     return {
         "k_paths": int(pick("k_paths", 3)),
-        "deadline_ms": float(pick("deadline_ms", 100.0)),
+        "deadline_ms": float(pick("deadline_ms", deadline_default)),
         "flow_size_bytes": float(pick("flow_size_bytes", 64000.0)),
         "link_bandwidth_bps": float(pick("link_bandwidth_bps", 9600000.0)),
         "queue_sample_interval": float(pick("queue_sample_interval", 1.0)),
-        "queue_levels": int(pick("queue_levels", 4)),
-        "pressure_threshold": int(pick("pressure_threshold", 2)),
+        "queue_levels": queue_levels_default,
+        "pressure_threshold": int(pick("pressure_threshold", pressure_threshold_default)),
         "queue_level_scale_ms": float(pick("queue_level_scale_ms", 8.0)),
         "randomize_route_selection": bool(pick("randomize_route_selection", randomize_default)),
         "rng_seed": int(pick("rng_seed", 1)),
@@ -468,7 +495,7 @@ def build_run_routerd_lab_cmd(
             "--topk-rng-seed",
             str(int(topk_params.get("rng_seed", 1))),
         ])
-    if protocol in {"ddr", "dgr"} and ddr_params is not None:
+    if protocol in ADAPTIVE_PROTOCOLS and ddr_params is not None:
         runlab_cmd.extend([
             "--ddr-k-paths",
             str(int(ddr_params.get("k_paths", 3))),
@@ -489,7 +516,12 @@ def build_run_routerd_lab_cmd(
             "--ddr-rng-seed",
             str(int(ddr_params.get("rng_seed", 1))),
         ])
-        if bool(ddr_params.get("randomize_route_selection", protocol == "dgr")):
+        if bool(
+            ddr_params.get(
+                "randomize_route_selection",
+                protocol in STOCHASTIC_ADAPTIVE_PROTOCOLS,
+            )
+        ):
             runlab_cmd.append("--ddr-randomized-selection")
         else:
             runlab_cmd.append("--no-ddr-randomized-selection")
@@ -1581,6 +1613,7 @@ def run_scenario_mode(
         route_counts: list[int] = []
         sample_errors: list[str] = []
         sample_apps_by_node: dict[str, list[dict[str, Any]]] = {}
+        sample_metrics_by_node: dict[str, dict[str, Any]] = {}
 
         for node in topo.node_names:
             port = node_ports.get(node, 0)
@@ -1622,12 +1655,16 @@ def run_scenario_mode(
                 "metrics": metrics_obj,
                 "node_supervisor": supervisor_obj,
             }
+            sample_metrics_by_node[node] = metrics_obj if isinstance(metrics_obj, dict) else {}
             sample_apps_by_node[node] = apps_from_supervisor_obj(node, supervisor_obj)
 
         all_converged = all(count >= min_routes_required for count in route_counts)
         if all_converged and converged_at_s is None:
             converged_at_s = elapsed
         final_app_state = sample_apps_by_node
+        neighbor_fast_state_summary = summarize_neighbor_fast_state_from_metrics_map(
+            sample_metrics_by_node
+        )
 
         samples.append(
             {
@@ -1636,6 +1673,7 @@ def run_scenario_mode(
                 "min_routes_required": min_routes_required,
                 "node_data": node_data,
                 "apps": sample_apps_by_node,
+                "neighbor_fast_state_summary": neighbor_fast_state_summary,
                 "errors": sample_errors,
             }
         )
@@ -1689,11 +1727,17 @@ def run_scenario_mode(
             "topk": topk_params if protocol == "topk" else {},
             "ddr": ddr_params if protocol in {"ddr", "dgr"} else {},
             "dgr": ddr_params if protocol == "dgr" else {},
+            "octopus": ddr_params if protocol == "octopus" else {},
         },
         "convergence": {
             "initial_converged_at_s": converged_at_s,
             "fault_reconvergence": fault_reconvergence,
         },
+        "neighbor_fast_state_summary": (
+            dict(samples[-1].get("neighbor_fast_state_summary", {}))
+            if samples
+            else summarize_neighbor_fast_state_from_metrics_map({})
+        ),
         "faults_applied": applied_faults,
         "samples": samples,
     }
@@ -1738,6 +1782,10 @@ def run_scenario_mode(
             f"- app_count: {len(app_specs)}",
             f"- faults_applied: {len(applied_faults)}",
             f"- initial_converged_at_s: {converged_at_s}",
+            "- neighbor_fast_state_entries: "
+            f"{report['neighbor_fast_state_summary'].get('neighbor_fast_state_entries', 0)}",
+            "- neighbor_fast_state_nodes: "
+            f"{report['neighbor_fast_state_summary'].get('nodes_with_neighbor_fast_state', 0)}",
             f"- report_json: {output_path}",
         ],
     )
@@ -1788,6 +1836,12 @@ def save_benchmark_table_outputs(summary: dict[str, Any], prefix: str) -> tuple[
         "converged",
         "avg_rtt_ms",
         "p95_rtt_ms",
+        "neighbor_fast_state_nodes",
+        "neighbor_fast_state_entries",
+        "neighbor_fast_state_avg_queue_level",
+        "neighbor_fast_state_avg_interface_utilization",
+        "neighbor_fast_state_avg_delay_ms",
+        "neighbor_fast_state_avg_loss_rate",
     ]
     with csv_path.open("w", encoding="utf-8", newline="") as f:
         writer = csv.DictWriter(f, fieldnames=fields)
@@ -1892,6 +1946,18 @@ def run_convergence_benchmark_mode(
                 ping_count=ping_count,
                 ping_timeout_s=ping_timeout_s,
             )
+            benchmark_metrics_by_node: dict[str, dict[str, Any]] = {}
+            for node in topo.node_names:
+                port = load_management_http_port(runlab.config_dir, str(node))
+                benchmark_metrics_by_node[str(node)] = fetch_mgmt_json(
+                    use_sudo=bool(args.sudo),
+                    container=container_name(runlab.lab_name, str(node)),
+                    port=port,
+                    path="/v1/metrics",
+                )
+            neighbor_fast_state_summary = summarize_neighbor_fast_state_from_metrics_map(
+                benchmark_metrics_by_node
+            )
 
             run_id = f"unified_conv_{protocol}_r{run_idx}_{now_tag().lower()}"
             row: dict[str, Any] = {
@@ -1919,10 +1985,33 @@ def run_convergence_benchmark_mode(
                 "converged": failed == 0,
                 "avg_rtt_ms": round(mean(rtts), 3) if rtts else None,
                 "p95_rtt_ms": round(float(percentile(rtts, 0.95)), 3) if rtts else None,
+                "neighbor_fast_state_nodes": int(
+                    neighbor_fast_state_summary.get("nodes_with_neighbor_fast_state", 0)
+                ),
+                "neighbor_fast_state_entries": int(
+                    neighbor_fast_state_summary.get("neighbor_fast_state_entries", 0)
+                ),
+                "neighbor_fast_state_avg_queue_level": neighbor_fast_state_summary.get(
+                    "avg_queue_level"
+                ),
+                "neighbor_fast_state_avg_interface_utilization": neighbor_fast_state_summary.get(
+                    "avg_interface_utilization"
+                ),
+                "neighbor_fast_state_avg_delay_ms": neighbor_fast_state_summary.get(
+                    "avg_delay_ms"
+                ),
+                "neighbor_fast_state_avg_loss_rate": neighbor_fast_state_summary.get(
+                    "avg_loss_rate"
+                ),
             }
             rows.append(row)
 
-            run_payload = {**row, "probes": probes, "config_file": str(cfg_path)}
+            run_payload = {
+                **row,
+                "probes": probes,
+                "config_file": str(cfg_path),
+                "neighbor_fast_state_summary": neighbor_fast_state_summary,
+            }
             dump_json(run_output_root / f"{run_id}.json", run_payload)
             artifact_dir = write_standard_run_artifacts(
                 run_dir=run_output_root / run_id,
@@ -1947,6 +2036,10 @@ def run_convergence_benchmark_mode(
                     f"- converged: {row['converged']}",
                     f"- avg_rtt_ms: {row['avg_rtt_ms']}",
                     f"- p95_rtt_ms: {row['p95_rtt_ms']}",
+                    "- neighbor_fast_state_entries: "
+                    f"{row['neighbor_fast_state_entries']}",
+                    "- neighbor_fast_state_nodes: "
+                    f"{row['neighbor_fast_state_nodes']}",
                 ],
             )
             print(f"[run {run_idx}/{repeats}] artifacts_dir: {artifact_dir}")
@@ -1995,6 +2088,26 @@ def run_convergence_benchmark_mode(
         )
         if any(row["p95_rtt_ms"] is not None for row in rows)
         else None,
+        "avg_neighbor_fast_state_entries": round(
+            mean([float(row["neighbor_fast_state_entries"]) for row in rows]),
+            3,
+        ),
+        "avg_neighbor_fast_state_nodes": round(
+            mean([float(row["neighbor_fast_state_nodes"]) for row in rows]),
+            3,
+        ),
+        "avg_neighbor_fast_state_queue_level": round(
+            mean(
+                [
+                    float(row["neighbor_fast_state_avg_queue_level"])
+                    for row in rows
+                    if row["neighbor_fast_state_avg_queue_level"] is not None
+                ]
+            ),
+            6,
+        )
+        if any(row["neighbor_fast_state_avg_queue_level"] is not None for row in rows)
+        else None,
         "runs": rows,
     }
 
@@ -2016,6 +2129,12 @@ def run_convergence_benchmark_mode(
     print(f"convergence_success_rate: {summary['convergence_success_rate']}")
     print(f"avg_rtt_ms: {summary['avg_rtt_ms']}")
     print(f"avg_p95_rtt_ms: {summary['avg_p95_rtt_ms']}")
+    print(f"avg_neighbor_fast_state_entries: {summary['avg_neighbor_fast_state_entries']}")
+    print(f"avg_neighbor_fast_state_nodes: {summary['avg_neighbor_fast_state_nodes']}")
+    print(
+        "avg_neighbor_fast_state_queue_level: "
+        f"{summary['avg_neighbor_fast_state_queue_level']}"
+    )
     return 0
 
 

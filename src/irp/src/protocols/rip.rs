@@ -255,6 +255,21 @@ impl ProtocolEngine for RipProtocol {
 
         outputs
     }
+
+    fn metrics(&self) -> BTreeMap<String, Value> {
+        let mut out = BTreeMap::new();
+        out.insert(
+            "update_interval_s".to_string(),
+            json!(self.timers.update_interval),
+        );
+        out.insert(
+            "neighbor_timeout_s".to_string(),
+            json!(self.timers.neighbor_timeout),
+        );
+        out.insert("infinity_metric".to_string(), json!(self.infinity_metric));
+        out.insert("poison_reverse".to_string(), json!(self.poison_reverse));
+        out
+    }
 }
 
 #[cfg(test)]

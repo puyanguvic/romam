@@ -210,7 +210,7 @@ def _build_routerd_config(
                 "rng_seed": int(params.topk_rng_seed),
             }
         }
-    elif params.protocol in {"ddr", "dgr"}:
+    elif params.protocol in {"ddr", "dgr", "octopus"}:
         cfg["protocol_params"] = {
             params.protocol: {
                 "hello_interval": float(params.ospf_hello_interval),
