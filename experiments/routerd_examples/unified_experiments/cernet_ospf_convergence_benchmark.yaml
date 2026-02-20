@@ -1,0 +1,20 @@
+mode: convergence_benchmark
+topology: cernet
+protocol: ospf
+
+precheck_max_wait_s: 90
+precheck_poll_interval_s: 1
+precheck_tail_lines: 200
+precheck_min_routes: -1
+
+lab:
+  node_image: ghcr.io/srl-labs/network-multitool:latest
+
+benchmark:
+  repeats: 1
+  ping_count: 3
+  ping_timeout_s: 1
+  startup_wait_s: 2.0
+  link_delay_ms: 1.0
+  run_output_dir: results/runs/ospf_convergence_containerlab
+  result_prefix: results/tables/ospf_convergence_containerlab_cernet

@@ -1,0 +1,524 @@
+name: ${CLAB_LAB_NAME:=cernet}
+mgmt:
+  network: ${CLAB_MGMT_NETWORK:=clab-mgmt-cernet}
+  ipv4-subnet: ${CLAB_MGMT_IPV4_SUBNET:=10.240.18.0/24}
+  ipv6-subnet: ${CLAB_MGMT_IPV6_SUBNET:=fd00:f0:18::/64}
+  external-access: ${CLAB_MGMT_EXTERNAL_ACCESS:=false}
+topology:
+  kinds:
+    linux:
+      image: ${CLAB_NODE_IMAGE:=ghcr.io/srl-labs/network-multitool:latest}
+  nodes:
+    gullin:
+      kind: linux
+      exec:
+        - ip link set eth1 up
+        - ip addr replace 10.18.1.1/30 dev eth1
+        - ip link set eth2 up
+        - ip addr replace 10.18.2.1/30 dev eth2
+        - sysctl -w net.ipv4.ip_forward=1
+    kunming:
+      kind: linux
+      exec:
+        - ip link set eth1 up
+        - ip addr replace 10.18.3.1/30 dev eth1
+        - ip link set eth2 up
+        - ip addr replace 10.18.4.1/30 dev eth2
+        - sysctl -w net.ipv4.ip_forward=1
+    chongqing:
+      kind: linux
+      exec:
+        - ip link set eth1 up
+        - ip addr replace 10.18.5.1/30 dev eth1
+        - ip link set eth2 up
+        - ip addr replace 10.18.6.1/30 dev eth2
+        - sysctl -w net.ipv4.ip_forward=1
+    guiyang:
+      kind: linux
+      exec:
+        - ip link set eth1 up
+        - ip addr replace 10.18.4.2/30 dev eth1
+        - ip link set eth2 up
+        - ip addr replace 10.18.7.1/30 dev eth2
+        - sysctl -w net.ipv4.ip_forward=1
+    haikou:
+      kind: linux
+      exec:
+        - ip link set eth1 up
+        - ip addr replace 10.18.8.1/30 dev eth1
+        - ip link set eth2 up
+        - ip addr replace 10.18.9.1/30 dev eth2
+        - sysctl -w net.ipv4.ip_forward=1
+    xianggang:
+      kind: linux
+      exec:
+        - ip link set eth1 up
+        - ip addr replace 10.18.10.1/30 dev eth1
+        - sysctl -w net.ipv4.ip_forward=1
+    nanning:
+      kind: linux
+      exec:
+        - ip link set eth1 up
+        - ip addr replace 10.18.1.2/30 dev eth1
+        - ip link set eth2 up
+        - ip addr replace 10.18.11.1/30 dev eth2
+        - sysctl -w net.ipv4.ip_forward=1
+    guangzhou:
+      kind: linux
+      exec:
+        - ip link set eth1 up
+        - ip addr replace 10.18.2.2/30 dev eth1
+        - ip link set eth2 up
+        - ip addr replace 10.18.9.2/30 dev eth2
+        - ip link set eth3 up
+        - ip addr replace 10.18.11.2/30 dev eth3
+        - ip link set eth4 up
+        - ip addr replace 10.18.12.1/30 dev eth4
+        - ip link set eth5 up
+        - ip addr replace 10.18.13.1/30 dev eth5
+        - ip link set eth6 up
+        - ip addr replace 10.18.14.1/30 dev eth6
+        - ip link set eth7 up
+        - ip addr replace 10.18.15.1/30 dev eth7
+        - ip link set eth8 up
+        - ip addr replace 10.18.16.1/30 dev eth8
+        - sysctl -w net.ipv4.ip_forward=1
+    shenzhen:
+      kind: linux
+      exec:
+        - ip link set eth1 up
+        - ip addr replace 10.18.8.2/30 dev eth1
+        - ip link set eth2 up
+        - ip addr replace 10.18.12.2/30 dev eth2
+        - sysctl -w net.ipv4.ip_forward=1
+    xiemen:
+      kind: linux
+      exec:
+        - ip link set eth1 up
+        - ip addr replace 10.18.13.2/30 dev eth1
+        - ip link set eth2 up
+        - ip addr replace 10.18.17.1/30 dev eth2
+        - sysctl -w net.ipv4.ip_forward=1
+    japan_ext:
+      kind: linux
+      exec:
+        - ip link set eth1 up
+        - ip addr replace 10.18.18.1/30 dev eth1
+        - sysctl -w net.ipv4.ip_forward=1
+    europe_ext:
+      kind: linux
+      exec:
+        - ip link set eth1 up
+        - ip addr replace 10.18.19.1/30 dev eth1
+        - sysctl -w net.ipv4.ip_forward=1
+    shijiazhuang_a:
+      kind: linux
+      exec:
+        - ip link set eth1 up
+        - ip addr replace 10.18.20.1/30 dev eth1
+        - ip link set eth2 up
+        - ip addr replace 10.18.21.1/30 dev eth2
+        - ip link set eth3 up
+        - ip addr replace 10.18.22.1/30 dev eth3
+        - sysctl -w net.ipv4.ip_forward=1
+    tianjing:
+      kind: linux
+      exec:
+        - ip link set eth1 up
+        - ip addr replace 10.18.22.2/30 dev eth1
+        - ip link set eth2 up
+        - ip addr replace 10.18.23.1/30 dev eth2
+        - sysctl -w net.ipv4.ip_forward=1
+    dalian:
+      kind: linux
+      exec:
+        - ip link set eth1 up
+        - ip addr replace 10.18.24.1/30 dev eth1
+        - sysctl -w net.ipv4.ip_forward=1
+    shenyang:
+      kind: linux
+      exec:
+        - ip link set eth1 up
+        - ip addr replace 10.18.24.2/30 dev eth1
+        - ip link set eth2 up
+        - ip addr replace 10.18.25.1/30 dev eth2
+        - ip link set eth3 up
+        - ip addr replace 10.18.26.1/30 dev eth3
+        - ip link set eth4 up
+        - ip addr replace 10.18.27.1/30 dev eth4
+        - ip link set eth5 up
+        - ip addr replace 10.18.28.1/30 dev eth5
+        - sysctl -w net.ipv4.ip_forward=1
+    harbin:
+      kind: linux
+      exec:
+        - ip link set eth1 up
+        - ip addr replace 10.18.25.2/30 dev eth1
+        - sysctl -w net.ipv4.ip_forward=1
+    chanchun:
+      kind: linux
+      exec:
+        - ip link set eth1 up
+        - ip addr replace 10.18.26.2/30 dev eth1
+        - sysctl -w net.ipv4.ip_forward=1
+    na_ext:
+      kind: linux
+      exec:
+        - ip link set eth1 up
+        - ip addr replace 10.18.29.1/30 dev eth1
+        - sysctl -w net.ipv4.ip_forward=1
+    korea_ext:
+      kind: linux
+      exec:
+        - ip link set eth1 up
+        - ip addr replace 10.18.30.1/30 dev eth1
+        - sysctl -w net.ipv4.ip_forward=1
+    hefei:
+      kind: linux
+      exec:
+        - ip link set eth1 up
+        - ip addr replace 10.18.31.1/30 dev eth1
+        - ip link set eth2 up
+        - ip addr replace 10.18.32.1/30 dev eth2
+        - sysctl -w net.ipv4.ip_forward=1
+    beijing:
+      kind: linux
+      exec:
+        - ip link set eth1 up
+        - ip addr replace 10.18.10.2/30 dev eth1
+        - ip link set eth2 up
+        - ip addr replace 10.18.18.2/30 dev eth2
+        - ip link set eth3 up
+        - ip addr replace 10.18.19.2/30 dev eth3
+        - ip link set eth4 up
+        - ip addr replace 10.18.23.2/30 dev eth4
+        - ip link set eth5 up
+        - ip addr replace 10.18.27.2/30 dev eth5
+        - ip link set eth6 up
+        - ip addr replace 10.18.29.2/30 dev eth6
+        - ip link set eth7 up
+        - ip addr replace 10.18.30.2/30 dev eth7
+        - ip link set eth8 up
+        - ip addr replace 10.18.33.1/30 dev eth8
+        - ip link set eth9 up
+        - ip addr replace 10.18.34.1/30 dev eth9
+        - ip link set eth10 up
+        - ip addr replace 10.18.35.1/30 dev eth10
+        - ip link set eth11 up
+        - ip addr replace 10.18.36.1/30 dev eth11
+        - ip link set eth12 up
+        - ip addr replace 10.18.37.1/30 dev eth12
+        - ip link set eth13 up
+        - ip addr replace 10.18.38.1/30 dev eth13
+        - ip link set eth14 up
+        - ip addr replace 10.18.39.1/30 dev eth14
+        - ip link set eth15 up
+        - ip addr replace 10.18.40.1/30 dev eth15
+        - ip link set eth16 up
+        - ip addr replace 10.18.41.1/30 dev eth16
+        - ip link set eth17 up
+        - ip addr replace 10.18.42.1/30 dev eth17
+        - sysctl -w net.ipv4.ip_forward=1
+    shijiazhuang_b:
+      kind: linux
+      exec:
+        - ip link set eth1 up
+        - ip addr replace 10.18.36.2/30 dev eth1
+        - sysctl -w net.ipv4.ip_forward=1
+    nanchang:
+      kind: linux
+      exec:
+        - ip link set eth1 up
+        - ip addr replace 10.18.37.2/30 dev eth1
+        - ip link set eth2 up
+        - ip addr replace 10.18.43.1/30 dev eth2
+        - sysctl -w net.ipv4.ip_forward=1
+    wuhan:
+      kind: linux
+      exec:
+        - ip link set eth1 up
+        - ip addr replace 10.18.5.2/30 dev eth1
+        - ip link set eth2 up
+        - ip addr replace 10.18.14.2/30 dev eth2
+        - ip link set eth3 up
+        - ip addr replace 10.18.31.2/30 dev eth3
+        - ip link set eth4 up
+        - ip addr replace 10.18.38.2/30 dev eth4
+        - ip link set eth5 up
+        - ip addr replace 10.18.44.1/30 dev eth5
+        - ip link set eth6 up
+        - ip addr replace 10.18.45.1/30 dev eth6
+        - ip link set eth7 up
+        - ip addr replace 10.18.46.1/30 dev eth7
+        - ip link set eth8 up
+        - ip addr replace 10.18.47.1/30 dev eth8
+        - sysctl -w net.ipv4.ip_forward=1
+    changsha:
+      kind: linux
+      exec:
+        - ip link set eth1 up
+        - ip addr replace 10.18.15.2/30 dev eth1
+        - ip link set eth2 up
+        - ip addr replace 10.18.45.2/30 dev eth2
+        - sysctl -w net.ipv4.ip_forward=1
+    fuzhou:
+      kind: linux
+      exec:
+        - ip link set eth1 up
+        - ip addr replace 10.18.17.2/30 dev eth1
+        - ip link set eth2 up
+        - ip addr replace 10.18.48.1/30 dev eth2
+        - sysctl -w net.ipv4.ip_forward=1
+    qingdao:
+      kind: linux
+      exec:
+        - ip link set eth1 up
+        - ip addr replace 10.18.20.2/30 dev eth1
+        - ip link set eth2 up
+        - ip addr replace 10.18.49.1/30 dev eth2
+        - sysctl -w net.ipv4.ip_forward=1
+    nanjing:
+      kind: linux
+      exec:
+        - ip link set eth1 up
+        - ip addr replace 10.18.21.2/30 dev eth1
+        - ip link set eth2 up
+        - ip addr replace 10.18.32.2/30 dev eth2
+        - ip link set eth3 up
+        - ip addr replace 10.18.39.2/30 dev eth3
+        - ip link set eth4 up
+        - ip addr replace 10.18.46.2/30 dev eth4
+        - ip link set eth5 up
+        - ip addr replace 10.18.49.2/30 dev eth5
+        - ip link set eth6 up
+        - ip addr replace 10.18.50.1/30 dev eth6
+        - sysctl -w net.ipv4.ip_forward=1
+    shanghai:
+      kind: linux
+      exec:
+        - ip link set eth1 up
+        - ip addr replace 10.18.16.2/30 dev eth1
+        - ip link set eth2 up
+        - ip addr replace 10.18.28.2/30 dev eth2
+        - ip link set eth3 up
+        - ip addr replace 10.18.43.2/30 dev eth3
+        - ip link set eth4 up
+        - ip addr replace 10.18.48.2/30 dev eth4
+        - ip link set eth5 up
+        - ip addr replace 10.18.50.2/30 dev eth5
+        - ip link set eth6 up
+        - ip addr replace 10.18.51.1/30 dev eth6
+        - sysctl -w net.ipv4.ip_forward=1
+    hangzhou:
+      kind: linux
+      exec:
+        - ip link set eth1 up
+        - ip addr replace 10.18.51.2/30 dev eth1
+        - sysctl -w net.ipv4.ip_forward=1
+    zhengzhou:
+      kind: linux
+      exec:
+        - ip link set eth1 up
+        - ip addr replace 10.18.42.2/30 dev eth1
+        - ip link set eth2 up
+        - ip addr replace 10.18.47.2/30 dev eth2
+        - sysctl -w net.ipv4.ip_forward=1
+    chengdou:
+      kind: linux
+      exec:
+        - ip link set eth1 up
+        - ip addr replace 10.18.3.2/30 dev eth1
+        - ip link set eth2 up
+        - ip addr replace 10.18.6.2/30 dev eth2
+        - ip link set eth3 up
+        - ip addr replace 10.18.7.2/30 dev eth3
+        - ip link set eth4 up
+        - ip addr replace 10.18.44.2/30 dev eth4
+        - ip link set eth5 up
+        - ip addr replace 10.18.52.1/30 dev eth5
+        - sysctl -w net.ipv4.ip_forward=1
+    urumchi:
+      kind: linux
+      exec:
+        - ip link set eth1 up
+        - ip addr replace 10.18.53.1/30 dev eth1
+        - ip link set eth2 up
+        - ip addr replace 10.18.54.1/30 dev eth2
+        - sysctl -w net.ipv4.ip_forward=1
+    lasa:
+      kind: linux
+      exec:
+        - ip link set eth1 up
+        - ip addr replace 10.18.33.2/30 dev eth1
+        - sysctl -w net.ipv4.ip_forward=1
+    xining:
+      kind: linux
+      exec:
+        - ip link set eth1 up
+        - ip addr replace 10.18.55.1/30 dev eth1
+        - ip link set eth2 up
+        - ip addr replace 10.18.56.1/30 dev eth2
+        - sysctl -w net.ipv4.ip_forward=1
+    lanzhou:
+      kind: linux
+      exec:
+        - ip link set eth1 up
+        - ip addr replace 10.18.55.2/30 dev eth1
+        - ip link set eth2 up
+        - ip addr replace 10.18.57.1/30 dev eth2
+        - sysctl -w net.ipv4.ip_forward=1
+    xian:
+      kind: linux
+      exec:
+        - ip link set eth1 up
+        - ip addr replace 10.18.40.2/30 dev eth1
+        - ip link set eth2 up
+        - ip addr replace 10.18.41.2/30 dev eth2
+        - ip link set eth3 up
+        - ip addr replace 10.18.52.2/30 dev eth3
+        - ip link set eth4 up
+        - ip addr replace 10.18.53.2/30 dev eth4
+        - ip link set eth5 up
+        - ip addr replace 10.18.56.2/30 dev eth5
+        - ip link set eth6 up
+        - ip addr replace 10.18.57.2/30 dev eth6
+        - ip link set eth7 up
+        - ip addr replace 10.18.58.1/30 dev eth7
+        - sysctl -w net.ipv4.ip_forward=1
+    yinchuan:
+      kind: linux
+      exec:
+        - ip link set eth1 up
+        - ip addr replace 10.18.54.2/30 dev eth1
+        - ip link set eth2 up
+        - ip addr replace 10.18.58.2/30 dev eth2
+        - sysctl -w net.ipv4.ip_forward=1
+    hohhot:
+      kind: linux
+      exec:
+        - ip link set eth1 up
+        - ip addr replace 10.18.34.2/30 dev eth1
+        - ip link set eth2 up
+        - ip addr replace 10.18.59.1/30 dev eth2
+        - sysctl -w net.ipv4.ip_forward=1
+    taiyuan:
+      kind: linux
+      exec:
+        - ip link set eth1 up
+        - ip addr replace 10.18.35.2/30 dev eth1
+        - ip link set eth2 up
+        - ip addr replace 10.18.59.2/30 dev eth2
+        - sysctl -w net.ipv4.ip_forward=1
+  links:
+    - endpoints: ["gullin:eth1", "nanning:eth1"]
+      tc: { rate: 2mbit }
+    - endpoints: ["gullin:eth2", "guangzhou:eth1"]
+      tc: { rate: 155mbit }
+    - endpoints: ["kunming:eth1", "chengdou:eth1"]
+      tc: { rate: 155mbit }
+    - endpoints: ["kunming:eth2", "guiyang:eth1"]
+      tc: { rate: 2mbit }
+    - endpoints: ["chongqing:eth1", "wuhan:eth1"]
+      tc: { rate: 155mbit }
+    - endpoints: ["chongqing:eth2", "chengdou:eth2"]
+      tc: { rate: 2500mbit }
+    - endpoints: ["guiyang:eth2", "chengdou:eth3"]
+      tc: { rate: 155mbit }
+    - endpoints: ["haikou:eth1", "shenzhen:eth1"]
+      tc: { rate: 2mbit }
+    - endpoints: ["haikou:eth2", "guangzhou:eth2"]
+      tc: { rate: 155mbit }
+    - endpoints: ["xianggang:eth1", "beijing:eth1"]
+    - endpoints: ["nanning:eth2", "guangzhou:eth3"]
+      tc: { rate: 155mbit }
+    - endpoints: ["guangzhou:eth4", "shenzhen:eth2"]
+      tc: { rate: 155mbit }
+    - endpoints: ["guangzhou:eth5", "xiemen:eth1"]
+      tc: { rate: 155mbit }
+    - endpoints: ["guangzhou:eth6", "wuhan:eth2"]
+      tc: { rate: 2500mbit }
+    - endpoints: ["guangzhou:eth7", "changsha:eth1"]
+      tc: { rate: 2500mbit }
+    - endpoints: ["guangzhou:eth8", "shanghai:eth1"]
+      tc: { rate: 155mbit }
+    - endpoints: ["xiemen:eth2", "fuzhou:eth1"]
+      tc: { rate: 155mbit }
+    - endpoints: ["japan_ext:eth1", "beijing:eth2"]
+    - endpoints: ["europe_ext:eth1", "beijing:eth3"]
+    - endpoints: ["shijiazhuang_a:eth1", "qingdao:eth1"]
+      tc: { rate: 2mbit }
+    - endpoints: ["shijiazhuang_a:eth2", "nanjing:eth1"]
+      tc: { rate: 155mbit }
+    - endpoints: ["shijiazhuang_a:eth3", "tianjing:eth1"]
+      tc: { rate: 2500mbit }
+    - endpoints: ["tianjing:eth2", "beijing:eth4"]
+    - endpoints: ["dalian:eth1", "shenyang:eth1"]
+      tc: { rate: 2500mbit }
+    - endpoints: ["shenyang:eth2", "harbin:eth1"]
+      tc: { rate: 2500mbit }
+    - endpoints: ["shenyang:eth3", "chanchun:eth1"]
+      tc: { rate: 2500mbit }
+    - endpoints: ["shenyang:eth4", "beijing:eth5"]
+      tc: { rate: 2500mbit }
+    - endpoints: ["shenyang:eth5", "shanghai:eth2"]
+      tc: { rate: 155mbit }
+    - endpoints: ["na_ext:eth1", "beijing:eth6"]
+    - endpoints: ["korea_ext:eth1", "beijing:eth7"]
+    - endpoints: ["hefei:eth1", "wuhan:eth3"]
+      tc: { rate: 2500mbit }
+    - endpoints: ["hefei:eth2", "nanjing:eth2"]
+      tc: { rate: 155mbit }
+    - endpoints: ["beijing:eth8", "lasa:eth1"]
+      tc: { rate: 155mbit }
+    - endpoints: ["beijing:eth9", "hohhot:eth1"]
+      tc: { rate: 155mbit }
+    - endpoints: ["beijing:eth10", "taiyuan:eth1"]
+      tc: { rate: 155mbit }
+    - endpoints: ["beijing:eth11", "shijiazhuang_b:eth1"]
+      tc: { rate: 155mbit }
+    - endpoints: ["beijing:eth12", "nanchang:eth1"]
+      tc: { rate: 2mbit }
+    - endpoints: ["beijing:eth13", "wuhan:eth4"]
+      tc: { rate: 2500mbit }
+    - endpoints: ["beijing:eth14", "nanjing:eth3"]
+      tc: { rate: 2500mbit }
+    - endpoints: ["beijing:eth15", "xian:eth1"]
+      tc: { rate: 155mbit }
+    - endpoints: ["beijing:eth16", "xian:eth2"]
+      tc: { rate: 155mbit }
+    - endpoints: ["beijing:eth17", "zhengzhou:eth1"]
+      tc: { rate: 2500mbit }
+    - endpoints: ["nanchang:eth2", "shanghai:eth3"]
+      tc: { rate: 155mbit }
+    - endpoints: ["wuhan:eth5", "chengdou:eth4"]
+      tc: { rate: 2500mbit }
+    - endpoints: ["wuhan:eth6", "changsha:eth2"]
+      tc: { rate: 155mbit }
+    - endpoints: ["wuhan:eth7", "nanjing:eth4"]
+      tc: { rate: 2500mbit }
+    - endpoints: ["wuhan:eth8", "zhengzhou:eth2"]
+      tc: { rate: 155mbit }
+    - endpoints: ["fuzhou:eth2", "shanghai:eth4"]
+      tc: { rate: 155mbit }
+    - endpoints: ["qingdao:eth2", "nanjing:eth5"]
+      tc: { rate: 155mbit }
+    - endpoints: ["nanjing:eth6", "shanghai:eth5"]
+      tc: { rate: 2500mbit }
+    - endpoints: ["shanghai:eth6", "hangzhou:eth1"]
+      tc: { rate: 2500mbit }
+    - endpoints: ["chengdou:eth5", "xian:eth3"]
+      tc: { rate: 155mbit }
+    - endpoints: ["urumchi:eth1", "xian:eth4"]
+      tc: { rate: 155mbit }
+    - endpoints: ["urumchi:eth2", "yinchuan:eth1"]
+      tc: { rate: 2mbit }
+    - endpoints: ["xining:eth1", "lanzhou:eth1"]
+      tc: { rate: 2mbit }
+    - endpoints: ["xining:eth2", "xian:eth5"]
+      tc: { rate: 155mbit }
+    - endpoints: ["lanzhou:eth2", "xian:eth6"]
+      tc: { rate: 155mbit }
+    - endpoints: ["xian:eth7", "yinchuan:eth2"]
+      tc: { rate: 155mbit }
+    - endpoints: ["hohhot:eth2", "taiyuan:eth2"]
+      tc: { rate: 2mbit }

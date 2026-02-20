@@ -1,0 +1,705 @@
+name: ${CLAB_LAB_NAME:=uunet}
+mgmt:
+  network: ${CLAB_MGMT_NETWORK:=clab-mgmt-uunet}
+  ipv4-subnet: ${CLAB_MGMT_IPV4_SUBNET:=10.240.17.0/24}
+  ipv6-subnet: ${CLAB_MGMT_IPV6_SUBNET:=fd00:f0:17::/64}
+  external-access: ${CLAB_MGMT_EXTERNAL_ACCESS:=false}
+topology:
+  kinds:
+    linux:
+      image: ${CLAB_NODE_IMAGE:=ghcr.io/srl-labs/network-multitool:latest}
+  nodes:
+    montreal:
+      kind: linux
+      exec:
+        - ip link set eth1 up
+        - ip addr replace 10.17.1.1/30 dev eth1
+        - ip link set eth2 up
+        - ip addr replace 10.17.2.1/30 dev eth2
+        - ip link set eth3 up
+        - ip addr replace 10.17.3.1/30 dev eth3
+        - sysctl -w net.ipv4.ip_forward=1
+    halifax:
+      kind: linux
+      exec:
+        - ip link set eth1 up
+        - ip addr replace 10.17.1.2/30 dev eth1
+        - sysctl -w net.ipv4.ip_forward=1
+    london_ca:
+      kind: linux
+      exec:
+        - ip link set eth1 up
+        - ip addr replace 10.17.4.1/30 dev eth1
+        - sysctl -w net.ipv4.ip_forward=1
+    ottawa:
+      kind: linux
+      exec:
+        - ip link set eth1 up
+        - ip addr replace 10.17.2.2/30 dev eth1
+        - ip link set eth2 up
+        - ip addr replace 10.17.5.1/30 dev eth2
+        - sysctl -w net.ipv4.ip_forward=1
+    new_york:
+      kind: linux
+      exec:
+        - ip link set eth1 up
+        - ip addr replace 10.17.3.2/30 dev eth1
+        - ip link set eth2 up
+        - ip addr replace 10.17.6.1/30 dev eth2
+        - ip link set eth3 up
+        - ip addr replace 10.17.7.1/30 dev eth3
+        - ip link set eth4 up
+        - ip addr replace 10.17.8.1/30 dev eth4
+        - ip link set eth5 up
+        - ip addr replace 10.17.9.1/30 dev eth5
+        - ip link set eth6 up
+        - ip addr replace 10.17.10.1/30 dev eth6
+        - ip link set eth7 up
+        - ip addr replace 10.17.11.1/30 dev eth7
+        - ip link set eth8 up
+        - ip addr replace 10.17.12.1/30 dev eth8
+        - sysctl -w net.ipv4.ip_forward=1
+    philadelphia:
+      kind: linux
+      exec:
+        - ip link set eth1 up
+        - ip addr replace 10.17.6.2/30 dev eth1
+        - ip link set eth2 up
+        - ip addr replace 10.17.13.1/30 dev eth2
+        - sysctl -w net.ipv4.ip_forward=1
+    boston:
+      kind: linux
+      exec:
+        - ip link set eth1 up
+        - ip addr replace 10.17.7.2/30 dev eth1
+        - ip link set eth2 up
+        - ip addr replace 10.17.14.1/30 dev eth2
+        - ip link set eth3 up
+        - ip addr replace 10.17.15.1/30 dev eth3
+        - sysctl -w net.ipv4.ip_forward=1
+    hartford:
+      kind: linux
+      exec:
+        - ip link set eth1 up
+        - ip addr replace 10.17.15.2/30 dev eth1
+        - ip link set eth2 up
+        - ip addr replace 10.17.16.1/30 dev eth2
+        - sysctl -w net.ipv4.ip_forward=1
+    baltimore:
+      kind: linux
+      exec:
+        - ip link set eth1 up
+        - ip addr replace 10.17.13.2/30 dev eth1
+        - ip link set eth2 up
+        - ip addr replace 10.17.17.1/30 dev eth2
+        - sysctl -w net.ipv4.ip_forward=1
+    washington_dc:
+      kind: linux
+      exec:
+        - ip link set eth1 up
+        - ip addr replace 10.17.14.2/30 dev eth1
+        - ip link set eth2 up
+        - ip addr replace 10.17.17.2/30 dev eth2
+        - ip link set eth3 up
+        - ip addr replace 10.17.18.1/30 dev eth3
+        - ip link set eth4 up
+        - ip addr replace 10.17.19.1/30 dev eth4
+        - ip link set eth5 up
+        - ip addr replace 10.17.20.1/30 dev eth5
+        - ip link set eth6 up
+        - ip addr replace 10.17.21.1/30 dev eth6
+        - ip link set eth7 up
+        - ip addr replace 10.17.22.1/30 dev eth7
+        - ip link set eth8 up
+        - ip addr replace 10.17.23.1/30 dev eth8
+        - ip link set eth9 up
+        - ip addr replace 10.17.24.1/30 dev eth9
+        - ip link set eth10 up
+        - ip addr replace 10.17.25.1/30 dev eth10
+        - ip link set eth11 up
+        - ip addr replace 10.17.26.1/30 dev eth11
+        - ip link set eth12 up
+        - ip addr replace 10.17.27.1/30 dev eth12
+        - ip link set eth13 up
+        - ip addr replace 10.17.28.1/30 dev eth13
+        - sysctl -w net.ipv4.ip_forward=1
+    stockholm_ext:
+      kind: linux
+      exec:
+        - ip link set eth1 up
+        - ip addr replace 10.17.20.2/30 dev eth1
+        - sysctl -w net.ipv4.ip_forward=1
+    london_ext:
+      kind: linux
+      exec:
+        - ip link set eth1 up
+        - ip addr replace 10.17.21.2/30 dev eth1
+        - sysctl -w net.ipv4.ip_forward=1
+    austin:
+      kind: linux
+      exec:
+        - ip link set eth1 up
+        - ip addr replace 10.17.29.1/30 dev eth1
+        - ip link set eth2 up
+        - ip addr replace 10.17.30.1/30 dev eth2
+        - sysctl -w net.ipv4.ip_forward=1
+    dallas:
+      kind: linux
+      exec:
+        - ip link set eth1 up
+        - ip addr replace 10.17.9.2/30 dev eth1
+        - ip link set eth2 up
+        - ip addr replace 10.17.22.2/30 dev eth2
+        - ip link set eth3 up
+        - ip addr replace 10.17.29.2/30 dev eth3
+        - ip link set eth4 up
+        - ip addr replace 10.17.31.1/30 dev eth4
+        - ip link set eth5 up
+        - ip addr replace 10.17.32.1/30 dev eth5
+        - ip link set eth6 up
+        - ip addr replace 10.17.33.1/30 dev eth6
+        - ip link set eth7 up
+        - ip addr replace 10.17.34.1/30 dev eth7
+        - ip link set eth8 up
+        - ip addr replace 10.17.35.1/30 dev eth8
+        - ip link set eth9 up
+        - ip addr replace 10.17.36.1/30 dev eth9
+        - ip link set eth10 up
+        - ip addr replace 10.17.37.1/30 dev eth10
+        - sysctl -w net.ipv4.ip_forward=1
+    houston:
+      kind: linux
+      exec:
+        - ip link set eth1 up
+        - ip addr replace 10.17.23.2/30 dev eth1
+        - ip link set eth2 up
+        - ip addr replace 10.17.30.2/30 dev eth2
+        - ip link set eth3 up
+        - ip addr replace 10.17.34.2/30 dev eth3
+        - ip link set eth4 up
+        - ip addr replace 10.17.38.1/30 dev eth4
+        - ip link set eth5 up
+        - ip addr replace 10.17.39.1/30 dev eth5
+        - ip link set eth6 up
+        - ip addr replace 10.17.40.1/30 dev eth6
+        - sysctl -w net.ipv4.ip_forward=1
+    new_orleans:
+      kind: linux
+      exec:
+        - ip link set eth1 up
+        - ip addr replace 10.17.39.2/30 dev eth1
+        - ip link set eth2 up
+        - ip addr replace 10.17.41.1/30 dev eth2
+        - ip link set eth3 up
+        - ip addr replace 10.17.42.1/30 dev eth3
+        - sysctl -w net.ipv4.ip_forward=1
+    jacksonville:
+      kind: linux
+      exec:
+        - ip link set eth1 up
+        - ip addr replace 10.17.43.1/30 dev eth1
+        - ip link set eth2 up
+        - ip addr replace 10.17.44.1/30 dev eth2
+        - sysctl -w net.ipv4.ip_forward=1
+    orlando:
+      kind: linux
+      exec:
+        - ip link set eth1 up
+        - ip addr replace 10.17.41.2/30 dev eth1
+        - ip link set eth2 up
+        - ip addr replace 10.17.44.2/30 dev eth2
+        - ip link set eth3 up
+        - ip addr replace 10.17.45.1/30 dev eth3
+        - sysctl -w net.ipv4.ip_forward=1
+    miami:
+      kind: linux
+      exec:
+        - ip link set eth1 up
+        - ip addr replace 10.17.40.2/30 dev eth1
+        - ip link set eth2 up
+        - ip addr replace 10.17.42.2/30 dev eth2
+        - ip link set eth3 up
+        - ip addr replace 10.17.45.2/30 dev eth3
+        - ip link set eth4 up
+        - ip addr replace 10.17.46.1/30 dev eth4
+        - ip link set eth5 up
+        - ip addr replace 10.17.47.1/30 dev eth5
+        - sysctl -w net.ipv4.ip_forward=1
+    monaco_ext:
+      kind: linux
+      exec:
+        - ip link set eth1 up
+        - ip addr replace 10.17.46.2/30 dev eth1
+        - sysctl -w net.ipv4.ip_forward=1
+    buffalo:
+      kind: linux
+      exec:
+        - ip link set eth1 up
+        - ip addr replace 10.17.16.2/30 dev eth1
+        - ip link set eth2 up
+        - ip addr replace 10.17.48.1/30 dev eth2
+        - ip link set eth3 up
+        - ip addr replace 10.17.49.1/30 dev eth3
+        - sysctl -w net.ipv4.ip_forward=1
+    cleveland:
+      kind: linux
+      exec:
+        - ip link set eth1 up
+        - ip addr replace 10.17.10.2/30 dev eth1
+        - ip link set eth2 up
+        - ip addr replace 10.17.48.2/30 dev eth2
+        - ip link set eth3 up
+        - ip addr replace 10.17.50.1/30 dev eth3
+        - ip link set eth4 up
+        - ip addr replace 10.17.51.1/30 dev eth4
+        - ip link set eth5 up
+        - ip addr replace 10.17.52.1/30 dev eth5
+        - sysctl -w net.ipv4.ip_forward=1
+    cologne_ext:
+      kind: linux
+      exec:
+        - ip link set eth1 up
+        - ip addr replace 10.17.11.2/30 dev eth1
+        - sysctl -w net.ipv4.ip_forward=1
+    pittsburgh:
+      kind: linux
+      exec:
+        - ip link set eth1 up
+        - ip addr replace 10.17.25.2/30 dev eth1
+        - ip link set eth2 up
+        - ip addr replace 10.17.51.2/30 dev eth2
+        - sysctl -w net.ipv4.ip_forward=1
+    detroit:
+      kind: linux
+      exec:
+        - ip link set eth1 up
+        - ip addr replace 10.17.50.2/30 dev eth1
+        - ip link set eth2 up
+        - ip addr replace 10.17.53.1/30 dev eth2
+        - sysctl -w net.ipv4.ip_forward=1
+    chicago:
+      kind: linux
+      exec:
+        - ip link set eth1 up
+        - ip addr replace 10.17.12.2/30 dev eth1
+        - ip link set eth2 up
+        - ip addr replace 10.17.26.2/30 dev eth2
+        - ip link set eth3 up
+        - ip addr replace 10.17.35.2/30 dev eth3
+        - ip link set eth4 up
+        - ip addr replace 10.17.53.2/30 dev eth4
+        - ip link set eth5 up
+        - ip addr replace 10.17.54.1/30 dev eth5
+        - ip link set eth6 up
+        - ip addr replace 10.17.55.1/30 dev eth6
+        - ip link set eth7 up
+        - ip addr replace 10.17.56.1/30 dev eth7
+        - ip link set eth8 up
+        - ip addr replace 10.17.57.1/30 dev eth8
+        - ip link set eth9 up
+        - ip addr replace 10.17.58.1/30 dev eth9
+        - ip link set eth10 up
+        - ip addr replace 10.17.59.1/30 dev eth10
+        - sysctl -w net.ipv4.ip_forward=1
+    indianapolis:
+      kind: linux
+      exec:
+        - ip link set eth1 up
+        - ip addr replace 10.17.58.2/30 dev eth1
+        - ip link set eth2 up
+        - ip addr replace 10.17.60.1/30 dev eth2
+        - sysctl -w net.ipv4.ip_forward=1
+    kansas_city:
+      kind: linux
+      exec:
+        - ip link set eth1 up
+        - ip addr replace 10.17.27.2/30 dev eth1
+        - ip link set eth2 up
+        - ip addr replace 10.17.36.2/30 dev eth2
+        - ip link set eth3 up
+        - ip addr replace 10.17.59.2/30 dev eth3
+        - ip link set eth4 up
+        - ip addr replace 10.17.61.1/30 dev eth4
+        - ip link set eth5 up
+        - ip addr replace 10.17.62.1/30 dev eth5
+        - ip link set eth6 up
+        - ip addr replace 10.17.63.1/30 dev eth6
+        - ip link set eth7 up
+        - ip addr replace 10.17.64.1/30 dev eth7
+        - sysctl -w net.ipv4.ip_forward=1
+    st_louis:
+      kind: linux
+      exec:
+        - ip link set eth1 up
+        - ip addr replace 10.17.60.2/30 dev eth1
+        - ip link set eth2 up
+        - ip addr replace 10.17.64.2/30 dev eth2
+        - sysctl -w net.ipv4.ip_forward=1
+    edmonton:
+      kind: linux
+      exec:
+        - ip link set eth1 up
+        - ip addr replace 10.17.65.1/30 dev eth1
+        - sysctl -w net.ipv4.ip_forward=1
+    tokyo_ext:
+      kind: linux
+      exec:
+        - ip link set eth1 up
+        - ip addr replace 10.17.66.1/30 dev eth1
+        - sysctl -w net.ipv4.ip_forward=1
+    los_angeles:
+      kind: linux
+      exec:
+        - ip link set eth1 up
+        - ip addr replace 10.17.28.2/30 dev eth1
+        - ip link set eth2 up
+        - ip addr replace 10.17.37.2/30 dev eth2
+        - ip link set eth3 up
+        - ip addr replace 10.17.67.1/30 dev eth3
+        - ip link set eth4 up
+        - ip addr replace 10.17.68.1/30 dev eth4
+        - ip link set eth5 up
+        - ip addr replace 10.17.69.1/30 dev eth5
+        - ip link set eth6 up
+        - ip addr replace 10.17.70.1/30 dev eth6
+        - sysctl -w net.ipv4.ip_forward=1
+    las_vegas:
+      kind: linux
+      exec:
+        - ip link set eth1 up
+        - ip addr replace 10.17.67.2/30 dev eth1
+        - ip link set eth2 up
+        - ip addr replace 10.17.71.1/30 dev eth2
+        - ip link set eth3 up
+        - ip addr replace 10.17.72.1/30 dev eth3
+        - sysctl -w net.ipv4.ip_forward=1
+    atlanta:
+      kind: linux
+      exec:
+        - ip link set eth1 up
+        - ip addr replace 10.17.18.2/30 dev eth1
+        - ip link set eth2 up
+        - ip addr replace 10.17.31.2/30 dev eth2
+        - ip link set eth3 up
+        - ip addr replace 10.17.43.2/30 dev eth3
+        - ip link set eth4 up
+        - ip addr replace 10.17.47.2/30 dev eth4
+        - ip link set eth5 up
+        - ip addr replace 10.17.54.2/30 dev eth5
+        - ip link set eth6 up
+        - ip addr replace 10.17.73.1/30 dev eth6
+        - sysctl -w net.ipv4.ip_forward=1
+    raleigh:
+      kind: linux
+      exec:
+        - ip link set eth1 up
+        - ip addr replace 10.17.19.2/30 dev eth1
+        - ip link set eth2 up
+        - ip addr replace 10.17.73.2/30 dev eth2
+        - sysctl -w net.ipv4.ip_forward=1
+    hawaii_a_ext:
+      kind: linux
+      exec:
+        - ip link set eth1 up
+        - ip addr replace 10.17.74.1/30 dev eth1
+        - sysctl -w net.ipv4.ip_forward=1
+    hawaii_b_ext:
+      kind: linux
+      exec:
+        - ip link set eth1 up
+        - ip addr replace 10.17.68.2/30 dev eth1
+        - sysctl -w net.ipv4.ip_forward=1
+    phoenix:
+      kind: linux
+      exec:
+        - ip link set eth1 up
+        - ip addr replace 10.17.38.2/30 dev eth1
+        - ip link set eth2 up
+        - ip addr replace 10.17.71.2/30 dev eth2
+        - ip link set eth3 up
+        - ip addr replace 10.17.75.1/30 dev eth3
+        - sysctl -w net.ipv4.ip_forward=1
+    san_diego:
+      kind: linux
+      exec:
+        - ip link set eth1 up
+        - ip addr replace 10.17.69.2/30 dev eth1
+        - ip link set eth2 up
+        - ip addr replace 10.17.75.2/30 dev eth2
+        - sysctl -w net.ipv4.ip_forward=1
+    toronto:
+      kind: linux
+      exec:
+        - ip link set eth1 up
+        - ip addr replace 10.17.4.2/30 dev eth1
+        - ip link set eth2 up
+        - ip addr replace 10.17.5.2/30 dev eth2
+        - ip link set eth3 up
+        - ip addr replace 10.17.49.2/30 dev eth3
+        - ip link set eth4 up
+        - ip addr replace 10.17.76.1/30 dev eth4
+        - ip link set eth5 up
+        - ip addr replace 10.17.77.1/30 dev eth5
+        - sysctl -w net.ipv4.ip_forward=1
+    kitchener:
+      kind: linux
+      exec:
+        - ip link set eth1 up
+        - ip addr replace 10.17.76.2/30 dev eth1
+        - sysctl -w net.ipv4.ip_forward=1
+    calgary:
+      kind: linux
+      exec:
+        - ip link set eth1 up
+        - ip addr replace 10.17.65.2/30 dev eth1
+        - ip link set eth2 up
+        - ip addr replace 10.17.77.2/30 dev eth2
+        - ip link set eth3 up
+        - ip addr replace 10.17.78.1/30 dev eth3
+        - sysctl -w net.ipv4.ip_forward=1
+    vancouver:
+      kind: linux
+      exec:
+        - ip link set eth1 up
+        - ip addr replace 10.17.78.2/30 dev eth1
+        - ip link set eth2 up
+        - ip addr replace 10.17.79.1/30 dev eth2
+        - sysctl -w net.ipv4.ip_forward=1
+    seattle:
+      kind: linux
+      exec:
+        - ip link set eth1 up
+        - ip addr replace 10.17.32.2/30 dev eth1
+        - ip link set eth2 up
+        - ip addr replace 10.17.55.2/30 dev eth2
+        - ip link set eth3 up
+        - ip addr replace 10.17.61.2/30 dev eth3
+        - ip link set eth4 up
+        - ip addr replace 10.17.66.2/30 dev eth4
+        - ip link set eth5 up
+        - ip addr replace 10.17.79.2/30 dev eth5
+        - ip link set eth6 up
+        - ip addr replace 10.17.80.1/30 dev eth6
+        - ip link set eth7 up
+        - ip addr replace 10.17.81.1/30 dev eth7
+        - sysctl -w net.ipv4.ip_forward=1
+    portland:
+      kind: linux
+      exec:
+        - ip link set eth1 up
+        - ip addr replace 10.17.80.2/30 dev eth1
+        - ip link set eth2 up
+        - ip addr replace 10.17.82.1/30 dev eth2
+        - sysctl -w net.ipv4.ip_forward=1
+    san_francisco:
+      kind: linux
+      exec:
+        - ip link set eth1 up
+        - ip addr replace 10.17.8.2/30 dev eth1
+        - ip link set eth2 up
+        - ip addr replace 10.17.24.2/30 dev eth2
+        - ip link set eth3 up
+        - ip addr replace 10.17.33.2/30 dev eth3
+        - ip link set eth4 up
+        - ip addr replace 10.17.56.2/30 dev eth4
+        - ip link set eth5 up
+        - ip addr replace 10.17.62.2/30 dev eth5
+        - ip link set eth6 up
+        - ip addr replace 10.17.70.2/30 dev eth6
+        - ip link set eth7 up
+        - ip addr replace 10.17.74.2/30 dev eth7
+        - ip link set eth8 up
+        - ip addr replace 10.17.81.2/30 dev eth8
+        - ip link set eth9 up
+        - ip addr replace 10.17.82.2/30 dev eth9
+        - ip link set eth10 up
+        - ip addr replace 10.17.83.1/30 dev eth10
+        - sysctl -w net.ipv4.ip_forward=1
+    salt_lake_city:
+      kind: linux
+      exec:
+        - ip link set eth1 up
+        - ip addr replace 10.17.83.2/30 dev eth1
+        - ip link set eth2 up
+        - ip addr replace 10.17.84.1/30 dev eth2
+        - sysctl -w net.ipv4.ip_forward=1
+    denver:
+      kind: linux
+      exec:
+        - ip link set eth1 up
+        - ip addr replace 10.17.63.2/30 dev eth1
+        - ip link set eth2 up
+        - ip addr replace 10.17.72.2/30 dev eth2
+        - ip link set eth3 up
+        - ip addr replace 10.17.84.2/30 dev eth3
+        - sysctl -w net.ipv4.ip_forward=1
+    minneapolis:
+      kind: linux
+      exec:
+        - ip link set eth1 up
+        - ip addr replace 10.17.52.2/30 dev eth1
+        - ip link set eth2 up
+        - ip addr replace 10.17.57.2/30 dev eth2
+        - sysctl -w net.ipv4.ip_forward=1
+  links:
+    - endpoints: ["montreal:eth1", "halifax:eth1"]
+      tc: { rate: 45mbit }
+    - endpoints: ["montreal:eth2", "ottawa:eth1"]
+      tc: { rate: 45mbit }
+    - endpoints: ["montreal:eth3", "new_york:eth1"]
+      tc: { rate: 45mbit }
+    - endpoints: ["london_ca:eth1", "toronto:eth1"]
+      tc: { rate: 45mbit }
+    - endpoints: ["ottawa:eth2", "toronto:eth2"]
+      tc: { rate: 45mbit }
+    - endpoints: ["new_york:eth2", "philadelphia:eth1"]
+      tc: { rate: 45mbit }
+    - endpoints: ["new_york:eth3", "boston:eth1"]
+      tc: { rate: 45mbit }
+    - endpoints: ["new_york:eth4", "san_francisco:eth1"]
+      tc: { rate: 45mbit }
+    - endpoints: ["new_york:eth5", "dallas:eth1"]
+      tc: { rate: 45mbit }
+    - endpoints: ["new_york:eth6", "cleveland:eth1"]
+      tc: { rate: 45mbit }
+    - endpoints: ["new_york:eth7", "cologne_ext:eth1"]
+    - endpoints: ["new_york:eth8", "chicago:eth1"]
+      tc: { rate: 45mbit }
+    - endpoints: ["philadelphia:eth2", "baltimore:eth1"]
+      tc: { rate: 45mbit }
+    - endpoints: ["boston:eth2", "washington_dc:eth1"]
+      tc: { rate: 45mbit }
+    - endpoints: ["boston:eth3", "hartford:eth1"]
+      tc: { rate: 45mbit }
+    - endpoints: ["hartford:eth2", "buffalo:eth1"]
+      tc: { rate: 45mbit }
+    - endpoints: ["baltimore:eth2", "washington_dc:eth2"]
+      tc: { rate: 45mbit }
+    - endpoints: ["washington_dc:eth3", "atlanta:eth1"]
+      tc: { rate: 45mbit }
+    - endpoints: ["washington_dc:eth4", "raleigh:eth1"]
+      tc: { rate: 45mbit }
+    - endpoints: ["washington_dc:eth5", "stockholm_ext:eth1"]
+    - endpoints: ["washington_dc:eth6", "london_ext:eth1"]
+    - endpoints: ["washington_dc:eth7", "dallas:eth2"]
+      tc: { rate: 45mbit }
+    - endpoints: ["washington_dc:eth8", "houston:eth1"]
+      tc: { rate: 45mbit }
+    - endpoints: ["washington_dc:eth9", "san_francisco:eth2"]
+      tc: { rate: 45mbit }
+    - endpoints: ["washington_dc:eth10", "pittsburgh:eth1"]
+      tc: { rate: 45mbit }
+    - endpoints: ["washington_dc:eth11", "chicago:eth2"]
+      tc: { rate: 45mbit }
+    - endpoints: ["washington_dc:eth12", "kansas_city:eth1"]
+      tc: { rate: 45mbit }
+    - endpoints: ["washington_dc:eth13", "los_angeles:eth1"]
+      tc: { rate: 45mbit }
+    - endpoints: ["austin:eth1", "dallas:eth3"]
+      tc: { rate: 45mbit }
+    - endpoints: ["austin:eth2", "houston:eth2"]
+      tc: { rate: 45mbit }
+    - endpoints: ["dallas:eth4", "atlanta:eth2"]
+      tc: { rate: 45mbit }
+    - endpoints: ["dallas:eth5", "seattle:eth1"]
+      tc: { rate: 45mbit }
+    - endpoints: ["dallas:eth6", "san_francisco:eth3"]
+      tc: { rate: 45mbit }
+    - endpoints: ["dallas:eth7", "houston:eth3"]
+      tc: { rate: 45mbit }
+    - endpoints: ["dallas:eth8", "chicago:eth3"]
+      tc: { rate: 45mbit }
+    - endpoints: ["dallas:eth9", "kansas_city:eth2"]
+      tc: { rate: 45mbit }
+    - endpoints: ["dallas:eth10", "los_angeles:eth2"]
+      tc: { rate: 45mbit }
+    - endpoints: ["houston:eth4", "phoenix:eth1"]
+      tc: { rate: 45mbit }
+    - endpoints: ["houston:eth5", "new_orleans:eth1"]
+      tc: { rate: 45mbit }
+    - endpoints: ["houston:eth6", "miami:eth1"]
+      tc: { rate: 45mbit }
+    - endpoints: ["new_orleans:eth2", "orlando:eth1"]
+      tc: { rate: 45mbit }
+    - endpoints: ["new_orleans:eth3", "miami:eth2"]
+      tc: { rate: 45mbit }
+    - endpoints: ["jacksonville:eth1", "atlanta:eth3"]
+      tc: { rate: 45mbit }
+    - endpoints: ["jacksonville:eth2", "orlando:eth2"]
+      tc: { rate: 45mbit }
+    - endpoints: ["orlando:eth3", "miami:eth3"]
+      tc: { rate: 45mbit }
+    - endpoints: ["miami:eth4", "monaco_ext:eth1"]
+    - endpoints: ["miami:eth5", "atlanta:eth4"]
+      tc: { rate: 45mbit }
+    - endpoints: ["buffalo:eth2", "cleveland:eth2"]
+      tc: { rate: 45mbit }
+    - endpoints: ["buffalo:eth3", "toronto:eth3"]
+      tc: { rate: 45mbit }
+    - endpoints: ["cleveland:eth3", "detroit:eth1"]
+      tc: { rate: 45mbit }
+    - endpoints: ["cleveland:eth4", "pittsburgh:eth2"]
+      tc: { rate: 45mbit }
+    - endpoints: ["cleveland:eth5", "minneapolis:eth1"]
+      tc: { rate: 45mbit }
+    - endpoints: ["detroit:eth2", "chicago:eth4"]
+      tc: { rate: 45mbit }
+    - endpoints: ["chicago:eth5", "atlanta:eth5"]
+      tc: { rate: 45mbit }
+    - endpoints: ["chicago:eth6", "seattle:eth2"]
+      tc: { rate: 45mbit }
+    - endpoints: ["chicago:eth7", "san_francisco:eth4"]
+      tc: { rate: 45mbit }
+    - endpoints: ["chicago:eth8", "minneapolis:eth2"]
+      tc: { rate: 45mbit }
+    - endpoints: ["chicago:eth9", "indianapolis:eth1"]
+      tc: { rate: 45mbit }
+    - endpoints: ["chicago:eth10", "kansas_city:eth3"]
+      tc: { rate: 45mbit }
+    - endpoints: ["indianapolis:eth2", "st_louis:eth1"]
+      tc: { rate: 45mbit }
+    - endpoints: ["kansas_city:eth4", "seattle:eth3"]
+      tc: { rate: 45mbit }
+    - endpoints: ["kansas_city:eth5", "san_francisco:eth5"]
+      tc: { rate: 45mbit }
+    - endpoints: ["kansas_city:eth6", "denver:eth1"]
+      tc: { rate: 45mbit }
+    - endpoints: ["kansas_city:eth7", "st_louis:eth2"]
+      tc: { rate: 45mbit }
+    - endpoints: ["edmonton:eth1", "calgary:eth1"]
+      tc: { rate: 45mbit }
+    - endpoints: ["tokyo_ext:eth1", "seattle:eth4"]
+    - endpoints: ["los_angeles:eth3", "las_vegas:eth1"]
+      tc: { rate: 45mbit }
+    - endpoints: ["los_angeles:eth4", "hawaii_b_ext:eth1"]
+    - endpoints: ["los_angeles:eth5", "san_diego:eth1"]
+      tc: { rate: 45mbit }
+    - endpoints: ["los_angeles:eth6", "san_francisco:eth6"]
+      tc: { rate: 45mbit }
+    - endpoints: ["las_vegas:eth2", "phoenix:eth2"]
+      tc: { rate: 45mbit }
+    - endpoints: ["las_vegas:eth3", "denver:eth2"]
+      tc: { rate: 45mbit }
+    - endpoints: ["atlanta:eth6", "raleigh:eth2"]
+      tc: { rate: 45mbit }
+    - endpoints: ["hawaii_a_ext:eth1", "san_francisco:eth7"]
+    - endpoints: ["phoenix:eth3", "san_diego:eth2"]
+      tc: { rate: 45mbit }
+    - endpoints: ["toronto:eth4", "kitchener:eth1"]
+      tc: { rate: 45mbit }
+    - endpoints: ["toronto:eth5", "calgary:eth2"]
+      tc: { rate: 45mbit }
+    - endpoints: ["calgary:eth3", "vancouver:eth1"]
+      tc: { rate: 45mbit }
+    - endpoints: ["vancouver:eth2", "seattle:eth5"]
+      tc: { rate: 45mbit }
+    - endpoints: ["seattle:eth6", "portland:eth1"]
+      tc: { rate: 45mbit }
+    - endpoints: ["seattle:eth7", "san_francisco:eth8"]
+      tc: { rate: 45mbit }
+    - endpoints: ["portland:eth2", "san_francisco:eth9"]
+      tc: { rate: 45mbit }
+    - endpoints: ["san_francisco:eth10", "salt_lake_city:eth1"]
+      tc: { rate: 45mbit }
+    - endpoints: ["salt_lake_city:eth2", "denver:eth3"]
+      tc: { rate: 45mbit }

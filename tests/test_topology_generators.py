@@ -29,6 +29,42 @@ def test_load_clab_topology_parses_real_abilene_file() -> None:
     assert first.right_ip == "10.15.1.2"
 
 
+def test_load_clab_topology_parses_real_geant_file() -> None:
+    source = load_clab_topology(Path("src/clab/topologies/geant.clab.yaml"))
+    assert len(source.node_names) == 40
+    assert len(source.links) == 61
+    first = source.links[0]
+    assert first.left_node == "nl"
+    assert first.left_iface == "eth1"
+    assert first.left_ip == "10.16.1.1"
+    assert first.right_node == "be"
+    assert first.right_ip == "10.16.1.2"
+
+
+def test_load_clab_topology_parses_real_uunet_file() -> None:
+    source = load_clab_topology(Path("src/clab/topologies/uunet.clab.yaml"))
+    assert len(source.node_names) == 49
+    assert len(source.links) == 84
+    first = source.links[0]
+    assert first.left_node == "montreal"
+    assert first.left_iface == "eth1"
+    assert first.left_ip == "10.17.1.1"
+    assert first.right_node == "halifax"
+    assert first.right_ip == "10.17.1.2"
+
+
+def test_load_clab_topology_parses_real_cernet_file() -> None:
+    source = load_clab_topology(Path("src/clab/topologies/cernet.clab.yaml"))
+    assert len(source.node_names) == 41
+    assert len(source.links) == 59
+    first = source.links[0]
+    assert first.left_node == "gullin"
+    assert first.left_iface == "eth1"
+    assert first.left_ip == "10.18.1.1"
+    assert first.right_node == "nanning"
+    assert first.right_ip == "10.18.1.2"
+
+
 def test_load_clab_topology_falls_back_when_link_ip_missing(tmp_path: Path) -> None:
     topology_file = tmp_path / "no-ip.clab.yaml"
     topology_file.write_text(

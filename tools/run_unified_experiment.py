@@ -48,6 +48,15 @@ TOPOLOGY_ALIAS = {
     "line5": "line5",
     "ring_6": "ring6",
     "ring6": "ring6",
+    "geant_2012": "geant",
+    "geant2012": "geant",
+    "geant": "geant",
+    "uunet_2011": "uunet",
+    "uunet2011": "uunet",
+    "uunet": "uunet",
+    "cernet_2006": "cernet",
+    "cernet2006": "cernet",
+    "cernet": "cernet",
 }
 PING_SUMMARY_RE = re.compile(r"(\d+) packets transmitted, (\d+) (?:packets )?received")
 PING_RTT_RE = re.compile(r"(?:rtt|round-trip) min/avg/max(?:/mdev|/stddev)? = ([0-9.]+)/([0-9.]+)/")

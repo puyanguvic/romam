@@ -1,0 +1,516 @@
+name: ${CLAB_LAB_NAME:=geant}
+mgmt:
+  network: ${CLAB_MGMT_NETWORK:=clab-mgmt-geant}
+  ipv4-subnet: ${CLAB_MGMT_IPV4_SUBNET:=10.240.16.0/24}
+  ipv6-subnet: ${CLAB_MGMT_IPV6_SUBNET:=fd00:f0:16::/64}
+  external-access: ${CLAB_MGMT_EXTERNAL_ACCESS:=false}
+topology:
+  kinds:
+    linux:
+      image: ${CLAB_NODE_IMAGE:=ghcr.io/srl-labs/network-multitool:latest}
+  nodes:
+    nl:
+      kind: linux
+      exec:
+        - ip link set eth1 up
+        - ip addr replace 10.16.1.1/30 dev eth1
+        - ip link set eth2 up
+        - ip addr replace 10.16.2.1/30 dev eth2
+        - ip link set eth3 up
+        - ip addr replace 10.16.3.1/30 dev eth3
+        - ip link set eth4 up
+        - ip addr replace 10.16.4.1/30 dev eth4
+        - ip link set eth5 up
+        - ip addr replace 10.16.5.1/30 dev eth5
+        - sysctl -w net.ipv4.ip_forward=1
+    be:
+      kind: linux
+      exec:
+        - ip link set eth1 up
+        - ip addr replace 10.16.1.2/30 dev eth1
+        - ip link set eth2 up
+        - ip addr replace 10.16.6.1/30 dev eth2
+        - sysctl -w net.ipv4.ip_forward=1
+    dk:
+      kind: linux
+      exec:
+        - ip link set eth1 up
+        - ip addr replace 10.16.2.2/30 dev eth1
+        - ip link set eth2 up
+        - ip addr replace 10.16.7.1/30 dev eth2
+        - ip link set eth3 up
+        - ip addr replace 10.16.8.1/30 dev eth3
+        - ip link set eth4 up
+        - ip addr replace 10.16.9.1/30 dev eth4
+        - ip link set eth5 up
+        - ip addr replace 10.16.10.1/30 dev eth5
+        - ip link set eth6 up
+        - ip addr replace 10.16.11.1/30 dev eth6
+        - ip link set eth7 up
+        - ip addr replace 10.16.12.1/30 dev eth7
+        - sysctl -w net.ipv4.ip_forward=1
+    pl:
+      kind: linux
+      exec:
+        - ip link set eth1 up
+        - ip addr replace 10.16.13.1/30 dev eth1
+        - ip link set eth2 up
+        - ip addr replace 10.16.14.1/30 dev eth2
+        - ip link set eth3 up
+        - ip addr replace 10.16.15.1/30 dev eth3
+        - ip link set eth4 up
+        - ip addr replace 10.16.16.1/30 dev eth4
+        - ip link set eth5 up
+        - ip addr replace 10.16.17.1/30 dev eth5
+        - sysctl -w net.ipv4.ip_forward=1
+    de:
+      kind: linux
+      exec:
+        - ip link set eth1 up
+        - ip addr replace 10.16.3.2/30 dev eth1
+        - ip link set eth2 up
+        - ip addr replace 10.16.9.2/30 dev eth2
+        - ip link set eth3 up
+        - ip addr replace 10.16.15.2/30 dev eth3
+        - ip link set eth4 up
+        - ip addr replace 10.16.18.1/30 dev eth4
+        - ip link set eth5 up
+        - ip addr replace 10.16.19.1/30 dev eth5
+        - ip link set eth6 up
+        - ip addr replace 10.16.20.1/30 dev eth6
+        - ip link set eth7 up
+        - ip addr replace 10.16.21.1/30 dev eth7
+        - ip link set eth8 up
+        - ip addr replace 10.16.22.1/30 dev eth8
+        - ip link set eth9 up
+        - ip addr replace 10.16.23.1/30 dev eth9
+        - ip link set eth10 up
+        - ip addr replace 10.16.24.1/30 dev eth10
+        - sysctl -w net.ipv4.ip_forward=1
+    cz:
+      kind: linux
+      exec:
+        - ip link set eth1 up
+        - ip addr replace 10.16.16.2/30 dev eth1
+        - ip link set eth2 up
+        - ip addr replace 10.16.18.2/30 dev eth2
+        - ip link set eth3 up
+        - ip addr replace 10.16.25.1/30 dev eth3
+        - sysctl -w net.ipv4.ip_forward=1
+    lu:
+      kind: linux
+      exec:
+        - ip link set eth1 up
+        - ip addr replace 10.16.19.2/30 dev eth1
+        - ip link set eth2 up
+        - ip addr replace 10.16.26.1/30 dev eth2
+        - sysctl -w net.ipv4.ip_forward=1
+    fr:
+      kind: linux
+      exec:
+        - ip link set eth1 up
+        - ip addr replace 10.16.26.2/30 dev eth1
+        - ip link set eth2 up
+        - ip addr replace 10.16.27.1/30 dev eth2
+        - ip link set eth3 up
+        - ip addr replace 10.16.28.1/30 dev eth3
+        - ip link set eth4 up
+        - ip addr replace 10.16.29.1/30 dev eth4
+        - sysctl -w net.ipv4.ip_forward=1
+    ch:
+      kind: linux
+      exec:
+        - ip link set eth1 up
+        - ip addr replace 10.16.20.2/30 dev eth1
+        - ip link set eth2 up
+        - ip addr replace 10.16.27.2/30 dev eth2
+        - ip link set eth3 up
+        - ip addr replace 10.16.30.1/30 dev eth3
+        - ip link set eth4 up
+        - ip addr replace 10.16.31.1/30 dev eth4
+        - sysctl -w net.ipv4.ip_forward=1
+    it:
+      kind: linux
+      exec:
+        - ip link set eth1 up
+        - ip addr replace 10.16.30.2/30 dev eth1
+        - ip link set eth2 up
+        - ip addr replace 10.16.32.1/30 dev eth2
+        - ip link set eth3 up
+        - ip addr replace 10.16.33.1/30 dev eth3
+        - ip link set eth4 up
+        - ip addr replace 10.16.34.1/30 dev eth4
+        - ip link set eth5 up
+        - ip addr replace 10.16.35.1/30 dev eth5
+        - sysctl -w net.ipv4.ip_forward=1
+    ua:
+      kind: linux
+      exec:
+        - ip link set eth1 up
+        - ip addr replace 10.16.13.2/30 dev eth1
+        - sysctl -w net.ipv4.ip_forward=1
+    md:
+      kind: linux
+      exec:
+        - ip link set eth1 up
+        - ip addr replace 10.16.36.1/30 dev eth1
+        - sysctl -w net.ipv4.ip_forward=1
+    bg:
+      kind: linux
+      exec:
+        - ip link set eth1 up
+        - ip addr replace 10.16.37.1/30 dev eth1
+        - ip link set eth2 up
+        - ip addr replace 10.16.38.1/30 dev eth2
+        - ip link set eth3 up
+        - ip addr replace 10.16.39.1/30 dev eth3
+        - ip link set eth4 up
+        - ip addr replace 10.16.40.1/30 dev eth4
+        - ip link set eth5 up
+        - ip addr replace 10.16.41.1/30 dev eth5
+        - sysctl -w net.ipv4.ip_forward=1
+    ro:
+      kind: linux
+      exec:
+        - ip link set eth1 up
+        - ip addr replace 10.16.36.2/30 dev eth1
+        - ip link set eth2 up
+        - ip addr replace 10.16.39.2/30 dev eth2
+        - ip link set eth3 up
+        - ip addr replace 10.16.42.1/30 dev eth3
+        - ip link set eth4 up
+        - ip addr replace 10.16.43.1/30 dev eth4
+        - sysctl -w net.ipv4.ip_forward=1
+    tr:
+      kind: linux
+      exec:
+        - ip link set eth1 up
+        - ip addr replace 10.16.40.2/30 dev eth1
+        - ip link set eth2 up
+        - ip addr replace 10.16.42.2/30 dev eth2
+        - sysctl -w net.ipv4.ip_forward=1
+    gr:
+      kind: linux
+      exec:
+        - ip link set eth1 up
+        - ip addr replace 10.16.35.2/30 dev eth1
+        - ip link set eth2 up
+        - ip addr replace 10.16.41.2/30 dev eth2
+        - ip link set eth3 up
+        - ip addr replace 10.16.44.1/30 dev eth3
+        - sysctl -w net.ipv4.ip_forward=1
+    cy:
+      kind: linux
+      exec:
+        - ip link set eth1 up
+        - ip addr replace 10.16.21.2/30 dev eth1
+        - ip link set eth2 up
+        - ip addr replace 10.16.45.1/30 dev eth2
+        - sysctl -w net.ipv4.ip_forward=1
+    il:
+      kind: linux
+      exec:
+        - ip link set eth1 up
+        - ip addr replace 10.16.22.2/30 dev eth1
+        - ip link set eth2 up
+        - ip addr replace 10.16.46.1/30 dev eth2
+        - sysctl -w net.ipv4.ip_forward=1
+    mt:
+      kind: linux
+      exec:
+        - ip link set eth1 up
+        - ip addr replace 10.16.33.2/30 dev eth1
+        - sysctl -w net.ipv4.ip_forward=1
+    by:
+      kind: linux
+      exec:
+        - ip link set eth1 up
+        - ip addr replace 10.16.14.2/30 dev eth1
+        - sysctl -w net.ipv4.ip_forward=1
+    mk:
+      kind: linux
+      exec:
+        - ip link set eth1 up
+        - ip addr replace 10.16.38.2/30 dev eth1
+        - sysctl -w net.ipv4.ip_forward=1
+    me:
+      kind: linux
+      exec:
+        - ip link set eth1 up
+        - ip addr replace 10.16.47.1/30 dev eth1
+        - sysctl -w net.ipv4.ip_forward=1
+    hu:
+      kind: linux
+      exec:
+        - ip link set eth1 up
+        - ip addr replace 10.16.37.2/30 dev eth1
+        - ip link set eth2 up
+        - ip addr replace 10.16.43.2/30 dev eth2
+        - ip link set eth3 up
+        - ip addr replace 10.16.48.1/30 dev eth3
+        - ip link set eth4 up
+        - ip addr replace 10.16.49.1/30 dev eth4
+        - ip link set eth5 up
+        - ip addr replace 10.16.50.1/30 dev eth5
+        - sysctl -w net.ipv4.ip_forward=1
+    sk:
+      kind: linux
+      exec:
+        - ip link set eth1 up
+        - ip addr replace 10.16.25.2/30 dev eth1
+        - ip link set eth2 up
+        - ip addr replace 10.16.50.2/30 dev eth2
+        - ip link set eth3 up
+        - ip addr replace 10.16.51.1/30 dev eth3
+        - sysctl -w net.ipv4.ip_forward=1
+    pt:
+      kind: linux
+      exec:
+        - ip link set eth1 up
+        - ip addr replace 10.16.52.1/30 dev eth1
+        - ip link set eth2 up
+        - ip addr replace 10.16.53.1/30 dev eth2
+        - sysctl -w net.ipv4.ip_forward=1
+    es:
+      kind: linux
+      exec:
+        - ip link set eth1 up
+        - ip addr replace 10.16.28.2/30 dev eth1
+        - ip link set eth2 up
+        - ip addr replace 10.16.31.2/30 dev eth2
+        - ip link set eth3 up
+        - ip addr replace 10.16.32.2/30 dev eth3
+        - ip link set eth4 up
+        - ip addr replace 10.16.52.2/30 dev eth4
+        - sysctl -w net.ipv4.ip_forward=1
+    rs:
+      kind: linux
+      exec:
+        - ip link set eth1 up
+        - ip addr replace 10.16.48.2/30 dev eth1
+        - sysctl -w net.ipv4.ip_forward=1
+    hr:
+      kind: linux
+      exec:
+        - ip link set eth1 up
+        - ip addr replace 10.16.47.2/30 dev eth1
+        - ip link set eth2 up
+        - ip addr replace 10.16.49.2/30 dev eth2
+        - ip link set eth3 up
+        - ip addr replace 10.16.54.1/30 dev eth3
+        - sysctl -w net.ipv4.ip_forward=1
+    sl:
+      kind: linux
+      exec:
+        - ip link set eth1 up
+        - ip addr replace 10.16.54.2/30 dev eth1
+        - ip link set eth2 up
+        - ip addr replace 10.16.55.1/30 dev eth2
+        - sysctl -w net.ipv4.ip_forward=1
+    at:
+      kind: linux
+      exec:
+        - ip link set eth1 up
+        - ip addr replace 10.16.23.2/30 dev eth1
+        - ip link set eth2 up
+        - ip addr replace 10.16.34.2/30 dev eth2
+        - ip link set eth3 up
+        - ip addr replace 10.16.44.2/30 dev eth3
+        - ip link set eth4 up
+        - ip addr replace 10.16.51.2/30 dev eth4
+        - ip link set eth5 up
+        - ip addr replace 10.16.55.2/30 dev eth5
+        - sysctl -w net.ipv4.ip_forward=1
+    lt:
+      kind: linux
+      exec:
+        - ip link set eth1 up
+        - ip addr replace 10.16.5.2/30 dev eth1
+        - ip link set eth2 up
+        - ip addr replace 10.16.17.2/30 dev eth2
+        - ip link set eth3 up
+        - ip addr replace 10.16.46.2/30 dev eth3
+        - ip link set eth4 up
+        - ip addr replace 10.16.56.1/30 dev eth4
+        - sysctl -w net.ipv4.ip_forward=1
+    ru:
+      kind: linux
+      exec:
+        - ip link set eth1 up
+        - ip addr replace 10.16.12.2/30 dev eth1
+        - ip link set eth2 up
+        - ip addr replace 10.16.24.2/30 dev eth2
+        - sysctl -w net.ipv4.ip_forward=1
+    is:
+      kind: linux
+      exec:
+        - ip link set eth1 up
+        - ip addr replace 10.16.7.2/30 dev eth1
+        - ip link set eth2 up
+        - ip addr replace 10.16.57.1/30 dev eth2
+        - sysctl -w net.ipv4.ip_forward=1
+    ie:
+      kind: linux
+      exec:
+        - ip link set eth1 up
+        - ip addr replace 10.16.6.2/30 dev eth1
+        - ip link set eth2 up
+        - ip addr replace 10.16.58.1/30 dev eth2
+        - sysctl -w net.ipv4.ip_forward=1
+    uk:
+      kind: linux
+      exec:
+        - ip link set eth1 up
+        - ip addr replace 10.16.4.2/30 dev eth1
+        - ip link set eth2 up
+        - ip addr replace 10.16.29.2/30 dev eth2
+        - ip link set eth3 up
+        - ip addr replace 10.16.45.2/30 dev eth3
+        - ip link set eth4 up
+        - ip addr replace 10.16.53.2/30 dev eth4
+        - ip link set eth5 up
+        - ip addr replace 10.16.57.2/30 dev eth5
+        - ip link set eth6 up
+        - ip addr replace 10.16.58.2/30 dev eth6
+        - sysctl -w net.ipv4.ip_forward=1
+    "no":
+      kind: linux
+      exec:
+        - ip link set eth1 up
+        - ip addr replace 10.16.8.2/30 dev eth1
+        - ip link set eth2 up
+        - ip addr replace 10.16.59.1/30 dev eth2
+        - sysctl -w net.ipv4.ip_forward=1
+    se:
+      kind: linux
+      exec:
+        - ip link set eth1 up
+        - ip addr replace 10.16.11.2/30 dev eth1
+        - ip link set eth2 up
+        - ip addr replace 10.16.59.2/30 dev eth2
+        - ip link set eth3 up
+        - ip addr replace 10.16.60.1/30 dev eth3
+        - sysctl -w net.ipv4.ip_forward=1
+    fi:
+      kind: linux
+      exec:
+        - ip link set eth1 up
+        - ip addr replace 10.16.60.2/30 dev eth1
+        - sysctl -w net.ipv4.ip_forward=1
+    ee:
+      kind: linux
+      exec:
+        - ip link set eth1 up
+        - ip addr replace 10.16.10.2/30 dev eth1
+        - ip link set eth2 up
+        - ip addr replace 10.16.61.1/30 dev eth2
+        - sysctl -w net.ipv4.ip_forward=1
+    lv:
+      kind: linux
+      exec:
+        - ip link set eth1 up
+        - ip addr replace 10.16.56.2/30 dev eth1
+        - ip link set eth2 up
+        - ip addr replace 10.16.61.2/30 dev eth2
+        - sysctl -w net.ipv4.ip_forward=1
+  links:
+    - endpoints: ["nl:eth1", "be:eth1"]
+    - endpoints: ["nl:eth2", "dk:eth1"]
+    - endpoints: ["nl:eth3", "de:eth1"]
+    - endpoints: ["nl:eth4", "uk:eth1"]
+      tc: { rate: 2500mbit }
+    - endpoints: ["nl:eth5", "lt:eth1"]
+      tc: { rate: 2500mbit }
+    - endpoints: ["be:eth2", "ie:eth1"]
+    - endpoints: ["dk:eth2", "is:eth1"]
+      tc: { rate: 10000mbit }
+    - endpoints: ["dk:eth3", "no:eth1"]
+    - endpoints: ["dk:eth4", "de:eth2"]
+    - endpoints: ["dk:eth5", "ee:eth1"]
+      tc: { rate: 10000mbit }
+    - endpoints: ["dk:eth6", "se:eth1"]
+    - endpoints: ["dk:eth7", "ru:eth1"]
+      tc: { rate: 10000mbit }
+    - endpoints: ["pl:eth1", "ua:eth1"]
+      tc: { rate: 1000mbit }
+    - endpoints: ["pl:eth2", "by:eth1"]
+      tc: { rate: 1000mbit }
+    - endpoints: ["pl:eth3", "de:eth3"]
+      tc: { rate: 10000mbit }
+    - endpoints: ["pl:eth4", "cz:eth1"]
+      tc: { rate: 10000mbit }
+    - endpoints: ["pl:eth5", "lt:eth2"]
+      tc: { rate: 10000mbit }
+    - endpoints: ["de:eth4", "cz:eth2"]
+    - endpoints: ["de:eth5", "lu:eth1"]
+      tc: { rate: 10000mbit }
+    - endpoints: ["de:eth6", "ch:eth1"]
+    - endpoints: ["de:eth7", "cy:eth1"]
+      tc: { rate: 1000mbit }
+    - endpoints: ["de:eth8", "il:eth1"]
+      tc: { rate: 2500mbit }
+    - endpoints: ["de:eth9", "at:eth1"]
+      tc: { rate: 10000mbit }
+    - endpoints: ["de:eth10", "ru:eth2"]
+      tc: { rate: 10000mbit }
+    - endpoints: ["cz:eth3", "sk:eth1"]
+    - endpoints: ["lu:eth2", "fr:eth1"]
+      tc: { rate: 10000mbit }
+    - endpoints: ["fr:eth2", "ch:eth2"]
+    - endpoints: ["fr:eth3", "es:eth1"]
+      tc: { rate: 10000mbit }
+    - endpoints: ["fr:eth4", "uk:eth2"]
+    - endpoints: ["ch:eth3", "it:eth1"]
+    - endpoints: ["ch:eth4", "es:eth2"]
+    - endpoints: ["it:eth2", "es:eth3"]
+      tc: { rate: 10000mbit }
+    - endpoints: ["it:eth3", "mt:eth1"]
+      tc: { rate: 1000mbit }
+    - endpoints: ["it:eth4", "at:eth2"]
+    - endpoints: ["it:eth5", "gr:eth1"]
+      tc: { rate: 10000mbit }
+    - endpoints: ["md:eth1", "ro:eth1"]
+      tc: { rate: 1000mbit }
+    - endpoints: ["bg:eth1", "hu:eth1"]
+      tc: { rate: 10000mbit }
+    - endpoints: ["bg:eth2", "mk:eth1"]
+      tc: { rate: 155mbit }
+    - endpoints: ["bg:eth3", "ro:eth2"]
+      tc: { rate: 10000mbit }
+    - endpoints: ["bg:eth4", "tr:eth1"]
+      tc: { rate: 10000mbit }
+    - endpoints: ["bg:eth5", "gr:eth2"]
+      tc: { rate: 10000mbit }
+    - endpoints: ["ro:eth3", "tr:eth2"]
+      tc: { rate: 10000mbit }
+    - endpoints: ["ro:eth4", "hu:eth2"]
+      tc: { rate: 10000mbit }
+    - endpoints: ["gr:eth3", "at:eth3"]
+      tc: { rate: 10000mbit }
+    - endpoints: ["cy:eth2", "uk:eth3"]
+      tc: { rate: 1000mbit }
+    - endpoints: ["il:eth2", "lt:eth3"]
+      tc: { rate: 2500mbit }
+    - endpoints: ["me:eth1", "hr:eth1"]
+      tc: { rate: 155mbit }
+    - endpoints: ["hu:eth3", "rs:eth1"]
+      tc: { rate: 10000mbit }
+    - endpoints: ["hu:eth4", "hr:eth2"]
+    - endpoints: ["hu:eth5", "sk:eth2"]
+    - endpoints: ["sk:eth3", "at:eth4"]
+    - endpoints: ["pt:eth1", "es:eth4"]
+      tc: { rate: 10000mbit }
+    - endpoints: ["pt:eth2", "uk:eth4"]
+      tc: { rate: 10000mbit }
+    - endpoints: ["hr:eth3", "sl:eth1"]
+    - endpoints: ["sl:eth2", "at:eth5"]
+    - endpoints: ["lt:eth4", "lv:eth1"]
+      tc: { rate: 10000mbit }
+    - endpoints: ["is:eth2", "uk:eth5"]
+      tc: { rate: 2500mbit }
+    - endpoints: ["ie:eth2", "uk:eth6"]
+      tc: { rate: 10000mbit }
+    - endpoints: ["no:eth2", "se:eth2"]
+    - endpoints: ["se:eth3", "fi:eth1"]
+    - endpoints: ["ee:eth2", "lv:eth2"]
+      tc: { rate: 10000mbit }

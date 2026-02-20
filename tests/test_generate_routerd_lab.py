@@ -33,6 +33,30 @@ def test_resolve_source_topology_file_from_abilene_profile() -> None:
     assert resolved.parent.name == "topologies"
 
 
+def test_resolve_source_topology_file_from_geant_profile() -> None:
+    module = _load_module()
+    args = argparse.Namespace(profile="geant", topology_file="")
+    resolved = module.resolve_source_topology_file(args)
+    assert resolved.name == "geant.clab.yaml"
+    assert resolved.parent.name == "topologies"
+
+
+def test_resolve_source_topology_file_from_uunet_profile() -> None:
+    module = _load_module()
+    args = argparse.Namespace(profile="uunet", topology_file="")
+    resolved = module.resolve_source_topology_file(args)
+    assert resolved.name == "uunet.clab.yaml"
+    assert resolved.parent.name == "topologies"
+
+
+def test_resolve_source_topology_file_from_cernet_profile() -> None:
+    module = _load_module()
+    args = argparse.Namespace(profile="cernet", topology_file="")
+    resolved = module.resolve_source_topology_file(args)
+    assert resolved.name == "cernet.clab.yaml"
+    assert resolved.parent.name == "topologies"
+
+
 def test_resolve_source_topology_file_prefers_explicit_file(tmp_path: Path) -> None:
     module = _load_module()
     source = tmp_path / "x.clab.yaml"

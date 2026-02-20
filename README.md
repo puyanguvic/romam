@@ -181,6 +181,9 @@ Built-in profiles (few common topologies, one-arg selection):
 - `line5`
 - `ring6`
 - `abilene`
+- `geant`
+- `uunet`
+- `cernet`
 - `star6`
 - `fullmesh4`
 - `spineleaf2x4`
@@ -325,6 +328,14 @@ Recommended (unified benchmark config):
 ```bash
 make run-unified-experiment \
   UNIFIED_CONFIG_FILE=experiments/routerd_examples/unified_experiments/ring6_ospf_convergence_benchmark.yaml \
+  UNIFIED_USE_SUDO=1
+```
+
+For `cernet` convergence benchmark:
+
+```bash
+make run-unified-experiment \
+  UNIFIED_CONFIG_FILE=experiments/routerd_examples/unified_experiments/cernet_ospf_convergence_benchmark.yaml \
   UNIFIED_USE_SUDO=1
 ```
 
