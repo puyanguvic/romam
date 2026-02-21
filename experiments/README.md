@@ -17,4 +17,5 @@ Main entrypoints are:
 Experiment configs and assets remain in this directory:
 
 - `experiments/routerd_examples/`
+- `experiments/routerd_examples/unified_experiments/exp1_protocol_functionality/`
 - `experiments/container_images/`

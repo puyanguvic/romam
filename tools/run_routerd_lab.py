@@ -212,13 +212,16 @@ def run_containerlab(
     env_overrides: dict[str, str],
     check: bool,
 ) -> None:
-    run_clab_command(
+    proc = run_clab_command(
         cmd,
         use_sudo=use_sudo,
         env_overrides=env_overrides,
         check=check,
-        capture_output=False,
+        capture_output=True,
     )
+    out = (proc.stdout or "").strip()
+    if out:
+        print(out)
 
 
 def build_traffic_app_binary() -> Path | None:

@@ -1,0 +1,39 @@
+mode: scenario
+topology: abilene
+protocol: octopus
+
+lab:
+  node_image: ghcr.io/srl-labs/network-multitool:latest
+
+routing:
+  octopus:
+    k_paths: 3
+    deadline_ms: 1000000000
+    flow_size_bytes: 32768
+    link_bandwidth_bps: 25000000
+    queue_sample_interval: 0.5
+    queue_levels: 4
+    pressure_threshold: 3
+    queue_level_scale_ms: 8.0
+    randomize_route_selection: false
+    rng_seed: 2026
+
+traffic:
+  enabled: true
+  proto: udp
+  model: bulk
+  src_node: new_york
+  dst_node: los_angeles
+  flows: 12
+  rate_mbps: 12
+  packet_size: 512
+  port: 9000
+
+faults:
+  - time_s: 30
+    type: link_down
+    link: [new_york, chicago]
+
+precheck_max_wait_s: 60
+precheck_tail_lines: 200
+duration_s: 90

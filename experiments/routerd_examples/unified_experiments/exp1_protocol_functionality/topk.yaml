@@ -1,0 +1,33 @@
+mode: scenario
+topology: abilene
+protocol: topk
+
+lab:
+  node_image: ghcr.io/srl-labs/network-multitool:latest
+
+routing:
+  topk:
+    k_paths: 3
+    explore_probability: 0.2
+    selection_hold_time_s: 2.0
+    rng_seed: 2026
+
+traffic:
+  enabled: true
+  proto: udp
+  model: bulk
+  src_node: new_york
+  dst_node: los_angeles
+  flows: 12
+  rate_mbps: 12
+  packet_size: 512
+  port: 9000
+
+faults:
+  - time_s: 30
+    type: link_down
+    link: [new_york, chicago]
+
+precheck_max_wait_s: 60
+precheck_tail_lines: 200
+duration_s: 90
