@@ -11,8 +11,20 @@ This crate provides the `routingd` daemon used by containerlab router nodes.
 - `protocols/{ospf,rip,ecmp,topk,ddr}.rs`: protocol engines (`dgr` and `octopus` are runtime modes on `ddr` core).
   - `ddr` core maintains neighbor fast-state in NSDB-style storage (queue/util/delay/loss) with freshness aging.
 - `protocols/link_state.rs`: shared link-state control plane (hello/LSA/LSDB lifecycle).
-- `protocols/route_compute.rs`: shared SPF/KSP route-computation helpers.
+- `protocols/route_compute/`: shared route-computation modules (SPF/KSP/DV/neighbor-rooted forest).
 - `algo/mod.rs`: policy hook for route selection.
+
+## Route Compute Modules
+
+`protocols/route_compute/` separates algorithm implementations from protocol state machines:
+
+- `mod.rs`: module entrypoint and public re-exports.
+- `traits.rs`: generic compute interface (`RouteComputeEngine`).
+- `types.rs`: shared graph/result/input structs.
+- `spf.rs`: shortest-path computations for OSPF/ECMP.
+- `ksp.rs`: K-shortest simple-path helper for TopK-like policies.
+- `dv.rs`: distance-vector candidate computation used by RIP.
+- `neighbor_forest.rs`: neighbor-rooted forest/path construction used by DDR/DGR.
 
 ## Binaries
 

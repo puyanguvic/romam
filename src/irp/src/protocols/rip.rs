@@ -5,6 +5,7 @@ use serde_json::{json, Value};
 use crate::model::messages::{ControlMessage, MessageKind};
 use crate::model::routing::{Ipv4RoutingTableEntry, Route, RoutingTableEntry};
 use crate::protocols::base::{Ipv4RoutingProtocol, ProtocolContext, ProtocolOutputs};
+use crate::protocols::route_compute::{DvComputeInput, DvRouteComputeEngine, RouteComputeEngine};
 
 #[derive(Debug, Clone)]
 pub struct RipTimers {
@@ -127,6 +128,7 @@ pub struct RipProtocol {
     timers: RipTimers,
     infinity_metric: f64,
     poison_reverse: bool,
+    dv_engine: DvRouteComputeEngine,
     msg_seq: u64,
     last_update_at: f64,
     routes: BTreeMap<u32, RipRoutingTableEntry>,
@@ -139,6 +141,7 @@ impl RipProtocol {
             timers,
             infinity_metric,
             poison_reverse,
+            dv_engine: DvRouteComputeEngine,
             msg_seq: 0,
             last_update_at: -1e9,
             routes: BTreeMap::new(),
@@ -167,44 +170,26 @@ impl RipProtocol {
     }
 
     fn recompute_routes(&mut self, ctx: &ProtocolContext) -> bool {
-        let mut candidates: BTreeMap<u32, (f64, u32)> = BTreeMap::new();
-
-        for (neighbor_id, link) in &ctx.links {
-            if !link.is_up {
-                continue;
-            }
-            candidates.insert(*neighbor_id, (link.cost, *neighbor_id));
-        }
-
-        for (neighbor_id, (_, vector)) in &self.neighbor_vectors {
-            let Some(link) = ctx.links.get(neighbor_id) else {
-                continue;
-            };
-            if !link.is_up {
-                continue;
-            }
-            let base = link.cost;
-            for (destination, advertised_metric) in vector {
-                if *destination == ctx.router_id {
-                    continue;
-                }
-                let total_metric = self.infinity_metric.min(base + *advertised_metric);
-                if total_metric >= self.infinity_metric {
-                    continue;
-                }
-
-                let proposal = (total_metric, *neighbor_id);
-                match candidates.get(destination) {
-                    None => {
-                        candidates.insert(*destination, proposal);
-                    }
-                    Some(current) if proposal < *current => {
-                        candidates.insert(*destination, proposal);
-                    }
-                    _ => {}
-                }
-            }
-        }
+        let link_costs: BTreeMap<u32, f64> = ctx
+            .links
+            .iter()
+            .filter_map(|(neighbor_id, link)| link.is_up.then_some((*neighbor_id, link.cost)))
+            .collect();
+        let neighbor_vectors: BTreeMap<u32, BTreeMap<u32, f64>> = self
+            .neighbor_vectors
+            .iter()
+            .filter_map(|(neighbor_id, (_, vector))| {
+                link_costs
+                    .contains_key(neighbor_id)
+                    .then_some((*neighbor_id, vector.clone()))
+            })
+            .collect();
+        let candidates = self.dv_engine.compute(&DvComputeInput {
+            router_id: ctx.router_id,
+            infinity_metric: self.infinity_metric,
+            link_costs,
+            neighbor_vectors,
+        });
 
         let mut next_routes: BTreeMap<u32, RipRoutingTableEntry> = BTreeMap::new();
         for (destination, (metric, next_hop)) in candidates {

@@ -8,7 +8,9 @@ use crate::model::routing::{Ipv4RoutingTableEntry, Route, RoutingTableEntry};
 use crate::model::state::{NeighborFastStatePatch, NeighborStateDb};
 use crate::protocols::base::{Ipv4RoutingProtocol, ProtocolContext, ProtocolOutputs};
 use crate::protocols::link_state::{LinkStateControlPlane, LinkStateTimers};
-use crate::protocols::route_compute::PathCandidate;
+use crate::protocols::route_compute::{
+    build_neighbor_rooted_forest, build_path_via_neighbor_root, PathCandidate,
+};
 
 #[derive(Debug, Clone)]
 pub struct DdrTimers {
@@ -175,14 +177,6 @@ impl DdrRoutingTableEntry {
             protocol,
         ))
     }
-}
-
-#[derive(Debug, Clone)]
-struct NeighborRootTree {
-    root: u32,
-    link_cost: f64,
-    dist: BTreeMap<u32, f64>,
-    prev: BTreeMap<u32, u32>,
 }
 
 pub struct DdrProtocol {
@@ -564,147 +558,24 @@ impl DdrProtocol {
         self.rng_state
     }
 
-    fn dijkstra_without_source(
-        graph: &BTreeMap<u32, BTreeMap<u32, f64>>,
-        root: u32,
-        source: u32,
-    ) -> (BTreeMap<u32, f64>, BTreeMap<u32, u32>) {
-        let mut dist: BTreeMap<u32, f64> = BTreeMap::new();
-        let mut prev: BTreeMap<u32, u32> = BTreeMap::new();
-        let mut visited: BTreeSet<u32> = BTreeSet::new();
-
-        if root == source || !graph.contains_key(&root) {
-            return (dist, prev);
-        }
-        dist.insert(root, 0.0);
-
-        loop {
-            let mut candidate: Option<(u32, f64)> = None;
-            for (node, node_dist) in &dist {
-                if visited.contains(node) {
-                    continue;
-                }
-                match candidate {
-                    None => candidate = Some((*node, *node_dist)),
-                    Some((best_node, best_dist)) => {
-                        if *node_dist < best_dist || (*node_dist == best_dist && *node < best_node)
-                        {
-                            candidate = Some((*node, *node_dist));
-                        }
-                    }
-                }
-            }
-
-            let Some((u, cost_u)) = candidate else {
-                break;
-            };
-            visited.insert(u);
-
-            if let Some(neighbors) = graph.get(&u) {
-                for (v, edge_cost) in neighbors {
-                    if *v == source || !edge_cost.is_finite() || *edge_cost < 0.0 {
-                        continue;
-                    }
-                    let candidate_metric = cost_u + *edge_cost;
-                    let best = dist.get(v).copied().unwrap_or(f64::INFINITY);
-                    let best_prev = prev.get(v).copied().unwrap_or(u32::MAX);
-                    let better =
-                        candidate_metric < best || (candidate_metric == best && u < best_prev);
-                    if better {
-                        dist.insert(*v, candidate_metric);
-                        prev.insert(*v, u);
-                    }
-                }
-            }
-        }
-
-        (dist, prev)
-    }
-
-    fn reconstruct_root_path(
-        root: u32,
-        destination: u32,
-        prev: &BTreeMap<u32, u32>,
-    ) -> Option<Vec<u32>> {
-        if destination == root {
-            return Some(vec![root]);
-        }
-        let mut reversed = vec![destination];
-        let mut current = destination;
-        let max_steps = prev.len() + 1;
-        for _ in 0..max_steps {
-            let parent = prev.get(&current).copied()?;
-            reversed.push(parent);
-            if parent == root {
-                reversed.reverse();
-                return Some(reversed);
-            }
-            current = parent;
-        }
-        None
-    }
-
-    fn build_neighbor_rooted_forest(
-        &self,
-        ctx: &ProtocolContext,
-        graph: &BTreeMap<u32, BTreeMap<u32, f64>>,
-    ) -> Vec<NeighborRootTree> {
+    fn compute_routes(&mut self, ctx: &ProtocolContext) -> Vec<Route> {
+        let graph = self.build_graph(ctx);
         let Some(neighbors) = graph.get(&ctx.router_id) else {
             return Vec::new();
         };
-        let mut trees = Vec::new();
-        for (neighbor_id, link_cost) in neighbors {
-            if !link_cost.is_finite() || *link_cost < 0.0 {
-                continue;
-            }
-            let Some(link) = ctx.links.get(neighbor_id) else {
-                continue;
-            };
-            if !link.is_up {
-                continue;
-            }
-            let (dist, prev) = Self::dijkstra_without_source(graph, *neighbor_id, ctx.router_id);
-            trees.push(NeighborRootTree {
-                root: *neighbor_id,
-                link_cost: *link_cost,
-                dist,
-                prev,
-            });
-        }
-        trees
-    }
-
-    fn build_path_via_neighbor_root(
-        source: u32,
-        destination: u32,
-        tree: &NeighborRootTree,
-    ) -> Option<PathCandidate> {
-        if destination == tree.root {
-            return Some(PathCandidate {
-                nodes: vec![source, tree.root],
-                cost: tree.link_cost,
-            });
-        }
-        let root_to_dst_cost = tree.dist.get(&destination).copied()?;
-        let root_path = Self::reconstruct_root_path(tree.root, destination, &tree.prev)?;
-        if root_path.first().copied() != Some(tree.root) {
-            return None;
-        }
-        if root_path.contains(&source) {
-            return None;
-        }
-        let mut nodes = Vec::with_capacity(root_path.len() + 1);
-        nodes.push(source);
-        nodes.extend(root_path);
-        Some(PathCandidate {
-            nodes,
-            cost: tree.link_cost + root_to_dst_cost,
-        })
-    }
-
-    fn compute_routes(&mut self, ctx: &ProtocolContext) -> Vec<Route> {
-        let graph = self.build_graph(ctx);
-        let forest = self.build_neighbor_rooted_forest(ctx, &graph);
+        let root_link_costs: BTreeMap<u32, f64> = neighbors
+            .iter()
+            .filter_map(|(neighbor_id, link_cost)| {
+                let Some(link) = ctx.links.get(neighbor_id) else {
+                    return None;
+                };
+                if !link.is_up {
+                    return None;
+                }
+                Some((*neighbor_id, *link_cost))
+            })
+            .collect();
+        let forest = build_neighbor_rooted_forest(&graph, ctx.router_id, &root_link_costs);
         if forest.is_empty() {
             return Vec::new();
         }
@@ -716,8 +587,7 @@ impl DdrProtocol {
             }
             let mut all_candidates: Vec<RouteChoice> = Vec::new();
             for tree in &forest {
-                let Some(path) =
-                    Self::build_path_via_neighbor_root(ctx.router_id, *destination, tree)
+                let Some(path) = build_path_via_neighbor_root(ctx.router_id, *destination, tree)
                 else {
                     continue;
                 };
