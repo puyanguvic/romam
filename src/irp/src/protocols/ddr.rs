@@ -1,15 +1,14 @@
-use std::cmp::Ordering;
-use std::collections::BTreeMap;
+use std::collections::{BTreeMap, BTreeSet};
 use std::process::Command;
 
 use serde_json::{json, Value};
 
 use crate::model::messages::{ControlMessage, MessageKind};
-use crate::model::routing::Route;
+use crate::model::routing::{Ipv4RoutingTableEntry, Route, RoutingTableEntry};
 use crate::model::state::{NeighborFastStatePatch, NeighborStateDb};
-use crate::protocols::base::{ProtocolContext, ProtocolEngine, ProtocolOutputs};
+use crate::protocols::base::{Ipv4RoutingProtocol, ProtocolContext, ProtocolOutputs};
 use crate::protocols::link_state::{LinkStateControlPlane, LinkStateTimers};
-use crate::protocols::route_compute::{k_shortest_simple_paths, PathCandidate};
+use crate::protocols::route_compute::PathCandidate;
 
 #[derive(Debug, Clone)]
 pub struct DdrTimers {
@@ -72,9 +71,118 @@ struct KernelBacklog {
 #[derive(Debug, Clone)]
 struct RouteChoice {
     next_hop: u32,
+    distance: f64,
     completion_ms: f64,
-    hop_count: usize,
     pressure_level: usize,
+}
+
+#[derive(Debug, Clone, PartialEq)]
+pub struct DdrRoutingTableEntry {
+    base: Ipv4RoutingTableEntry,
+    route_metric: f64,
+    next_interface: Option<u32>,
+    distance: f64,
+    pressure_level: usize,
+    changed: bool,
+}
+
+/// DGR shares the same routing-table entry layout with DDR in this framework.
+pub type DgrRoutingTableEntry = DdrRoutingTableEntry;
+
+impl RoutingTableEntry for DdrRoutingTableEntry {
+    fn base(&self) -> &Ipv4RoutingTableEntry {
+        &self.base
+    }
+}
+
+impl DdrRoutingTableEntry {
+    pub fn new_host_route_to(
+        destination: u32,
+        next_hop: u32,
+        interface: Option<u32>,
+        next_interface: Option<u32>,
+        distance: f64,
+    ) -> Self {
+        Self {
+            base: Ipv4RoutingTableEntry::create_host_route_to(destination, next_hop, interface),
+            route_metric: 0.0,
+            next_interface,
+            distance: distance.max(0.0),
+            pressure_level: 0,
+            changed: false,
+        }
+    }
+
+    pub fn set_route_metric(&mut self, route_metric: f64) {
+        if self.route_metric.to_bits() != route_metric.to_bits() {
+            self.route_metric = route_metric;
+            self.changed = true;
+        }
+    }
+
+    pub fn get_route_metric(&self) -> f64 {
+        self.route_metric
+    }
+
+    pub fn set_next_interface(&mut self, next_interface: Option<u32>) {
+        if self.next_interface != next_interface {
+            self.next_interface = next_interface;
+            self.changed = true;
+        }
+    }
+
+    pub fn get_next_interface(&self) -> Option<u32> {
+        self.next_interface
+    }
+
+    pub fn set_distance(&mut self, distance: f64) {
+        let clamped = distance.max(0.0);
+        if self.distance.to_bits() != clamped.to_bits() {
+            self.distance = clamped;
+            self.changed = true;
+        }
+    }
+
+    pub fn get_distance(&self) -> f64 {
+        self.distance
+    }
+
+    pub fn set_pressure_level(&mut self, pressure_level: usize) {
+        if self.pressure_level != pressure_level {
+            self.pressure_level = pressure_level;
+            self.changed = true;
+        }
+    }
+
+    pub fn get_pressure_level(&self) -> usize {
+        self.pressure_level
+    }
+
+    pub fn set_route_changed(&mut self, changed: bool) {
+        self.changed = changed;
+    }
+
+    pub fn is_route_changed(&self) -> bool {
+        self.changed
+    }
+
+    fn to_route(&self, protocol: &str) -> Option<Route> {
+        let next_hop = self.next_hop()?;
+        Some(Route::new_host(
+            self.destination(),
+            next_hop,
+            self.route_metric,
+            protocol,
+        ))
+    }
+}
+
+#[derive(Debug, Clone)]
+struct NeighborRootTree {
+    root: u32,
+    link_cost: f64,
+    dist: BTreeMap<u32, f64>,
+    prev: BTreeMap<u32, u32>,
 }
 
 pub struct DdrProtocol {
@@ -438,26 +546,10 @@ impl DdrProtocol {
         let completion_ms = path.cost + queue_delay_ms + self.transfer_delay_ms();
         Some(RouteChoice {
             next_hop,
+            distance: path.cost,
             completion_ms,
-            hop_count: path.nodes.len() - 1,
             pressure_level,
         })
-    }
-
-    fn route_choice_better(a: &RouteChoice, b: &RouteChoice) -> bool {
-        match a.completion_ms.partial_cmp(&b.completion_ms) {
-            Some(Ordering::Less) => true,
-            Some(Ordering::Greater) => false,
-            _ => {
-                if a.next_hop != b.next_hop {
-                    a.next_hop < b.next_hop
-                } else if a.pressure_level != b.pressure_level {
-                    a.pressure_level < b.pressure_level
-                } else {
-                    a.hop_count < b.hop_count
-                }
-            }
-        }
     }
 
     fn is_high_pressure(&self, choice: &RouteChoice) -> bool {
@@ -472,93 +564,254 @@ impl DdrProtocol {
         self.rng_state
     }
 
-    fn choose_route(&mut self, candidates: &[RouteChoice]) -> Option<RouteChoice> {
-        if candidates.is_empty() {
-            return None;
-        }
-        if self.params.randomize_route_selection && candidates.len() > 1 {
-            let idx = (self.next_random_u64() as usize) % candidates.len();
-            return Some(candidates[idx].clone());
-        }
+    fn dijkstra_without_source(
+        graph: &BTreeMap<u32, BTreeMap<u32, f64>>,
+        root: u32,
+        source: u32,
+    ) -> (BTreeMap<u32, f64>, BTreeMap<u32, u32>) {
+        let mut dist: BTreeMap<u32, f64> = BTreeMap::new();
+        let mut prev: BTreeMap<u32, u32> = BTreeMap::new();
+        let mut visited: BTreeSet<u32> = BTreeSet::new();
 
-        let mut best = candidates[0].clone();
-        for candidate in candidates.iter().skip(1) {
-            if Self::route_choice_better(candidate, &best) {
-                best = candidate.clone();
+        if root == source || !graph.contains_key(&root) {
+            return (dist, prev);
+        }
+        dist.insert(root, 0.0);
+
+        loop {
+            let mut candidate: Option<(u32, f64)> = None;
+            for (node, node_dist) in &dist {
+                if visited.contains(node) {
+                    continue;
+                }
+                match candidate {
+                    None => candidate = Some((*node, *node_dist)),
+                    Some((best_node, best_dist)) => {
+                        if *node_dist < best_dist || (*node_dist == best_dist && *node < best_node)
+                        {
+                            candidate = Some((*node, *node_dist));
+                        }
+                    }
+                }
+            }
+
+            let Some((u, cost_u)) = candidate else {
+                break;
+            };
+            visited.insert(u);
+
+            if let Some(neighbors) = graph.get(&u) {
+                for (v, edge_cost) in neighbors {
+                    if *v == source || !edge_cost.is_finite() || *edge_cost < 0.0 {
+                        continue;
+                    }
+                    let candidate_metric = cost_u + *edge_cost;
+                    let best = dist.get(v).copied().unwrap_or(f64::INFINITY);
+                    let best_prev = prev.get(v).copied().unwrap_or(u32::MAX);
+                    let better =
+                        candidate_metric < best || (candidate_metric == best && u < best_prev);
+                    if better {
+                        dist.insert(*v, candidate_metric);
+                        prev.insert(*v, u);
+                    }
+                }
             }
         }
-        Some(best)
+
+        (dist, prev)
+    }
+
+    fn reconstruct_root_path(
+        root: u32,
+        destination: u32,
+        prev: &BTreeMap<u32, u32>,
+    ) -> Option<Vec<u32>> {
+        if destination == root {
+            return Some(vec![root]);
+        }
+        let mut reversed = vec![destination];
+        let mut current = destination;
+        let max_steps = prev.len() + 1;
+        for _ in 0..max_steps {
+            let parent = prev.get(&current).copied()?;
+            reversed.push(parent);
+            if parent == root {
+                reversed.reverse();
+                return Some(reversed);
+            }
+            current = parent;
+        }
+        None
+    }
+
+    fn build_neighbor_rooted_forest(
+        &self,
+        ctx: &ProtocolContext,
+        graph: &BTreeMap<u32, BTreeMap<u32, f64>>,
+    ) -> Vec<NeighborRootTree> {
+        let Some(neighbors) = graph.get(&ctx.router_id) else {
+            return Vec::new();
+        };
+        let mut trees = Vec::new();
+        for (neighbor_id, link_cost) in neighbors {
+            if !link_cost.is_finite() || *link_cost < 0.0 {
+                continue;
+            }
+            let Some(link) = ctx.links.get(neighbor_id) else {
+                continue;
+            };
+            if !link.is_up {
+                continue;
+            }
+            let (dist, prev) = Self::dijkstra_without_source(graph, *neighbor_id, ctx.router_id);
+            trees.push(NeighborRootTree {
+                root: *neighbor_id,
+                link_cost: *link_cost,
+                dist,
+                prev,
+            });
+        }
+        trees
+    }
+
+    fn build_path_via_neighbor_root(
+        source: u32,
+        destination: u32,
+        tree: &NeighborRootTree,
+    ) -> Option<PathCandidate> {
+        if destination == tree.root {
+            return Some(PathCandidate {
+                nodes: vec![source, tree.root],
+                cost: tree.link_cost,
+            });
+        }
+        let root_to_dst_cost = tree.dist.get(&destination).copied()?;
+        let root_path = Self::reconstruct_root_path(tree.root, destination, &tree.prev)?;
+        if root_path.first().copied() != Some(tree.root) {
+            return None;
+        }
+        if root_path.contains(&source) {
+            return None;
+        }
+        let mut nodes = Vec::with_capacity(root_path.len() + 1);
+        nodes.push(source);
+        nodes.extend(root_path);
+        Some(PathCandidate {
+            nodes,
+            cost: tree.link_cost + root_to_dst_cost,
+        })
     }
 
     fn compute_routes(&mut self, ctx: &ProtocolContext) -> Vec<Route> {
         let graph = self.build_graph(ctx);
+        let forest = self.build_neighbor_rooted_forest(ctx, &graph);
+        if forest.is_empty() {
+            return Vec::new();
+        }
         let mut routes = Vec::new();
 
         for destination in graph.keys() {
             if *destination == ctx.router_id {
                 continue;
             }
-            let paths =
-                k_shortest_simple_paths(&graph, ctx.router_id, *destination, self.params.k_paths);
-            if paths.is_empty() {
-                continue;
-            }
-
-            let mut by_next_hop: BTreeMap<u32, RouteChoice> = BTreeMap::new();
-            for path in &paths {
-                let Some(choice) = self.evaluate_path(path, ctx.now) else {
+            let mut all_candidates: Vec<RouteChoice> = Vec::new();
+            for tree in &forest {
+                let Some(path) =
+                    Self::build_path_via_neighbor_root(ctx.router_id, *destination, tree)
+                else {
                     continue;
                 };
-                let keep = match by_next_hop.get(&choice.next_hop) {
-                    None => true,
-                    Some(existing) => Self::route_choice_better(&choice, existing),
+                let Some(choice) = self.evaluate_path(&path, ctx.now) else {
+                    continue;
                 };
-                if keep {
-                    by_next_hop.insert(choice.next_hop, choice);
-                }
+                all_candidates.push(choice);
             }
-            if by_next_hop.is_empty() {
+            if all_candidates.is_empty() {
                 continue;
             }
 
-            let all_candidates: Vec<RouteChoice> = by_next_hop.values().cloned().collect();
-            let deadline_candidates: Vec<RouteChoice> = all_candidates
+            let deadline_candidates: Vec<&RouteChoice> = all_candidates
                 .iter()
                 .filter(|choice| choice.completion_ms <= self.params.deadline_ms)
-                .cloned()
                 .collect();
             let base_candidates = if deadline_candidates.is_empty() {
-                all_candidates
+                all_candidates.iter().collect()
             } else {
                 deadline_candidates
             };
-            let low_pressure_candidates: Vec<RouteChoice> = base_candidates
+            let low_pressure_candidates: Vec<&RouteChoice> = base_candidates
                 .iter()
+                .copied()
                 .filter(|choice| !self.is_high_pressure(choice))
-                .cloned()
                 .collect();
             let selection_pool = if low_pressure_candidates.is_empty() {
                 &base_candidates
             } else {
                 &low_pressure_candidates
             };
+            let preferred_hops: BTreeSet<u32> = selection_pool
+                .iter()
+                .map(|choice| choice.next_hop)
+                .collect();
+            let randomized_selected_hop =
+                if self.params.randomize_route_selection && preferred_hops.len() > 1 {
+                    let hops: Vec<u32> = preferred_hops.iter().copied().collect();
+                    let idx = (self.next_random_u64() as usize) % hops.len();
+                    hops.get(idx).copied()
+                } else {
+                    None
+                };
 
-            let Some(chosen) = self.choose_route(selection_pool) else {
-                continue;
-            };
-            routes.push(Route {
-                destination: *destination,
-                next_hop: chosen.next_hop,
-                metric: chosen.completion_ms,
-                protocol: self.name().to_string(),
+            let mut destination_routes: Vec<DdrRoutingTableEntry> = all_candidates
+                .iter()
+                .map(|choice| {
+                    let mut entry = DdrRoutingTableEntry::new_host_route_to(
+                        *destination,
+                        choice.next_hop,
+                        None,
+                        None,
+                        choice.distance,
+                    );
+                    entry.set_route_metric(choice.completion_ms);
+                    entry.set_pressure_level(choice.pressure_level);
+                    entry.set_route_changed(false);
+                    entry
+                })
+                .collect();
+            destination_routes.sort_by(|left, right| {
+                let left_hop = left.next_hop().unwrap_or(u32::MAX);
+                let right_hop = right.next_hop().unwrap_or(u32::MAX);
+                let left_pref = if randomized_selected_hop == Some(left_hop) {
+                    0_u8
+                } else if preferred_hops.contains(&left_hop) {
+                    1
+                } else {
+                    2
+                };
+                let right_pref = if randomized_selected_hop == Some(right_hop) {
+                    0_u8
+                } else if preferred_hops.contains(&right_hop) {
+                    1
+                } else {
+                    2
+                };
+                left_pref
+                    .cmp(&right_pref)
+                    .then_with(|| left.get_route_metric().total_cmp(&right.get_route_metric()))
+                    .then_with(|| left_hop.cmp(&right_hop))
             });
+            routes.extend(
+                destination_routes
+                    .iter()
+                    .filter_map(|entry| entry.to_route(self.name())),
+            );
         }
 
         routes
     }
 }
 
-impl ProtocolEngine for DdrProtocol {
+impl Ipv4RoutingProtocol for DdrProtocol {
     fn name(&self) -> &'static str {
         self.protocol_name
     }
@@ -758,6 +1011,24 @@ mod tests {
     use crate::protocols::base::RouterLink;
 
     #[test]
+    fn ddr_routing_table_entry_exposes_dgr_fields() {
+        let mut entry = DdrRoutingTableEntry::new_host_route_to(7, 2, Some(1), Some(9), 3.5);
+        entry.set_route_metric(12.0);
+        entry.set_pressure_level(2);
+        assert_eq!(entry.destination(), 7);
+        assert_eq!(entry.next_hop(), Some(2));
+        assert_eq!(entry.interface(), Some(1));
+        assert_eq!(entry.get_next_interface(), Some(9));
+        assert_eq!(entry.get_distance(), 3.5);
+        assert_eq!(entry.get_route_metric(), 12.0);
+        assert_eq!(entry.get_pressure_level(), 2);
+
+        // DGR entry reuses DDR layout.
+        let dgr_entry: DgrRoutingTableEntry = entry.clone();
+        assert_eq!(dgr_entry.get_distance(), 3.5);
+    }
+
+    #[test]
     fn ddr_start_installs_direct_route() {
         let mut ddr = DdrProtocol::new(DdrParams::default());
         let mut links = BTreeMap::new();
@@ -783,6 +1054,54 @@ mod tests {
         assert!(routes.iter().any(|route| {
             route.destination == 2 && route.next_hop == 2 && route.protocol == "ddr"
         }));
+    }
+
+    #[test]
+    fn ddr_exports_neighbor_rooted_multi_path_routes() {
+        let mut ddr = DdrProtocol::new(DdrParams::default());
+        let mut links = BTreeMap::new();
+        links.insert(
+            2,
+            RouterLink {
+                neighbor_id: 2,
+                cost: 1.0,
+                address: "10.0.12.2".to_string(),
+                port: 5500,
+                interface_name: None,
+                is_up: true,
+            },
+        );
+        links.insert(
+            3,
+            RouterLink {
+                neighbor_id: 3,
+                cost: 1.0,
+                address: "10.0.13.3".to_string(),
+                port: 5500,
+                interface_name: None,
+                is_up: true,
+            },
+        );
+        let ctx = ProtocolContext {
+            router_id: 1,
+            now: 0.0,
+            links,
+        };
+        ddr.control_plane
+            .upsert_lsa(1, 1, BTreeMap::from([(2_u32, 1.0), (3_u32, 1.0)]), 0.0);
+        ddr.control_plane
+            .upsert_lsa(2, 1, BTreeMap::from([(4_u32, 1.0)]), 0.0);
+        ddr.control_plane
+            .upsert_lsa(3, 1, BTreeMap::from([(4_u32, 1.0)]), 0.0);
+
+        let routes = ddr.compute_routes(&ctx);
+        let to_4: Vec<&Route> = routes
+            .iter()
+            .filter(|route| route.destination == 4)
+            .collect();
+        assert_eq!(to_4.len(), 2);
+        assert!(to_4.iter().any(|route| route.next_hop == 2));
+        assert!(to_4.iter().any(|route| route.next_hop == 3));
     }
 
     #[test]
@@ -833,11 +1152,23 @@ mod tests {
             .upsert_lsa(3, 1, BTreeMap::from([(4_u32, 1.0)]), 0.0);
 
         let routes = ddr.compute_routes(&ctx);
-        let to_4 = routes
+        let to_4: Vec<&Route> = routes
             .iter()
-            .find(|route| route.destination == 4)
-            .expect("route to 4 should exist");
-        assert_eq!(to_4.next_hop, 3);
+            .filter(|route| route.destination == 4)
+            .collect();
+        assert_eq!(to_4.len(), 2);
+        let via_2 = to_4
+            .iter()
+            .copied()
+            .find(|route| route.next_hop == 2)
+            .expect("route via 2 should exist");
+        let via_3 = to_4
+            .iter()
+            .copied()
+            .find(|route| route.next_hop == 3)
+            .expect("route via 3 should exist");
+        assert!(via_3.metric < via_2.metric);
+        assert_eq!(to_4[0].next_hop, 3);
     }
 
     #[test]
@@ -981,11 +1312,23 @@ qdisc fq_codel 0: dev eth1 root refcnt 2 limit 10240p\n\
             .upsert_lsa(3, 1, BTreeMap::from([(4_u32, 1.0)]), 0.0);
 
         let routes = ddr.compute_routes(&ctx);
-        let to_4 = routes
+        let to_4: Vec<&Route> = routes
             .iter()
-            .find(|route| route.destination == 4)
-            .expect("route to 4 should exist");
-        assert_eq!(to_4.next_hop, 3);
+            .filter(|route| route.destination == 4)
+            .collect();
+        assert_eq!(to_4.len(), 2);
+        let via_2 = to_4
+            .iter()
+            .copied()
+            .find(|route| route.next_hop == 2)
+            .expect("route via 2 should exist");
+        let via_3 = to_4
+            .iter()
+            .copied()
+            .find(|route| route.next_hop == 3)
+            .expect("route via 3 should exist");
+        assert_eq!(via_3.metric, via_2.metric);
+        assert_eq!(to_4[0].next_hop, 3);
     }
 
     #[test]

@@ -3,8 +3,8 @@ use std::collections::BTreeMap;
 use serde_json::{json, Value};
 
 use crate::model::messages::{ControlMessage, MessageKind};
-use crate::model::routing::Route;
-use crate::protocols::base::{ProtocolContext, ProtocolEngine, ProtocolOutputs};
+use crate::model::routing::{Ipv4RoutingTableEntry, Route, RoutingTableEntry};
+use crate::protocols::base::{Ipv4RoutingProtocol, ProtocolContext, ProtocolOutputs};
 use crate::protocols::link_state::{LinkStateControlPlane, LinkStateTimers};
 use crate::protocols::route_compute::compute_spf_single;
 
@@ -22,6 +22,89 @@ impl Default for OspfTimers {
             lsa_interval: 3.0,
             lsa_max_age: 15.0,
         }
+    }
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum OspfRouteType {
+    IntraArea,
+}
+
+#[derive(Debug, Clone, PartialEq)]
+pub struct OspfRoutingTableEntry {
+    base: Ipv4RoutingTableEntry,
+    route_metric: f64,
+    area_id: u32,
+    route_type: OspfRouteType,
+    changed: bool,
+}
+
+impl RoutingTableEntry for OspfRoutingTableEntry {
+    fn base(&self) -> &Ipv4RoutingTableEntry {
+        &self.base
+    }
+}
+
+impl OspfRoutingTableEntry {
+    pub fn new_host_route_to(destination: u32, next_hop: u32, interface: Option<u32>) -> Self {
+        Self {
+            base: Ipv4RoutingTableEntry::create_host_route_to(destination, next_hop, interface),
+            route_metric: 0.0,
+            area_id: 0,
+            route_type: OspfRouteType::IntraArea,
+            changed: false,
+        }
+    }
+
+    pub fn set_route_metric(&mut self, route_metric: f64) {
+        if self.route_metric.to_bits() != route_metric.to_bits() {
+            self.route_metric = route_metric;
+            self.changed = true;
+        }
+    }
+
+    pub fn get_route_metric(&self) -> f64 {
+        self.route_metric
+    }
+
+    pub fn set_area_id(&mut self, area_id: u32) {
+        if self.area_id != area_id {
+            self.area_id = area_id;
+            self.changed = true;
+        }
+    }
+
+    pub fn get_area_id(&self) -> u32 {
+        self.area_id
+    }
+
+    pub fn set_route_type(&mut self, route_type: OspfRouteType) {
+        if self.route_type != route_type {
+            self.route_type = route_type;
+            self.changed = true;
+        }
+    }
+
+    pub fn get_route_type(&self) -> OspfRouteType {
+        self.route_type
+    }
+
+    pub fn set_route_changed(&mut self, changed: bool) {
+        self.changed = changed;
+    }
+
+    pub fn is_route_changed(&self) -> bool {
+        self.changed
+    }
+
+    fn to_route(&self, protocol: &str) -> Option<Route> {
+        let next_hop = self.next_hop()?;
+        Some(Route::new_host(
+            self.destination(),
+            next_hop,
+            self.route_metric,
+            protocol,
+        ))
     }
 }
 
@@ -97,18 +180,19 @@ impl OspfProtocol {
                     return None;
                 }
                 let next_hop = first_hop.get(&destination).copied()?;
-                Some(Route {
-                    destination,
-                    next_hop,
-                    metric,
-                    protocol: self.name().to_string(),
-                })
+                let mut entry =
+                    OspfRoutingTableEntry::new_host_route_to(destination, next_hop, None);
+                entry.set_area_id(0);
+                entry.set_route_type(OspfRouteType::IntraArea);
+                entry.set_route_metric(metric);
+                entry.set_route_changed(false);
+                entry.to_route(self.name())
             })
             .collect()
     }
 }
 
-impl ProtocolEngine for OspfProtocol {
+impl Ipv4RoutingProtocol for OspfProtocol {
     fn name(&self) -> &'static str {
         "ospf"
     }
@@ -178,5 +262,52 @@ impl ProtocolEngine for OspfProtocol {
         );
         out.insert("lsa_max_age_s".to_string(), json!(self.timers.lsa_max_age));
         out
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::protocols::base::RouterLink;
+
+    #[test]
+    fn ospf_entry_tracks_metric_and_type() {
+        let mut entry = OspfRoutingTableEntry::new_host_route_to(4, 2, None);
+        entry.set_route_metric(3.0);
+        entry.set_route_type(OspfRouteType::IntraArea);
+        entry.set_area_id(0);
+        assert_eq!(entry.destination(), 4);
+        assert_eq!(entry.next_hop(), Some(2));
+        assert_eq!(entry.get_route_metric(), 3.0);
+        assert_eq!(entry.get_route_type(), OspfRouteType::IntraArea);
+        assert_eq!(entry.get_area_id(), 0);
+    }
+
+    #[test]
+    fn ospf_start_installs_direct_route() {
+        let mut ospf = OspfProtocol::new(OspfTimers::default());
+        let mut links = BTreeMap::new();
+        links.insert(
+            2,
+            RouterLink {
+                neighbor_id: 2,
+                cost: 1.0,
+                address: "10.0.12.2".to_string(),
+                port: 5500,
+                interface_name: None,
+                is_up: true,
+            },
+        );
+        let ctx = ProtocolContext {
+            router_id: 1,
+            now: 0.0,
+            links,
+        };
+
+        let outputs = ospf.start(&ctx);
+        let routes = outputs.routes.expect("start should output routes");
+        assert!(routes.iter().any(|route| route.destination == 2
+            && route.next_hop == 2
+            && route.protocol == "ospf"));
     }
 }

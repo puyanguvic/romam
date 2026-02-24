@@ -1,3 +1,4 @@
+use std::collections::BTreeSet;
 use std::io::{Read, Write};
 use std::net::{TcpListener, TcpStream};
 use std::process::Command;
@@ -231,13 +232,19 @@ fn handle_http_stream(
                 .clone();
             let neighbors_total = state.neighbors.len();
             let neighbors_up = state.neighbors.iter().filter(|item| item.is_up).count();
+            let unique_route_count = state
+                .routes
+                .iter()
+                .map(|item| item.destination)
+                .collect::<BTreeSet<u32>>()
+                .len();
             json!({
                 "router_id": state.router_id,
                 "protocol": state.protocol,
                 "time_s": state.now,
                 "neighbors_total": neighbors_total,
                 "neighbors_up": neighbors_up,
-                "route_count": state.routes.len(),
+                "route_count": unique_route_count,
                 "fib_count": state.fib.len(),
                 "forwarding_enabled": state.forwarding_enabled,
                 "forwarding_table": state.forwarding_table,

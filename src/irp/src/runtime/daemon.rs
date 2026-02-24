@@ -11,7 +11,7 @@ use crate::algo::{DecisionContext, DecisionEngine, PassthroughDecisionEngine};
 use crate::model::messages::{decode_message, encode_message};
 use crate::model::routing::{ForwardingTable, RouteTable};
 use crate::model::state::{NeighborInfo, NeighborTable};
-use crate::protocols::base::{ProtocolContext, ProtocolEngine, RouterLink};
+use crate::protocols::base::{Ipv4RoutingProtocol, ProtocolContext, RouterLink};
 use crate::protocols::ddr::{DdrParams, DdrProtocol, DdrTimers};
 use crate::protocols::ecmp::{EcmpParams, EcmpProtocol, EcmpTimers};
 use crate::protocols::ospf::{OspfProtocol, OspfTimers};
@@ -29,7 +29,7 @@ pub struct RouterDaemon {
     cfg: DaemonConfig,
     transport: UdpTransport,
     neighbor_table: NeighborTable,
-    protocol: Box<dyn ProtocolEngine>,
+    protocol: Box<dyn Ipv4RoutingProtocol>,
     route_table: RouteTable,
     forwarding_table: ForwardingTable,
     applier: Box<dyn ForwardingApplier>,
@@ -56,7 +56,8 @@ impl RouterDaemon {
             })
             .collect();
 
-        let protocol = Self::build_protocol(&cfg)?;
+        let mut protocol = Self::build_protocol(&cfg)?;
+        protocol.set_ipv4_context(cfg.router_id);
         let applier: Box<dyn ForwardingApplier> = if cfg.forwarding.enabled {
             Box::new(LinuxForwardingApplier::new(cfg.forwarding.clone()))
         } else {
@@ -133,6 +134,20 @@ impl RouterDaemon {
                 let changed = self
                     .neighbor_table
                     .refresh_liveness(now, self.cfg.dead_interval);
+                for router_id in &changed {
+                    let outputs = if self
+                        .neighbor_table
+                        .get(*router_id)
+                        .is_some_and(|neighbor| neighbor.is_up)
+                    {
+                        self.protocol
+                            .notify_interface_up(&self.context(now), *router_id)
+                    } else {
+                        self.protocol
+                            .notify_interface_down(&self.context(now), *router_id)
+                    };
+                    self.apply_outputs(outputs)?;
+                }
                 if !changed.is_empty() {
                     self.publish_snapshot();
                 }
@@ -175,7 +190,13 @@ impl RouterDaemon {
             return Ok(());
         }
 
-        self.neighbor_table.mark_seen(message.src_router_id, now);
+        let became_up = self.neighbor_table.mark_seen(message.src_router_id, now);
+        if became_up {
+            let outputs = self
+                .protocol
+                .notify_interface_up(&self.context(now), message.src_router_id);
+            self.apply_outputs(outputs)?;
+        }
         self.publish_snapshot();
 
         let outputs = self.protocol.on_message(&self.context(now), &message);
@@ -211,27 +232,24 @@ impl RouterDaemon {
             &protocol_routes,
         );
 
-        let updated = self
+        let rib_updated = self
             .route_table
-            .replace_protocol_routes(self.protocol.name(), &selected_routes);
-        if !updated {
+            .replace_protocol_routes(self.protocol.name(), &protocol_routes);
+        let fib_updated = self.forwarding_table.sync_from_routes(&selected_routes);
+        if !rib_updated && !fib_updated {
             return Ok(());
         }
 
-        let routes = self.route_table.snapshot();
-        let fib_updated = self.forwarding_table.sync_from_routes(&routes);
-        if !fib_updated {
-            return Ok(());
+        if fib_updated {
+            let fib_entries = self.forwarding_table.snapshot();
+            self.applier.apply(&fib_entries)?;
+
+            let summary: Vec<(u32, u32, f64)> = fib_entries
+                .iter()
+                .map(|entry| (entry.destination, entry.next_hop, entry.metric))
+                .collect();
+            info!("RIB/FIB updated: {:?}", summary);
         }
-
-        let fib_entries = self.forwarding_table.snapshot();
-        self.applier.apply(&fib_entries)?;
-
-        let summary: Vec<(u32, u32, f64)> = fib_entries
-            .iter()
-            .map(|entry| (entry.destination, entry.next_hop, entry.metric))
-            .collect();
-        info!("RIB/FIB updated: {:?}", summary);
         self.publish_snapshot();
 
         Ok(())
@@ -295,7 +313,7 @@ impl RouterDaemon {
         )
     }
 
-    fn build_protocol(cfg: &DaemonConfig) -> Result<Box<dyn ProtocolEngine>> {
+    fn build_protocol(cfg: &DaemonConfig) -> Result<Box<dyn Ipv4RoutingProtocol>> {
         let params = &cfg.protocol_params;
         match cfg.protocol.as_str() {
             "ospf" => {

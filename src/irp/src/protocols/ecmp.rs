@@ -3,8 +3,8 @@ use std::collections::{BTreeMap, BTreeSet};
 use serde_json::{json, Value};
 
 use crate::model::messages::{ControlMessage, MessageKind};
-use crate::model::routing::Route;
-use crate::protocols::base::{ProtocolContext, ProtocolEngine, ProtocolOutputs};
+use crate::model::routing::{Ipv4RoutingTableEntry, Route, RoutingTableEntry};
+use crate::protocols::base::{Ipv4RoutingProtocol, ProtocolContext, ProtocolOutputs};
 use crate::protocols::link_state::{LinkStateControlPlane, LinkStateTimers};
 use crate::protocols::route_compute::compute_spf_ecmp;
 
@@ -37,6 +37,80 @@ impl Default for EcmpParams {
             timers: EcmpTimers::default(),
             hash_seed: 1,
         }
+    }
+}
+
+#[derive(Debug, Clone, PartialEq)]
+pub struct EcmpRoutingTableEntry {
+    base: Ipv4RoutingTableEntry,
+    route_metric: f64,
+    next_hops: BTreeSet<u32>,
+    selected_next_hop: u32,
+    changed: bool,
+}
+
+impl RoutingTableEntry for EcmpRoutingTableEntry {
+    fn base(&self) -> &Ipv4RoutingTableEntry {
+        &self.base
+    }
+}
+
+impl EcmpRoutingTableEntry {
+    pub fn new_host_route_to(
+        destination: u32,
+        selected_next_hop: u32,
+        mut next_hops: BTreeSet<u32>,
+        interface: Option<u32>,
+    ) -> Self {
+        next_hops.insert(selected_next_hop);
+        Self {
+            base: Ipv4RoutingTableEntry::create_host_route_to(
+                destination,
+                selected_next_hop,
+                interface,
+            ),
+            route_metric: 0.0,
+            next_hops,
+            selected_next_hop,
+            changed: false,
+        }
+    }
+
+    pub fn set_route_metric(&mut self, route_metric: f64) {
+        if self.route_metric.to_bits() != route_metric.to_bits() {
+            self.route_metric = route_metric;
+            self.changed = true;
+        }
+    }
+
+    pub fn get_route_metric(&self) -> f64 {
+        self.route_metric
+    }
+
+    pub fn next_hops(&self) -> &BTreeSet<u32> {
+        &self.next_hops
+    }
+
+    pub fn selected_next_hop(&self) -> u32 {
+        self.selected_next_hop
+    }
+
+    pub fn set_route_changed(&mut self, changed: bool) {
+        self.changed = changed;
+    }
+
+    pub fn is_route_changed(&self) -> bool {
+        self.changed
+    }
+
+    fn to_route(&self, protocol: &str) -> Option<Route> {
+        let next_hop = self.next_hop()?;
+        Some(Route::new_host(
+            self.destination(),
+            next_hop,
+            self.route_metric,
+            protocol,
+        ))
     }
 }
 
@@ -113,12 +187,15 @@ impl EcmpProtocol {
                 }
                 let hops = first_hops.get(&destination)?;
                 let next_hop = self.pick_next_hop(src, destination, hops)?;
-                Some(Route {
+                let mut entry = EcmpRoutingTableEntry::new_host_route_to(
                     destination,
                     next_hop,
-                    metric,
-                    protocol: self.name().to_string(),
-                })
+                    hops.clone(),
+                    None,
+                );
+                entry.set_route_metric(metric);
+                entry.set_route_changed(false);
+                entry.to_route(self.name())
             })
             .collect()
     }
@@ -144,7 +221,7 @@ impl EcmpProtocol {
     }
 }
 
-impl ProtocolEngine for EcmpProtocol {
+impl Ipv4RoutingProtocol for EcmpProtocol {
     fn name(&self) -> &'static str {
         "ecmp"
     }
@@ -297,5 +374,23 @@ mod tests {
         assert_eq!(to_4_a.next_hop, to_4_b.next_hop);
         assert!(to_4_a.next_hop == 2 || to_4_a.next_hop == 3);
         assert_eq!(to_4_a.metric, 2.0);
+    }
+
+    #[test]
+    fn ecmp_entry_keeps_all_equal_cost_next_hops() {
+        let mut next_hops = BTreeSet::new();
+        next_hops.insert(2);
+        next_hops.insert(3);
+
+        let mut entry = EcmpRoutingTableEntry::new_host_route_to(4, 2, next_hops, None);
+        entry.set_route_metric(2.0);
+
+        assert_eq!(entry.destination(), 4);
+        assert_eq!(entry.next_hop(), Some(2));
+        assert_eq!(entry.selected_next_hop(), 2);
+        assert_eq!(entry.get_route_metric(), 2.0);
+        assert_eq!(entry.next_hops().len(), 2);
+        assert!(entry.next_hops().contains(&2));
+        assert!(entry.next_hops().contains(&3));
     }
 }

@@ -5,7 +5,7 @@ use serde_json::{json, Value};
 
 use crate::model::messages::{ControlMessage, MessageKind};
 use crate::model::routing::Route;
-use crate::protocols::base::{ProtocolContext, ProtocolEngine, ProtocolOutputs};
+use crate::protocols::base::{Ipv4RoutingProtocol, ProtocolContext, ProtocolOutputs};
 use crate::protocols::link_state::{LinkStateControlPlane, LinkStateTimers};
 use crate::protocols::route_compute::k_shortest_simple_paths;
 
@@ -241,12 +241,12 @@ impl TopkProtocol {
             );
             active_destinations.insert(*destination);
 
-            routes.push(Route {
-                destination: *destination,
-                next_hop: chosen.next_hop,
-                metric: chosen.metric,
-                protocol: self.name().to_string(),
-            });
+            routes.push(Route::new_host(
+                *destination,
+                chosen.next_hop,
+                chosen.metric,
+                self.name(),
+            ));
         }
 
         self.selections
@@ -255,7 +255,7 @@ impl TopkProtocol {
     }
 }
 
-impl ProtocolEngine for TopkProtocol {
+impl Ipv4RoutingProtocol for TopkProtocol {
     fn name(&self) -> &'static str {
         "topk"
     }
