@@ -1,31 +1,26 @@
 use std::collections::{BTreeMap, BTreeSet};
 
-use super::{Graph, SpfEcmpResult, SpfSingleResult};
+use super::{frontier::DistanceFrontier, Graph, SpfEcmpResult, SpfSingleResult};
 
 pub fn compute_spf_single(graph: &Graph, src: u32) -> SpfSingleResult {
     let mut dist: BTreeMap<u32, f64> = BTreeMap::new();
     let mut first_hop: BTreeMap<u32, u32> = BTreeMap::new();
     let mut visited: BTreeSet<u32> = BTreeSet::new();
+    let mut frontier = DistanceFrontier::new();
 
     dist.insert(src, 0.0);
+    frontier.push(src, 0.0);
 
     loop {
-        let mut candidate: Option<(u32, f64)> = None;
-        for (node, node_dist) in &dist {
-            if visited.contains(node) {
-                continue;
+        let Some((u, cost_u)) = frontier.pop_min(|node, cost| {
+            if visited.contains(&node) {
+                return true;
             }
-            match candidate {
-                None => candidate = Some((*node, *node_dist)),
-                Some((best_node, best_dist)) => {
-                    if *node_dist < best_dist || (*node_dist == best_dist && *node < best_node) {
-                        candidate = Some((*node, *node_dist));
-                    }
-                }
+            match dist.get(&node) {
+                Some(best) => cost.total_cmp(best).is_gt(),
+                None => true,
             }
-        }
-
-        let Some((u, cost_u)) = candidate else {
+        }) else {
             break;
         };
         visited.insert(u);
@@ -42,10 +37,14 @@ pub fn compute_spf_single(graph: &Graph, src: u32) -> SpfSingleResult {
                 let best = dist.get(v).copied().unwrap_or(f64::INFINITY);
                 let best_hop = first_hop.get(v).copied().unwrap_or(u32::MAX);
 
-                if candidate_metric < best || (candidate_metric == best && candidate_hop < best_hop)
-                {
+                let better_metric = candidate_metric < best;
+                let better_hop = candidate_metric == best && candidate_hop < best_hop;
+                if better_metric || better_hop {
                     dist.insert(*v, candidate_metric);
                     first_hop.insert(*v, candidate_hop);
+                    if better_metric {
+                        frontier.push(*v, candidate_metric);
+                    }
                 }
             }
         }
@@ -58,27 +57,22 @@ pub fn compute_spf_ecmp(graph: &Graph, src: u32) -> SpfEcmpResult {
     let mut dist: BTreeMap<u32, f64> = BTreeMap::new();
     let mut first_hops: BTreeMap<u32, BTreeSet<u32>> = BTreeMap::new();
     let mut visited: BTreeSet<u32> = BTreeSet::new();
+    let mut frontier = DistanceFrontier::new();
 
     dist.insert(src, 0.0);
     first_hops.insert(src, BTreeSet::new());
+    frontier.push(src, 0.0);
 
     loop {
-        let mut candidate: Option<(u32, f64)> = None;
-        for (node, node_dist) in &dist {
-            if visited.contains(node) {
-                continue;
+        let Some((u, cost_u)) = frontier.pop_min(|node, cost| {
+            if visited.contains(&node) {
+                return true;
             }
-            match candidate {
-                None => candidate = Some((*node, *node_dist)),
-                Some((best_node, best_dist)) => {
-                    if *node_dist < best_dist || (*node_dist == best_dist && *node < best_node) {
-                        candidate = Some((*node, *node_dist));
-                    }
-                }
+            match dist.get(&node) {
+                Some(best) => cost.total_cmp(best).is_gt(),
+                None => true,
             }
-        }
-
-        let Some((u, cost_u)) = candidate else {
+        }) else {
             break;
         };
         visited.insert(u);
@@ -99,6 +93,7 @@ pub fn compute_spf_ecmp(graph: &Graph, src: u32) -> SpfEcmpResult {
                 if candidate_metric < best {
                     dist.insert(*v, candidate_metric);
                     first_hops.insert(*v, candidate_hops);
+                    frontier.push(*v, candidate_metric);
                     continue;
                 }
 

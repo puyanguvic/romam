@@ -1,4 +1,5 @@
 mod dv;
+mod frontier;
 mod ksp;
 mod neighbor_forest;
 mod spf;

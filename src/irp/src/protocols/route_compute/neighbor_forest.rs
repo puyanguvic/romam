@@ -1,8 +1,8 @@
 use std::collections::{BTreeMap, BTreeSet};
 
 use super::{
-    Graph, NeighborRootForestComputeEngine, NeighborRootForestInput, NeighborRootTree,
-    PathCandidate, RouteComputeEngine,
+    frontier::DistanceFrontier, Graph, NeighborRootForestComputeEngine, NeighborRootForestInput,
+    NeighborRootTree, PathCandidate, RouteComputeEngine,
 };
 
 impl RouteComputeEngine for NeighborRootForestComputeEngine {
@@ -22,29 +22,24 @@ pub fn dijkstra_without_source(
     let mut dist: BTreeMap<u32, f64> = BTreeMap::new();
     let mut prev: BTreeMap<u32, u32> = BTreeMap::new();
     let mut visited: BTreeSet<u32> = BTreeSet::new();
+    let mut frontier = DistanceFrontier::new();
 
     if root == source || !graph.contains_key(&root) {
         return (dist, prev);
     }
     dist.insert(root, 0.0);
+    frontier.push(root, 0.0);
 
     loop {
-        let mut candidate: Option<(u32, f64)> = None;
-        for (node, node_dist) in &dist {
-            if visited.contains(node) {
-                continue;
+        let Some((u, cost_u)) = frontier.pop_min(|node, cost| {
+            if visited.contains(&node) {
+                return true;
             }
-            match candidate {
-                None => candidate = Some((*node, *node_dist)),
-                Some((best_node, best_dist)) => {
-                    if *node_dist < best_dist || (*node_dist == best_dist && *node < best_node) {
-                        candidate = Some((*node, *node_dist));
-                    }
-                }
+            match dist.get(&node) {
+                Some(best) => cost.total_cmp(best).is_gt(),
+                None => true,
             }
-        }
-
-        let Some((u, cost_u)) = candidate else {
+        }) else {
             break;
         };
         visited.insert(u);
@@ -61,6 +56,7 @@ pub fn dijkstra_without_source(
                 if better {
                     dist.insert(*v, candidate_metric);
                     prev.insert(*v, u);
+                    frontier.push(*v, candidate_metric);
                 }
             }
         }
