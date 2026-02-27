@@ -17,6 +17,7 @@ use crate::protocols::ecmp::{EcmpParams, EcmpProtocol, EcmpTimers};
 use crate::protocols::ospf::{OspfProtocol, OspfTimers};
 use crate::protocols::profile::build_protocol_metrics;
 use crate::protocols::rip::{RipProtocol, RipTimers};
+use crate::protocols::spath::{SPathAlgorithm, SPathParams, SPathProtocol, SPathTimers};
 use crate::protocols::topk::{TopkParams, TopkProtocol, TopkTimers};
 use crate::runtime::config::DaemonConfig;
 use crate::runtime::forwarding::{
@@ -382,6 +383,27 @@ impl RouterDaemon {
                     rng_seed,
                 })))
             }
+            "spath" => {
+                let hello_interval = param_f64(params, "hello_interval", 1.0);
+                let lsa_interval = param_f64(params, "lsa_interval", 3.0);
+                let lsa_max_age =
+                    param_f64(params, "lsa_max_age", (cfg.dead_interval * 3.0).max(10.0));
+                let algorithm =
+                    SPathAlgorithm::from_str(&param_string(params, "algorithm", "dijkstra"));
+                let k_paths = param_usize(params, "k_paths", 3).max(1);
+                let hash_seed = param_u64(params, "hash_seed", 1);
+
+                Ok(Box::new(SPathProtocol::new(SPathParams {
+                    timers: SPathTimers {
+                        hello_interval,
+                        lsa_interval,
+                        lsa_max_age,
+                    },
+                    algorithm,
+                    k_paths,
+                    hash_seed,
+                })))
+            }
             "ddr" => {
                 let hello_interval = param_f64(params, "hello_interval", 1.0);
                 let lsa_interval = param_f64(params, "lsa_interval", 3.0);
@@ -516,7 +538,7 @@ impl RouterDaemon {
             }
             "irp" => anyhow::bail!(
                 "protocol 'irp' is an abstract architecture and cannot be instantiated; \
-use a concrete protocol (ospf, rip, ecmp, topk, ddr, dgr, octopus)"
+use a concrete protocol (ospf, rip, ecmp, topk, spath, ddr, dgr, octopus)"
             ),
             _ => anyhow::bail!("unsupported protocol: {}", cfg.protocol),
         }
@@ -559,5 +581,14 @@ fn param_u64(params: &Map<String, Value>, key: &str, default: u64) -> u64 {
         Some(Value::Number(num)) => num.as_u64().unwrap_or(default),
         Some(Value::String(text)) => text.parse::<u64>().unwrap_or(default),
         _ => default,
+    }
+}
+
+fn param_string(params: &Map<String, Value>, key: &str, default: &str) -> String {
+    match params.get(key) {
+        Some(Value::String(text)) => text.clone(),
+        Some(Value::Number(num)) => num.to_string(),
+        Some(Value::Bool(flag)) => flag.to_string(),
+        _ => default.to_string(),
     }
 }

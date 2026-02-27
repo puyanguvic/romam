@@ -21,3 +21,7 @@ path = "src/main.rs"
 [[bin]]
 name = "node_supervisor"
 path = "src/bin/node_supervisor.rs"
+
+[[bin]]
+name = "route_compute_bench"
+path = "src/bin/route_compute_bench.rs"

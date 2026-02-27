@@ -6,4 +6,5 @@ pub mod ospf;
 pub mod profile;
 pub mod rip;
 pub mod route_compute;
+pub mod spath;
 pub mod topk;
