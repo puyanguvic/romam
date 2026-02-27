@@ -21,13 +21,16 @@ This crate provides the `routingd` daemon used by containerlab router nodes.
 - `mod.rs`: module entrypoint and public re-exports.
 - `traits.rs`: generic compute interface (`RouteComputeEngine`).
 - `types.rs`: shared graph/result/input structs.
-- `spf.rs`: shortest-path computations for OSPF/ECMP.
-- `ksp.rs`: K-shortest simple-path helper for TopK-like policies.
+- `algorithms/`: one-folder-per-algorithm implementations (low coupling, package-style organization).
+  - `algorithms/dijkstra/`: SPF single/ECMP/partial/incremental/LFA helpers.
+  - `algorithms/bellman_ford/`: Bellman-Ford with negative-cycle marking.
+  - `algorithms/yen/`: Yen K-shortest simple paths.
+  - `algorithms/cspf/`: constrained shortest path filtering + SPF.
+  - `algorithms/weighted_sum/`: weighted multi-metric scalarization + SPF.
+  - `algorithms/pareto/`: non-dominated multi-objective path set.
 - `dv.rs`: distance-vector candidate computation used by RIP.
 - `neighbor_forest.rs`: neighbor-rooted forest/path construction used by DDR/DGR.
 - `strategy.rs`: algorithm selection layer (Dijkstra/ECMP/Bellman-Ford/Yen/CSPF/Weighted/Pareto).
-- `multimetric.rs`: constrained and multi-objective path computations.
-- `bellman_ford.rs`: negative-edge shortest path with negative-cycle marking.
 
 ## Binaries
 

@@ -1,8 +1,9 @@
 use std::collections::{BTreeMap, BTreeSet};
 
-use super::{
-    frontier::DistanceFrontier, EdgeUpdate, Graph, IncrementalSpfResult, LfaCandidate,
-    SpfEcmpResult, SpfSingleResult, SpfTreeResult,
+use super::super::frontier::DistanceFrontier;
+use super::super::{
+    EdgeUpdate, Graph, IncrementalSpfResult, LfaCandidate, SpfEcmpResult, SpfSingleResult,
+    SpfTreeResult,
 };
 
 const EPS: f64 = 1e-9;
@@ -453,7 +454,6 @@ pub fn compute_lfa_backup_next_hops(
             continue;
         };
 
-        // RFC 5286 loop-free condition: D(N, D) < D(N, S) + D(S, D)
         if dist_n_to_dst + EPS < dist_n_to_src + dist_src_to_dst {
             backups.push(LfaCandidate {
                 next_hop: *neighbor,

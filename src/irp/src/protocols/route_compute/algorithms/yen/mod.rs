@@ -1,7 +1,8 @@
 use std::cmp::Ordering;
 use std::collections::{BTreeMap, BTreeSet};
 
-use super::{frontier::DistanceFrontier, Graph, PathCandidate};
+use super::super::frontier::DistanceFrontier;
+use super::super::{Graph, PathCandidate};
 
 const EPS: f64 = 1e-9;
 

@@ -1,6 +1,6 @@
 use std::collections::{BTreeMap, BTreeSet, VecDeque};
 
-use super::{BellmanFordResult, Graph};
+use super::super::{BellmanFordResult, Graph};
 
 fn collect_nodes(graph: &Graph) -> BTreeSet<u32> {
     let mut nodes = BTreeSet::new();
@@ -65,7 +65,6 @@ pub fn compute_bellman_ford(graph: &Graph, src: u32) -> BellmanFordResult {
         }
     }
 
-    // Expand to all nodes reachable from any negative cycle seed.
     let mut negative_cycle_nodes = BTreeSet::new();
     let mut queue: VecDeque<u32> = negative_cycle_seed.iter().copied().collect();
     while let Some(node) = queue.pop_front() {
