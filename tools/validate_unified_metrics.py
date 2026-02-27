@@ -18,14 +18,22 @@ MODE_AUTO = "auto"
 MODE_SCENARIO = "scenario"
 MODE_BENCHMARK_RUN = "benchmark_run"
 MODE_BENCHMARK_SUMMARY = "benchmark_summary"
-ALL_MODES = (MODE_AUTO, MODE_SCENARIO, MODE_BENCHMARK_RUN, MODE_BENCHMARK_SUMMARY)
+MODE_EXP1_SUMMARY = "exp1_summary"
+ALL_MODES = (
+    MODE_AUTO,
+    MODE_SCENARIO,
+    MODE_BENCHMARK_RUN,
+    MODE_BENCHMARK_SUMMARY,
+    MODE_EXP1_SUMMARY,
+)
 
 
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(
         description=(
             "Validate unified experiment JSON outputs. "
-            "Supports scenario report, benchmark per-run report, and benchmark summary."
+            "Supports scenario report, benchmark per-run report, benchmark summary, "
+            "and Exp1 protocol-matrix summary."
         )
     )
     parser.add_argument(
@@ -63,6 +71,10 @@ def _is_number(value: Any) -> bool:
 
 
 def detect_mode(payload: dict[str, Any]) -> str:
+    if payload.get("experiment") == "exp1_protocol_functionality_abilene" and isinstance(
+        payload.get("rows"), list
+    ):
+        return MODE_EXP1_SUMMARY
     if payload.get("experiment") == "unified_convergence_benchmark" and isinstance(
         payload.get("runs"), list
     ):
@@ -188,6 +200,66 @@ def validate_benchmark_summary(payload: dict[str, Any]) -> list[str]:
     return errors
 
 
+def validate_exp1_summary(payload: dict[str, Any]) -> list[str]:
+    errors: list[str] = []
+    errors.extend(
+        _require_keys(
+            payload,
+            [
+                "experiment",
+                "created_at_utc",
+                "protocols",
+                "rows",
+                "route_snapshots",
+            ],
+        )
+    )
+    if errors:
+        return errors
+
+    if payload.get("experiment") != "exp1_protocol_functionality_abilene":
+        errors.append("experiment must be exp1_protocol_functionality_abilene")
+
+    protocols = payload.get("protocols")
+    if not isinstance(protocols, list):
+        errors.append("protocols must be a list")
+        protocols = []
+    else:
+        unknown = [item for item in protocols if item not in SUPPORTED_PROTOCOLS_SET]
+        if unknown:
+            errors.append(
+                "protocols contains unsupported entries: "
+                + ", ".join(str(item) for item in unknown)
+            )
+
+    rows = payload.get("rows")
+    if not isinstance(rows, list):
+        errors.append("rows must be a list")
+    else:
+        for idx, row in enumerate(rows):
+            if not isinstance(row, dict):
+                errors.append(f"rows[{idx}] must be an object")
+                continue
+            errors.extend(_require_keys(row, ["protocol"], prefix=f"rows[{idx}]."))
+            row_protocol = row.get("protocol")
+            if row_protocol not in SUPPORTED_PROTOCOLS_SET:
+                errors.append(
+                    f"rows[{idx}].protocol must be one of: " + ", ".join(SUPPORTED_PROTOCOLS)
+                )
+
+    snapshots = payload.get("route_snapshots")
+    if not isinstance(snapshots, dict):
+        errors.append("route_snapshots must be an object")
+    elif isinstance(protocols, list):
+        missing_snapshot = [name for name in protocols if name not in snapshots]
+        if missing_snapshot:
+            errors.append(
+                "route_snapshots missing protocols: " + ", ".join(missing_snapshot)
+            )
+
+    return errors
+
+
 def validate_payload(payload: dict[str, Any], mode: str) -> tuple[str, list[str]]:
     resolved_mode = mode
     if mode == MODE_AUTO:
@@ -200,6 +272,8 @@ def validate_payload(payload: dict[str, Any], mode: str) -> tuple[str, list[str]
         return (resolved_mode, validate_benchmark_run(payload))
     if resolved_mode == MODE_BENCHMARK_SUMMARY:
         return (resolved_mode, validate_benchmark_summary(payload))
+    if resolved_mode == MODE_EXP1_SUMMARY:
+        return (resolved_mode, validate_exp1_summary(payload))
     return (resolved_mode, [f"unsupported mode: {resolved_mode}"])
 
 

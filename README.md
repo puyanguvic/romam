@@ -21,7 +21,7 @@ make build-routerd-rs
 make build-traffic-app-go
 
 PYTHONPATH=src python3 tools/run_unified_experiment.py \
-  --config experiments/routerd_examples/unified_experiments/line3_irp_multi_apps.yaml \
+  --config experiments/routerd_examples/unified_experiments/line3_ospf_multi_apps.yaml \
   --poll-interval-s 1 \
   --sudo
 ```
@@ -53,7 +53,7 @@ Control/observability paths:
   - DDR/DGR delay-aware routing core: `src/irp/src/protocols/ddr.rs`
     - uses `tc -s qdisc` backlog when neighbor `iface` is present in config; converts queue bytes to delay via `link_bandwidth_bps` (falls back to local estimator otherwise)
   - Octopus (NSDI2026 profile) entry: `protocol: octopus` (queue-aware stochastic multipath on DDR/DGR core)
-  - IRP compatibility alias: `protocol: irp` (IRP is framework-level design; this entry keeps historical experiment configs runnable via OSPF-style baseline + IRP params)
+  - IRP is the architecture/framework abstraction (not a runnable protocol instance)
 - Decision/policy hook: `src/irp/src/algo/mod.rs`
 - Management API: `src/irp/src/runtime/mgmt.rs` (HTTP + gRPC placeholder)
 - Runtime entrypoint: `src/irp/src/main.rs` (`routingd` binary)
@@ -128,7 +128,7 @@ RIP example config: `experiments/routerd_examples/rip_router1.yaml`
 
 ```yaml
 router_id: 1
-protocol: ospf  # or rip/ecmp/topk/ddr/dgr/octopus/irp
+protocol: ospf  # or rip/ecmp/topk/ddr/dgr/octopus
 bind:
   address: 0.0.0.0
   port: 5500
@@ -196,7 +196,7 @@ python3 tools/generate_routerd_lab.py \
   --topology-file src/clab/topologies/spineleaf2x4.clab.yaml
 ```
 
-`--protocol` is independent from topology file, so the same file can run `ospf`, `rip`, `ecmp`, `topk`, `ddr`, `dgr`, `octopus`, or `irp`.
+`--protocol` is independent from topology file, so the same file can run `ospf`, `rip`, `ecmp`, `topk`, `ddr`, `dgr`, or `octopus`.
 
 DDR validation config example:
 
@@ -429,8 +429,8 @@ Use one top-level YAML to run the full loop in either mode:
   summary JSON/CSV.
 
 Examples:
-- `experiments/routerd_examples/unified_experiments/line3_irp_onoff_fault.yaml`
-- `experiments/routerd_examples/unified_experiments/line3_irp_multi_apps.yaml`
+- `experiments/routerd_examples/unified_experiments/line3_ospf_multi_apps.yaml`
+- `experiments/routerd_examples/unified_experiments/line3_ospf_onoff_fault.yaml`
 - `experiments/routerd_examples/unified_experiments/line3_rip_validation.yaml`
 - `experiments/routerd_examples/unified_experiments/line3_octopus_validation.yaml`
 - `experiments/routerd_examples/unified_experiments/ring6_ospf_convergence_benchmark.yaml`
@@ -440,7 +440,7 @@ Recommended run flow (verified on this repo):
 ```bash
 make build-routerd-rs
 make run-unified-experiment \
-  UNIFIED_CONFIG_FILE=experiments/routerd_examples/unified_experiments/line3_irp_multi_apps.yaml \
+  UNIFIED_CONFIG_FILE=experiments/routerd_examples/unified_experiments/line3_ospf_multi_apps.yaml \
   UNIFIED_USE_SUDO=1
 ```
 
@@ -448,7 +448,7 @@ Equivalent direct script run:
 
 ```bash
 PYTHONPATH=src python3 tools/run_unified_experiment.py \
-  --config experiments/routerd_examples/unified_experiments/line3_irp_multi_apps.yaml \
+  --config experiments/routerd_examples/unified_experiments/line3_ospf_multi_apps.yaml \
   --poll-interval-s 1 \
   --sudo
 ```

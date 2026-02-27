@@ -14,7 +14,6 @@ Goals:
 - `rip.yaml`
 - `ecmp.yaml`
 - `topk.yaml`
-- `irp.yaml`
 - `ddr.yaml`
 - `dgr.yaml`
 - `octopus.yaml`

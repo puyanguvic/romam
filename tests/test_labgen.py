@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from pathlib import Path
 
+import pytest
 import yaml
 
 from clab.labgen import LabGenParams, generate_routerd_lab
@@ -409,3 +410,35 @@ def test_generate_routerd_lab_supports_octopus_protocol(tmp_path: Path) -> None:
     assert octopus_cfg["queue_level_scale_ms"] == 8.0
     assert octopus_cfg["randomize_route_selection"] is True
     assert octopus_cfg["rng_seed"] == 2026
+
+
+def test_generate_routerd_lab_rejects_abstract_irp_protocol(tmp_path: Path) -> None:
+    out_dir = tmp_path / "lab-irp-invalid"
+    params = LabGenParams(
+        protocol="irp",
+        routing_alpha=1.0,
+        routing_beta=2.0,
+        topology_file=Path("src/clab/topologies/line3.clab.yaml"),
+        node_image="ghcr.io/srl-labs/network-multitool:latest",
+        bind_port=5500,
+        tick_interval=1.0,
+        dead_interval=4.0,
+        ospf_hello_interval=1.0,
+        ospf_lsa_interval=3.0,
+        ospf_lsa_max_age=15.0,
+        rip_update_interval=5.0,
+        rip_neighbor_timeout=15.0,
+        rip_infinity_metric=16.0,
+        rip_poison_reverse=True,
+        output_dir=out_dir,
+        lab_name="testlab-irp-invalid",
+        log_level="INFO",
+        mgmt_network_name="testlab-irp-invalid-mgmt",
+        mgmt_ipv4_subnet="10.250.18.0/24",
+        mgmt_ipv6_subnet="fd00:fa:18::/64",
+        mgmt_external_access=False,
+        forwarding_enabled=False,
+        forwarding_dry_run=True,
+    )
+    with pytest.raises(ValueError):
+        generate_routerd_lab(params)

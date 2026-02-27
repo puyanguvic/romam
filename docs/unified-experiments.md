@@ -13,12 +13,12 @@ tools/run_unified_experiment.py
 
 ## Example Configs
 
-- `experiments/routerd_examples/unified_experiments/line3_irp_multi_apps.yaml`
+- `experiments/routerd_examples/unified_experiments/line3_ospf_multi_apps.yaml`
 - `experiments/routerd_examples/unified_experiments/line3_rip_validation.yaml`
 - `experiments/routerd_examples/unified_experiments/line3_octopus_validation.yaml`
 - `experiments/routerd_examples/unified_experiments/ring6_ospf_convergence_benchmark.yaml`
 - `experiments/routerd_examples/unified_experiments/cernet_ospf_convergence_benchmark.yaml`
-- `experiments/routerd_examples/unified_experiments/line3_irp_onoff_fault.yaml`
+- `experiments/routerd_examples/unified_experiments/line3_ospf_onoff_fault.yaml`
 - `experiments/routerd_examples/unified_experiments/exp1_protocol_functionality/ospf.yaml`
 
 ## Command Template

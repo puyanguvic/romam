@@ -17,7 +17,6 @@ SUPPORTED_PROTOCOLS: tuple[str, ...] = (
     "rip",
     "ecmp",
     "topk",
-    "irp",
     "ddr",
     "dgr",
     "octopus",

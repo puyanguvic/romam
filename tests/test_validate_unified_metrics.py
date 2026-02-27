@@ -151,3 +151,39 @@ def test_validate_scenario_accepts_octopus_protocol() -> None:
     mode, errors = module.validate_payload(payload, module.MODE_SCENARIO)
     assert mode == module.MODE_SCENARIO
     assert errors == []
+
+
+def test_validate_exp1_summary_payload_ok() -> None:
+    module = _load_module()
+    payload = {
+        "experiment": "exp1_protocol_functionality_abilene",
+        "created_at_utc": "2026-02-27T00:00:00+00:00",
+        "protocols": ["ospf", "rip", "ecmp"],
+        "rows": [
+            {"protocol": "ospf"},
+            {"protocol": "rip"},
+            {"protocol": "ecmp"},
+        ],
+        "route_snapshots": {
+            "ospf": {"protocol": "ospf"},
+            "rip": {"protocol": "rip"},
+            "ecmp": {"protocol": "ecmp"},
+        },
+    }
+    mode, errors = module.validate_payload(payload, module.MODE_AUTO)
+    assert mode == module.MODE_EXP1_SUMMARY
+    assert errors == []
+
+
+def test_validate_exp1_summary_rejects_unsupported_protocol() -> None:
+    module = _load_module()
+    payload = {
+        "experiment": "exp1_protocol_functionality_abilene",
+        "created_at_utc": "2026-02-27T00:00:00+00:00",
+        "protocols": ["ospf", "irp"],
+        "rows": [{"protocol": "ospf"}, {"protocol": "irp"}],
+        "route_snapshots": {"ospf": {}, "irp": {}},
+    }
+    mode, errors = module.validate_payload(payload, module.MODE_EXP1_SUMMARY)
+    assert mode == module.MODE_EXP1_SUMMARY
+    assert errors

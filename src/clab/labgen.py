@@ -9,6 +9,16 @@ import yaml
 from clab.clab_loader import load_clab_topology
 from irp.utils.io import ensure_dir
 
+SUPPORTED_LAB_PROTOCOLS: tuple[str, ...] = (
+    "ospf",
+    "rip",
+    "ecmp",
+    "topk",
+    "ddr",
+    "dgr",
+    "octopus",
+)
+
 
 @dataclass(frozen=True)
 class LabGenParams:
@@ -229,15 +239,10 @@ def _build_routerd_config(
             }
         }
     else:
-        cfg["protocol_params"] = {
-            "irp": {
-                "alpha": float(params.routing_alpha),
-                "beta": float(params.routing_beta),
-                "hello_interval": float(params.ospf_hello_interval),
-                "lsa_interval": float(params.ospf_lsa_interval),
-                "lsa_max_age": float(params.ospf_lsa_max_age),
-            }
-        }
+        raise ValueError(
+            f"Unsupported protocol '{params.protocol}'. Supported protocols: "
+            + ", ".join(SUPPORTED_LAB_PROTOCOLS)
+        )
     return cfg
 
 

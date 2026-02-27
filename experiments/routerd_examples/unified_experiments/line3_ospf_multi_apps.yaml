@@ -1,9 +1,5 @@
 topology: line_3
-protocol: irp
-
-routing:
-  alpha: 1.0
-  beta: 2.0
+protocol: ospf
 
 node_apps:
   - node_id: r2

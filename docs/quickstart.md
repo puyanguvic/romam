@@ -24,7 +24,7 @@ make build-traffic-app-go
 
 ```bash
 PYTHONPATH=src python3 tools/run_unified_experiment.py \
-  --config experiments/routerd_examples/unified_experiments/line3_irp_multi_apps.yaml \
+  --config experiments/routerd_examples/unified_experiments/line3_ospf_multi_apps.yaml \
   --poll-interval-s 1 \
   --sudo
 ```

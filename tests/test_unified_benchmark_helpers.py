@@ -88,29 +88,10 @@ def test_parse_run_routerd_lab_metadata_missing_key() -> None:
         )
 
 
-def test_build_run_routerd_lab_cmd_includes_irp_params() -> None:
+def test_validate_protocol_rejects_irp() -> None:
     module = _load_module()
-    cmd = module.build_run_routerd_lab_cmd(
-        protocol="irp",
-        topology_key="profile",
-        topology_value="line3",
-        use_sudo=False,
-        config={},
-        precheck_min_routes=0,
-        precheck_max_wait_s=20,
-        precheck_poll_interval_s=1.0,
-        precheck_tail_lines=120,
-        routing_alpha=1.5,
-        routing_beta=2.5,
-        lab_name_override="my-lab",
-    )
-    text = " ".join(cmd)
-    assert "--protocol irp" in text
-    assert "--profile line3" in text
-    assert "--routing-alpha 1.5" in text
-    assert "--routing-beta 2.5" in text
-    assert "--no-sudo" in text
-    assert "--lab-name my-lab" in text
+    with pytest.raises(ValueError):
+        module.validate_protocol("irp")
 
 
 def test_build_run_routerd_lab_cmd_includes_ecmp_params() -> None:

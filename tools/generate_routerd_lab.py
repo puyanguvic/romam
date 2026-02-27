@@ -50,13 +50,13 @@ def parse_args() -> argparse.Namespace:
         "--routing-alpha",
         type=float,
         default=1.0,
-        help="IRP routing weight alpha (used when --protocol irp).",
+        help="Legacy routing alpha parameter (kept for backward-compatible config parsing).",
     )
     parser.add_argument(
         "--routing-beta",
         type=float,
         default=2.0,
-        help="IRP routing weight beta (used when --protocol irp).",
+        help="Legacy routing beta parameter (kept for backward-compatible config parsing).",
     )
     parser.add_argument(
         "--profile",
@@ -330,9 +330,6 @@ def main() -> int:
     if not args.topology_file:
         print(f"profile: {args.profile}")
     print(f"protocol: {args.protocol}")
-    if str(args.protocol) == "irp":
-        print(f"routing_alpha: {float(args.routing_alpha)}")
-        print(f"routing_beta: {float(args.routing_beta)}")
     if str(args.protocol) == "ecmp":
         print(f"ecmp_hash_seed: {int(args.ecmp_hash_seed)}")
     if str(args.protocol) == "topk":

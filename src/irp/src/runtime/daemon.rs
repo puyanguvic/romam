@@ -514,23 +514,10 @@ impl RouterDaemon {
                     "octopus",
                 )))
             }
-            "irp" => {
-                let alpha = param_f64(params, "alpha", 1.0);
-                let beta = param_f64(params, "beta", 2.0);
-                let hello_interval = param_f64(params, "hello_interval", 1.0);
-                let lsa_interval = param_f64(params, "lsa_interval", 3.0);
-                let lsa_max_age =
-                    param_f64(params, "lsa_max_age", (cfg.dead_interval * 3.0).max(10.0));
-                info!(
-                    "IRP mode enabled (current engine: OSPF base), alpha={}, beta={}",
-                    alpha, beta
-                );
-                Ok(Box::new(OspfProtocol::new(OspfTimers {
-                    hello_interval,
-                    lsa_interval,
-                    lsa_max_age,
-                })))
-            }
+            "irp" => anyhow::bail!(
+                "protocol 'irp' is an abstract architecture and cannot be instantiated; \
+use a concrete protocol (ospf, rip, ecmp, topk, ddr, dgr, octopus)"
+            ),
             _ => anyhow::bail!("unsupported protocol: {}", cfg.protocol),
         }
     }

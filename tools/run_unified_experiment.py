@@ -327,6 +327,11 @@ def sanitize_label(value: str, max_len: int = 48) -> str:
 
 def validate_protocol(protocol: str) -> str:
     normalized = str(protocol).strip().lower()
+    if normalized == "irp":
+        raise ValueError(
+            "protocol 'irp' is abstract and cannot be instantiated; "
+            "choose a concrete protocol: " + ", ".join(SUPPORTED_PROTOCOLS)
+        )
     if normalized not in SUPPORTED_PROTOCOLS_SET:
         raise ValueError(
             "protocol must be one of: " + ", ".join(SUPPORTED_PROTOCOLS)
@@ -454,8 +459,6 @@ def build_run_routerd_lab_cmd(
     precheck_max_wait_s: float,
     precheck_poll_interval_s: float,
     precheck_tail_lines: int,
-    routing_alpha: float | None = None,
-    routing_beta: float | None = None,
     ecmp_params: dict[str, Any] | None = None,
     topk_params: dict[str, Any] | None = None,
     ddr_params: dict[str, Any] | None = None,
@@ -481,13 +484,6 @@ def build_run_routerd_lab_cmd(
         runlab_cmd.extend(["--profile", topology_value])
     else:
         runlab_cmd.extend(["--topology-file", topology_value])
-    if protocol == "irp" and routing_alpha is not None and routing_beta is not None:
-        runlab_cmd.extend([
-            "--routing-alpha",
-            str(float(routing_alpha)),
-            "--routing-beta",
-            str(float(routing_beta)),
-        ])
     if protocol == "ecmp" and ecmp_params is not None:
         runlab_cmd.extend([
             "--ecmp-hash-seed",
@@ -1492,8 +1488,6 @@ def run_scenario_mode(
         precheck_max_wait_s=float(config.get("precheck_max_wait_s", 20.0)),
         precheck_poll_interval_s=1.0,
         precheck_tail_lines=int(config.get("precheck_tail_lines", 120)),
-        routing_alpha=routing_alpha,
-        routing_beta=routing_beta,
         ecmp_params=ecmp_params,
         topk_params=topk_params,
         ddr_params=ddr_params,
@@ -1869,8 +1863,6 @@ def run_convergence_benchmark_mode(
     topology_key, topology_value = resolve_topology_spec(str(config.get("topology", "")))
     protocol = validate_protocol(str(config.get("protocol", "ospf")) or "ospf")
     routing = dict(config.get("routing", {}) or {})
-    routing_alpha = float(routing.get("alpha", 1.0))
-    routing_beta = float(routing.get("beta", 2.0))
     ecmp_params = extract_ecmp_routing_params(routing)
     topk_params = extract_topk_routing_params(routing)
     ddr_params = extract_ddr_routing_params(routing, protocol=protocol)
@@ -1916,8 +1908,6 @@ def run_convergence_benchmark_mode(
             precheck_max_wait_s=precheck_max_wait_s,
             precheck_poll_interval_s=precheck_poll_interval_s,
             precheck_tail_lines=precheck_tail_lines,
-            routing_alpha=routing_alpha,
-            routing_beta=routing_beta,
             ecmp_params=ecmp_params,
             topk_params=topk_params,
             ddr_params=ddr_params,
