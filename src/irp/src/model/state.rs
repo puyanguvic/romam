@@ -1,5 +1,7 @@
 use std::collections::BTreeMap;
 
+use crate::model::control_plane::{RecordFreshness, StateLifetimePolicy};
+
 #[derive(Debug, Clone)]
 pub struct NeighborInfo {
     pub router_id: u32,
@@ -103,9 +105,10 @@ impl LinkStateDb {
     }
 
     pub fn age_out(&mut self, now: f64, max_age: f64) -> bool {
+        let policy = StateLifetimePolicy::strict(max_age);
         let before = self.records.len();
         self.records
-            .retain(|_, record| (now - record.learned_at) <= max_age);
+            .retain(|_, record| policy.is_usable(record.learned_at, now));
         before != self.records.len()
     }
 }
@@ -206,11 +209,18 @@ impl NeighborStateDb {
         max_age: f64,
     ) -> Option<&NeighborFastState> {
         let record = self.records.get(&router_id)?;
-        if is_fresh(record.learned_at, now, max_age) {
+        if StateLifetimePolicy::strict(max_age).classify(record.learned_at, now)
+            == RecordFreshness::Fresh
+        {
             Some(&record.state)
         } else {
             None
         }
+    }
+
+    pub fn freshness(&self, router_id: u32, now: f64, max_age: f64) -> Option<RecordFreshness> {
+        let record = self.records.get(&router_id)?;
+        Some(StateLifetimePolicy::strict(max_age).classify(record.learned_at, now))
     }
 
     pub fn get_queue_level_fresh(&self, router_id: u32, now: f64, max_age: f64) -> Option<usize> {
@@ -219,9 +229,10 @@ impl NeighborStateDb {
     }
 
     pub fn age_out(&mut self, now: f64, max_age: f64) -> bool {
+        let policy = StateLifetimePolicy::strict(max_age);
         let before = self.records.len();
         self.records
-            .retain(|_, record| is_fresh(record.learned_at, now, max_age));
+            .retain(|_, record| policy.is_usable(record.learned_at, now));
         before != self.records.len()
     }
 
@@ -242,10 +253,6 @@ impl NeighborStateDb {
             .map(|(router_id, record)| (*router_id, record.state.clone()))
             .collect()
     }
-}
-
-fn is_fresh(learned_at: f64, now: f64, max_age: f64) -> bool {
-    (now - learned_at) <= max_age
 }
 
 fn apply_optional<T: PartialEq>(slot: &mut Option<T>, incoming: Option<T>) -> bool {

@@ -2,6 +2,9 @@ use std::collections::BTreeMap;
 
 use serde_json::{json, Value};
 
+use crate::model::control_plane::{
+    ExchangePolicy, ExchangeScope, ExchangeState, MessageDescriptor,
+};
 use crate::model::messages::{ControlMessage, MessageKind};
 use crate::model::state::LinkStateDb;
 use crate::protocols::base::ProtocolContext;
@@ -11,6 +14,7 @@ pub struct LinkStateTimers {
     pub hello_interval: f64,
     pub lsa_interval: f64,
     pub lsa_max_age: f64,
+    pub lsa_min_trigger_spacing_s: f64,
 }
 
 #[derive(Debug, Clone)]
@@ -23,8 +27,10 @@ pub struct LinkStateTick {
 pub struct LinkStateControlPlane {
     msg_seq: u64,
     lsa_seq: i64,
-    last_hello_at: f64,
-    last_lsa_at: f64,
+    hello_exchange: ExchangeState,
+    lsa_exchange: ExchangeState,
+    hello_scope: ExchangeScope,
+    lsa_scope: ExchangeScope,
     last_local_links: BTreeMap<u32, f64>,
     lsdb: LinkStateDb,
 }
@@ -34,11 +40,18 @@ impl LinkStateControlPlane {
         Self {
             msg_seq: 0,
             lsa_seq: 0,
-            last_hello_at: -1e9,
-            last_lsa_at: -1e9,
+            hello_exchange: ExchangeState::default(),
+            lsa_exchange: ExchangeState::default(),
+            hello_scope: ExchangeScope::OneHop,
+            lsa_scope: ExchangeScope::FloodDomain,
             last_local_links: BTreeMap::new(),
             lsdb: LinkStateDb::default(),
         }
+    }
+
+    pub fn set_descriptor_scopes(&mut self, hello_scope: ExchangeScope, lsa_scope: ExchangeScope) {
+        self.hello_scope = hello_scope;
+        self.lsa_scope = lsa_scope;
     }
 
     pub fn tick(
@@ -48,10 +61,9 @@ impl LinkStateControlPlane {
         force_lsa: bool,
     ) -> LinkStateTick {
         let now = ctx.now;
-        let hello_due = (now - self.last_hello_at) >= timers.hello_interval;
-        if hello_due {
-            self.last_hello_at = now;
-        }
+        let hello_due = self
+            .hello_exchange
+            .periodic_due(now, ExchangePolicy::periodic(timers.hello_interval));
 
         let links: BTreeMap<u32, f64> = ctx
             .links
@@ -59,15 +71,25 @@ impl LinkStateControlPlane {
             .filter_map(|(router_id, link)| link.is_up.then_some((*router_id, link.cost)))
             .collect();
 
-        let mut should_originate = force_lsa || links != self.last_local_links;
-        if (now - self.last_lsa_at) >= timers.lsa_interval {
-            should_originate = true;
-        }
+        let local_links_changed = links != self.last_local_links;
+        let lsa_policy = ExchangePolicy::hybrid(
+            timers.lsa_interval,
+            timers.lsa_min_trigger_spacing_s.max(0.0),
+        );
+        let periodic_lsa_due = self.lsa_exchange.periodic_due(now, lsa_policy);
+        let triggered_lsa_due = if force_lsa {
+            self.lsa_exchange.mark_triggered(now);
+            true
+        } else if local_links_changed {
+            self.lsa_exchange.trigger_due(now, lsa_policy)
+        } else {
+            false
+        };
+        let should_originate = periodic_lsa_due || triggered_lsa_due;
 
         let lsa_payload = if should_originate {
             self.lsa_seq += 1;
             self.last_local_links = links.clone();
-            self.last_lsa_at = now;
             self.lsdb
                 .upsert(ctx.router_id, self.lsa_seq, links.clone(), now);
 
@@ -210,13 +232,27 @@ impl LinkStateControlPlane {
         now: f64,
     ) -> ControlMessage {
         self.msg_seq += 1;
-        ControlMessage {
-            protocol: protocol_name.to_string(),
+        let descriptor = match kind {
+            MessageKind::Hello => {
+                let mut descriptor = MessageDescriptor::hello();
+                descriptor.scope = Some(self.hello_scope);
+                descriptor
+            }
+            MessageKind::OspfLsa | MessageKind::DdrLsa => {
+                let mut descriptor = MessageDescriptor::topology_lsa(None);
+                descriptor.scope = Some(self.lsa_scope);
+                descriptor
+            }
+            MessageKind::RipUpdate => MessageDescriptor::rip_update(None),
+        };
+        ControlMessage::new(
+            protocol_name.to_string(),
             kind,
-            src_router_id: router_id,
-            seq: self.msg_seq,
+            router_id,
+            self.msg_seq,
+            descriptor,
             payload,
-            ts: now,
-        }
+            now,
+        )
     }
 }

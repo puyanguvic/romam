@@ -8,6 +8,7 @@ use serde_json::{Map, Value};
 use tracing::{debug, info, warn};
 
 use crate::algo::{DecisionContext, DecisionEngine, PassthroughDecisionEngine};
+use crate::model::control_plane::ExchangeScope;
 use crate::model::messages::{decode_message, encode_message};
 use crate::model::routing::{ForwardingTable, RouteTable};
 use crate::model::state::{NeighborInfo, NeighborTable};
@@ -316,99 +317,130 @@ impl RouterDaemon {
 
     fn build_protocol(cfg: &DaemonConfig) -> Result<Box<dyn Ipv4RoutingProtocol>> {
         let params = &cfg.protocol_params;
+        let hello_scope = param_exchange_scope(params, "hello_scope", ExchangeScope::OneHop);
+        let lsa_scope = param_exchange_scope(params, "lsa_scope", ExchangeScope::FloodDomain);
         match cfg.protocol.as_str() {
             "ospf" => {
                 let hello_interval = param_f64(params, "hello_interval", 1.0);
                 let lsa_interval = param_f64(params, "lsa_interval", 3.0);
                 let lsa_max_age =
                     param_f64(params, "lsa_max_age", (cfg.dead_interval * 3.0).max(10.0));
+                let lsa_min_trigger_spacing_s =
+                    param_f64(params, "lsa_min_trigger_spacing_s", 0.0).max(0.0);
 
-                Ok(Box::new(OspfProtocol::new(OspfTimers {
+                let mut protocol = OspfProtocol::new(OspfTimers {
                     hello_interval,
                     lsa_interval,
                     lsa_max_age,
-                })))
+                    lsa_min_trigger_spacing_s,
+                });
+                protocol.set_descriptor_scopes(hello_scope, lsa_scope);
+                Ok(Box::new(protocol))
             }
             "rip" => {
                 let update_interval = param_f64(params, "update_interval", 5.0);
                 let neighbor_timeout =
                     param_f64(params, "neighbor_timeout", cfg.dead_interval.max(15.0));
+                let update_min_trigger_spacing_s =
+                    param_f64(params, "update_min_trigger_spacing_s", 0.0).max(0.0);
                 let infinity_metric = param_f64(params, "infinity_metric", 16.0);
                 let poison_reverse = param_bool(params, "poison_reverse", true);
+                let update_scope =
+                    param_exchange_scope(params, "rip_update_scope", ExchangeScope::OneHop);
 
-                Ok(Box::new(RipProtocol::new(
+                let mut protocol = RipProtocol::new(
                     RipTimers {
                         update_interval,
                         neighbor_timeout,
+                        update_min_trigger_spacing_s,
                     },
                     infinity_metric,
                     poison_reverse,
-                )))
+                );
+                protocol.set_update_scope(update_scope);
+                Ok(Box::new(protocol))
             }
             "ecmp" => {
                 let hello_interval = param_f64(params, "hello_interval", 1.0);
                 let lsa_interval = param_f64(params, "lsa_interval", 3.0);
                 let lsa_max_age =
                     param_f64(params, "lsa_max_age", (cfg.dead_interval * 3.0).max(10.0));
+                let lsa_min_trigger_spacing_s =
+                    param_f64(params, "lsa_min_trigger_spacing_s", 0.0).max(0.0);
                 let hash_seed = param_u64(params, "hash_seed", 1);
 
-                Ok(Box::new(EcmpProtocol::new(EcmpParams {
+                let mut protocol = EcmpProtocol::new(EcmpParams {
                     timers: EcmpTimers {
                         hello_interval,
                         lsa_interval,
                         lsa_max_age,
+                        lsa_min_trigger_spacing_s,
                     },
                     hash_seed,
-                })))
+                });
+                protocol.set_descriptor_scopes(hello_scope, lsa_scope);
+                Ok(Box::new(protocol))
             }
             "topk" => {
                 let hello_interval = param_f64(params, "hello_interval", 1.0);
                 let lsa_interval = param_f64(params, "lsa_interval", 3.0);
                 let lsa_max_age =
                     param_f64(params, "lsa_max_age", (cfg.dead_interval * 3.0).max(10.0));
+                let lsa_min_trigger_spacing_s =
+                    param_f64(params, "lsa_min_trigger_spacing_s", 0.0).max(0.0);
                 let k_paths = param_usize(params, "k_paths", 3).max(1);
                 let explore_probability = param_f64(params, "explore_probability", 0.3);
                 let selection_hold_time_s = param_f64(params, "selection_hold_time_s", 3.0);
                 let rng_seed = param_u64(params, "rng_seed", 1);
 
-                Ok(Box::new(TopkProtocol::new(TopkParams {
+                let mut protocol = TopkProtocol::new(TopkParams {
                     timers: TopkTimers {
                         hello_interval,
                         lsa_interval,
                         lsa_max_age,
+                        lsa_min_trigger_spacing_s,
                     },
                     k_paths,
                     explore_probability,
                     selection_hold_time_s,
                     rng_seed,
-                })))
+                });
+                protocol.set_descriptor_scopes(hello_scope, lsa_scope);
+                Ok(Box::new(protocol))
             }
             "spath" => {
                 let hello_interval = param_f64(params, "hello_interval", 1.0);
                 let lsa_interval = param_f64(params, "lsa_interval", 3.0);
                 let lsa_max_age =
                     param_f64(params, "lsa_max_age", (cfg.dead_interval * 3.0).max(10.0));
+                let lsa_min_trigger_spacing_s =
+                    param_f64(params, "lsa_min_trigger_spacing_s", 0.0).max(0.0);
                 let algorithm =
                     SPathAlgorithm::from_str(&param_string(params, "algorithm", "dijkstra"));
                 let k_paths = param_usize(params, "k_paths", 3).max(1);
                 let hash_seed = param_u64(params, "hash_seed", 1);
 
-                Ok(Box::new(SPathProtocol::new(SPathParams {
+                let mut protocol = SPathProtocol::new(SPathParams {
                     timers: SPathTimers {
                         hello_interval,
                         lsa_interval,
                         lsa_max_age,
+                        lsa_min_trigger_spacing_s,
                     },
                     algorithm,
                     k_paths,
                     hash_seed,
-                })))
+                });
+                protocol.set_descriptor_scopes(hello_scope, lsa_scope);
+                Ok(Box::new(protocol))
             }
             "ddr" => {
                 let hello_interval = param_f64(params, "hello_interval", 1.0);
                 let lsa_interval = param_f64(params, "lsa_interval", 3.0);
                 let lsa_max_age =
                     param_f64(params, "lsa_max_age", (cfg.dead_interval * 3.0).max(10.0));
+                let lsa_min_trigger_spacing_s =
+                    param_f64(params, "lsa_min_trigger_spacing_s", 0.0).max(0.0);
                 let queue_sample_interval =
                     param_f64(params, "queue_sample_interval", cfg.tick_interval.max(0.5));
                 let k_paths = param_usize(params, "k_paths", 3);
@@ -425,12 +457,13 @@ impl RouterDaemon {
                     param_bool(params, "randomize_route_selection", false);
                 let rng_seed = param_u64(params, "rng_seed", 1);
 
-                Ok(Box::new(DdrProtocol::new_with_name(
+                let mut protocol = DdrProtocol::new_with_name(
                     DdrParams {
                         timers: DdrTimers {
                             hello_interval,
                             lsa_interval,
                             lsa_max_age,
+                            lsa_min_trigger_spacing_s,
                             queue_sample_interval,
                         },
                         k_paths,
@@ -445,13 +478,17 @@ impl RouterDaemon {
                         rng_seed,
                     },
                     "ddr",
-                )))
+                );
+                protocol.set_descriptor_scopes(hello_scope, lsa_scope);
+                Ok(Box::new(protocol))
             }
             "dgr" => {
                 let hello_interval = param_f64(params, "hello_interval", 1.0);
                 let lsa_interval = param_f64(params, "lsa_interval", 3.0);
                 let lsa_max_age =
                     param_f64(params, "lsa_max_age", (cfg.dead_interval * 3.0).max(10.0));
+                let lsa_min_trigger_spacing_s =
+                    param_f64(params, "lsa_min_trigger_spacing_s", 0.0).max(0.0);
                 let queue_sample_interval =
                     param_f64(params, "queue_sample_interval", cfg.tick_interval.max(0.5));
                 let k_paths = param_usize(params, "k_paths", 3);
@@ -468,12 +505,13 @@ impl RouterDaemon {
                     param_bool(params, "randomize_route_selection", true);
                 let rng_seed = param_u64(params, "rng_seed", 1);
 
-                Ok(Box::new(DdrProtocol::new_with_name(
+                let mut protocol = DdrProtocol::new_with_name(
                     DdrParams {
                         timers: DdrTimers {
                             hello_interval,
                             lsa_interval,
                             lsa_max_age,
+                            lsa_min_trigger_spacing_s,
                             queue_sample_interval,
                         },
                         k_paths,
@@ -488,13 +526,17 @@ impl RouterDaemon {
                         rng_seed,
                     },
                     "dgr",
-                )))
+                );
+                protocol.set_descriptor_scopes(hello_scope, lsa_scope);
+                Ok(Box::new(protocol))
             }
             "octopus" => {
                 let hello_interval = param_f64(params, "hello_interval", 1.0);
                 let lsa_interval = param_f64(params, "lsa_interval", 3.0);
                 let lsa_max_age =
                     param_f64(params, "lsa_max_age", (cfg.dead_interval * 3.0).max(10.0));
+                let lsa_min_trigger_spacing_s =
+                    param_f64(params, "lsa_min_trigger_spacing_s", 0.0).max(0.0);
                 let queue_sample_interval =
                     param_f64(params, "queue_sample_interval", cfg.tick_interval.max(0.5));
                 let k_paths = param_usize(params, "k_paths", 3);
@@ -514,12 +556,13 @@ impl RouterDaemon {
                     param_bool(params, "randomize_route_selection", true);
                 let rng_seed = param_u64(params, "rng_seed", 1);
 
-                Ok(Box::new(DdrProtocol::new_with_name(
+                let mut protocol = DdrProtocol::new_with_name(
                     DdrParams {
                         timers: DdrTimers {
                             hello_interval,
                             lsa_interval,
                             lsa_max_age,
+                            lsa_min_trigger_spacing_s,
                             queue_sample_interval,
                         },
                         k_paths,
@@ -534,7 +577,9 @@ impl RouterDaemon {
                         rng_seed,
                     },
                     "octopus",
-                )))
+                );
+                protocol.set_descriptor_scopes(hello_scope, lsa_scope);
+                Ok(Box::new(protocol))
             }
             "irp" => anyhow::bail!(
                 "protocol 'irp' is an abstract architecture and cannot be instantiated; \
@@ -591,4 +636,13 @@ fn param_string(params: &Map<String, Value>, key: &str, default: &str) -> String
         Some(Value::Bool(flag)) => flag.to_string(),
         _ => default.to_string(),
     }
+}
+
+fn param_exchange_scope(
+    params: &Map<String, Value>,
+    key: &str,
+    default: ExchangeScope,
+) -> ExchangeScope {
+    let raw = param_string(params, key, default.as_str());
+    ExchangeScope::from_str(&raw).unwrap_or(default)
 }

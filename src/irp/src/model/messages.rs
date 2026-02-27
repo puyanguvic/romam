@@ -4,6 +4,8 @@ use anyhow::{Context, Result};
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 
+use crate::model::control_plane::MessageDescriptor;
+
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
 pub enum MessageKind {
@@ -20,8 +22,32 @@ pub struct ControlMessage {
     pub src_router_id: u32,
     pub seq: u64,
     #[serde(default)]
+    pub descriptor: MessageDescriptor,
+    #[serde(default)]
     pub payload: BTreeMap<String, Value>,
     pub ts: f64,
+}
+
+impl ControlMessage {
+    pub fn new(
+        protocol: impl Into<String>,
+        kind: MessageKind,
+        src_router_id: u32,
+        seq: u64,
+        descriptor: MessageDescriptor,
+        payload: BTreeMap<String, Value>,
+        ts: f64,
+    ) -> Self {
+        Self {
+            protocol: protocol.into(),
+            kind,
+            src_router_id,
+            seq,
+            descriptor,
+            payload,
+            ts,
+        }
+    }
 }
 
 pub fn encode_message(message: &ControlMessage) -> Result<Vec<u8>> {
@@ -47,6 +73,7 @@ mod tests {
             kind: MessageKind::Hello,
             src_router_id: 1,
             seq: 3,
+            descriptor: MessageDescriptor::hello(),
             payload,
             ts: 12.5,
         };
@@ -54,5 +81,19 @@ mod tests {
         let encoded = encode_message(&msg).expect("encode should succeed");
         let decoded = decode_message(&encoded).expect("decode should succeed");
         assert_eq!(decoded, msg);
+    }
+
+    #[test]
+    fn decode_legacy_message_without_descriptor() {
+        let raw = br#"{
+            "protocol": "ospf",
+            "kind": "hello",
+            "src_router_id": 1,
+            "seq": 2,
+            "payload": {"router_id": 1},
+            "ts": 3.0
+        }"#;
+        let decoded = decode_message(raw).expect("legacy decode should succeed");
+        assert_eq!(decoded.descriptor, MessageDescriptor::default());
     }
 }

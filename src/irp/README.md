@@ -8,6 +8,8 @@ This crate provides the `routingd` daemon used by containerlab router nodes.
 - `runtime/forwarding.rs`: Linux FIB installer (`ip route`) with dry-run support.
 - `runtime/mgmt.rs`: HTTP management API and gRPC placeholder listener.
 - `runtime/config.rs`: YAML config loader for protocol/forwarding/management settings.
+- `model/control_plane.rs`: shared control-plane design primitives
+  (message descriptor, exchange policy/state, data lifetime/freshness).
 - `protocols/{ospf,rip,ecmp,topk,spath,ddr}.rs`: protocol engines (`dgr` and `octopus` are runtime modes on `ddr` core).
   - `ddr` core maintains neighbor fast-state in NSDB-style storage (queue/util/delay/loss) with freshness aging.
 - `protocols/link_state.rs`: shared link-state control plane (hello/LSA/LSDB lifecycle).
@@ -81,3 +83,31 @@ When enabled in config, each daemon exposes:
 
 `GET /v1/metrics` includes protocol runtime counters plus IRP layered design tags
 (`slow_state_scope`, `fast_state_scope`, `decision_layers`).
+
+Control messages now carry a structured `descriptor` block for versioned semantics:
+- state class (`liveness`, `topology`, `distance_vector`, ...)
+- exchange scope (`one_hop`, `flood_domain`, ...)
+- exchange mode (`periodic`, `triggered`, `hybrid`)
+- optional max-age hint for receiver lifecycle policy
+
+Control-plane exchange policy is configurable from `protocol_params`:
+
+```yaml
+protocol_params:
+  ospf:
+    hello_interval: 1.0
+    lsa_interval: 3.0
+    lsa_min_trigger_spacing_s: 0.2
+    hello_scope: one_hop
+    lsa_scope: flood_domain
+```
+
+For RIP:
+
+```yaml
+protocol_params:
+  rip:
+    update_interval: 5.0
+    update_min_trigger_spacing_s: 0.5
+    rip_update_scope: one_hop
+```

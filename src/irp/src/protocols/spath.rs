@@ -2,6 +2,7 @@ use std::collections::BTreeMap;
 
 use serde_json::{json, Value};
 
+use crate::model::control_plane::ExchangeScope;
 use crate::model::messages::{ControlMessage, MessageKind};
 use crate::model::routing::Route;
 use crate::protocols::base::{Ipv4RoutingProtocol, ProtocolContext, ProtocolOutputs};
@@ -16,6 +17,7 @@ pub struct SPathTimers {
     pub hello_interval: f64,
     pub lsa_interval: f64,
     pub lsa_max_age: f64,
+    pub lsa_min_trigger_spacing_s: f64,
 }
 
 impl Default for SPathTimers {
@@ -24,6 +26,7 @@ impl Default for SPathTimers {
             hello_interval: 1.0,
             lsa_interval: 3.0,
             lsa_max_age: 15.0,
+            lsa_min_trigger_spacing_s: 0.0,
         }
     }
 }
@@ -103,6 +106,11 @@ impl SPathProtocol {
         }
     }
 
+    pub fn set_descriptor_scopes(&mut self, hello_scope: ExchangeScope, lsa_scope: ExchangeScope) {
+        self.control_plane
+            .set_descriptor_scopes(hello_scope, lsa_scope);
+    }
+
     fn drive(&mut self, ctx: &ProtocolContext, force_lsa: bool) -> ProtocolOutputs {
         let mut outputs = ProtocolOutputs::default();
         let tick = self.control_plane.tick(
@@ -111,6 +119,7 @@ impl SPathProtocol {
                 hello_interval: self.params.timers.hello_interval,
                 lsa_interval: self.params.timers.lsa_interval,
                 lsa_max_age: self.params.timers.lsa_max_age,
+                lsa_min_trigger_spacing_s: self.params.timers.lsa_min_trigger_spacing_s,
             },
             force_lsa,
         );
@@ -251,6 +260,10 @@ impl Ipv4RoutingProtocol for SPathProtocol {
         out.insert(
             "lsa_interval_s".to_string(),
             json!(self.params.timers.lsa_interval),
+        );
+        out.insert(
+            "lsa_min_trigger_spacing_s".to_string(),
+            json!(self.params.timers.lsa_min_trigger_spacing_s),
         );
         out.insert(
             "lsa_max_age_s".to_string(),

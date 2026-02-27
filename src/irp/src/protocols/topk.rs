@@ -3,6 +3,7 @@ use std::collections::{BTreeMap, BTreeSet};
 
 use serde_json::{json, Value};
 
+use crate::model::control_plane::ExchangeScope;
 use crate::model::messages::{ControlMessage, MessageKind};
 use crate::model::routing::Route;
 use crate::protocols::base::{Ipv4RoutingProtocol, ProtocolContext, ProtocolOutputs};
@@ -14,6 +15,7 @@ pub struct TopkTimers {
     pub hello_interval: f64,
     pub lsa_interval: f64,
     pub lsa_max_age: f64,
+    pub lsa_min_trigger_spacing_s: f64,
 }
 
 impl Default for TopkTimers {
@@ -22,6 +24,7 @@ impl Default for TopkTimers {
             hello_interval: 1.0,
             lsa_interval: 3.0,
             lsa_max_age: 15.0,
+            lsa_min_trigger_spacing_s: 0.0,
         }
     }
 }
@@ -78,6 +81,11 @@ impl TopkProtocol {
         }
     }
 
+    pub fn set_descriptor_scopes(&mut self, hello_scope: ExchangeScope, lsa_scope: ExchangeScope) {
+        self.control_plane
+            .set_descriptor_scopes(hello_scope, lsa_scope);
+    }
+
     fn drive(&mut self, ctx: &ProtocolContext, force_lsa: bool) -> ProtocolOutputs {
         let mut outputs = ProtocolOutputs::default();
         let tick = self.control_plane.tick(
@@ -86,6 +94,7 @@ impl TopkProtocol {
                 hello_interval: self.params.timers.hello_interval,
                 lsa_interval: self.params.timers.lsa_interval,
                 lsa_max_age: self.params.timers.lsa_max_age,
+                lsa_min_trigger_spacing_s: self.params.timers.lsa_min_trigger_spacing_s,
             },
             force_lsa,
         );
@@ -321,6 +330,10 @@ impl Ipv4RoutingProtocol for TopkProtocol {
         out.insert(
             "selection_hold_time_s".to_string(),
             json!(self.params.selection_hold_time_s),
+        );
+        out.insert(
+            "lsa_min_trigger_spacing_s".to_string(),
+            json!(self.params.timers.lsa_min_trigger_spacing_s),
         );
         out.insert("rng_seed".to_string(), json!(self.params.rng_seed));
         out

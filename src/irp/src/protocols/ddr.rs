@@ -3,6 +3,7 @@ use std::process::Command;
 
 use serde_json::{json, Value};
 
+use crate::model::control_plane::ExchangeScope;
 use crate::model::messages::{ControlMessage, MessageKind};
 use crate::model::routing::{Ipv4RoutingTableEntry, Route, RoutingTableEntry};
 use crate::model::state::{NeighborFastStatePatch, NeighborStateDb};
@@ -17,6 +18,7 @@ pub struct DdrTimers {
     pub hello_interval: f64,
     pub lsa_interval: f64,
     pub lsa_max_age: f64,
+    pub lsa_min_trigger_spacing_s: f64,
     pub queue_sample_interval: f64,
 }
 
@@ -26,6 +28,7 @@ impl Default for DdrTimers {
             hello_interval: 1.0,
             lsa_interval: 3.0,
             lsa_max_age: 15.0,
+            lsa_min_trigger_spacing_s: 0.0,
             queue_sample_interval: 1.0,
         }
     }
@@ -213,6 +216,11 @@ impl DdrProtocol {
         }
     }
 
+    pub fn set_descriptor_scopes(&mut self, hello_scope: ExchangeScope, lsa_scope: ExchangeScope) {
+        self.control_plane
+            .set_descriptor_scopes(hello_scope, lsa_scope);
+    }
+
     fn neighbor_state_max_age_s(&self) -> f64 {
         if self.params.neighbor_state_max_age_s > 0.0 {
             self.params.neighbor_state_max_age_s
@@ -247,6 +255,7 @@ impl DdrProtocol {
                 hello_interval: self.params.timers.hello_interval,
                 lsa_interval: self.params.timers.lsa_interval,
                 lsa_max_age: self.params.timers.lsa_max_age,
+                lsa_min_trigger_spacing_s: self.params.timers.lsa_min_trigger_spacing_s,
             },
             force_lsa,
         );
@@ -862,6 +871,10 @@ impl Ipv4RoutingProtocol for DdrProtocol {
             json!(self.params.timers.queue_sample_interval),
         );
         out.insert(
+            "lsa_min_trigger_spacing_s".to_string(),
+            json!(self.params.timers.lsa_min_trigger_spacing_s),
+        );
+        out.insert(
             "neighbor_state_max_age_s".to_string(),
             json!(self.neighbor_state_max_age_s()),
         );
@@ -1116,6 +1129,7 @@ qdisc fq_codel 0: dev eth1 root refcnt 2 limit 10240p\n\
             kind: MessageKind::Hello,
             src_router_id: 2,
             seq: 1,
+            descriptor: crate::model::control_plane::MessageDescriptor::hello(),
             payload,
             ts: 0.0,
         };

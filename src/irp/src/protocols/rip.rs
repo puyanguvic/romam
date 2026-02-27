@@ -2,6 +2,9 @@ use std::collections::BTreeMap;
 
 use serde_json::{json, Value};
 
+use crate::model::control_plane::{
+    ExchangePolicy, ExchangeScope, ExchangeState, MessageDescriptor,
+};
 use crate::model::messages::{ControlMessage, MessageKind};
 use crate::model::routing::{Ipv4RoutingTableEntry, Route, RoutingTableEntry};
 use crate::protocols::base::{Ipv4RoutingProtocol, ProtocolContext, ProtocolOutputs};
@@ -11,6 +14,7 @@ use crate::protocols::route_compute::{DvComputeInput, DvRouteComputeEngine, Rout
 pub struct RipTimers {
     pub update_interval: f64,
     pub neighbor_timeout: f64,
+    pub update_min_trigger_spacing_s: f64,
 }
 
 impl Default for RipTimers {
@@ -18,6 +22,7 @@ impl Default for RipTimers {
         Self {
             update_interval: 5.0,
             neighbor_timeout: 15.0,
+            update_min_trigger_spacing_s: 0.0,
         }
     }
 }
@@ -130,7 +135,8 @@ pub struct RipProtocol {
     poison_reverse: bool,
     dv_engine: DvRouteComputeEngine,
     msg_seq: u64,
-    last_update_at: f64,
+    update_exchange: ExchangeState,
+    update_scope: ExchangeScope,
     routes: BTreeMap<u32, RipRoutingTableEntry>,
     neighbor_vectors: BTreeMap<u32, (f64, BTreeMap<u32, f64>)>,
 }
@@ -143,10 +149,15 @@ impl RipProtocol {
             poison_reverse,
             dv_engine: DvRouteComputeEngine,
             msg_seq: 0,
-            last_update_at: -1e9,
+            update_exchange: ExchangeState::default(),
+            update_scope: ExchangeScope::OneHop,
             routes: BTreeMap::new(),
             neighbor_vectors: BTreeMap::new(),
         }
+    }
+
+    pub fn set_update_scope(&mut self, scope: ExchangeScope) {
+        self.update_scope = scope;
     }
 
     fn expire_neighbor_vectors(&mut self, ctx: &ProtocolContext) {
@@ -273,14 +284,25 @@ impl RipProtocol {
         now: f64,
     ) -> ControlMessage {
         self.msg_seq += 1;
-        ControlMessage {
-            protocol: self.name().to_string(),
+        let max_age_s =
+            if self.timers.neighbor_timeout.is_finite() && self.timers.neighbor_timeout >= 0.0 {
+                Some(self.timers.neighbor_timeout.round() as u32)
+            } else {
+                None
+            };
+        ControlMessage::new(
+            self.name().to_string(),
             kind,
-            src_router_id: router_id,
-            seq: self.msg_seq,
+            router_id,
+            self.msg_seq,
+            {
+                let mut descriptor = MessageDescriptor::rip_update(max_age_s);
+                descriptor.scope = Some(self.update_scope);
+                descriptor
+            },
             payload,
-            ts: now,
-        }
+            now,
+        )
     }
 
     fn parse_update_entries(entries: &[Value], infinity_metric: f64) -> BTreeMap<u32, f64> {
@@ -317,7 +339,7 @@ impl Ipv4RoutingProtocol for RipProtocol {
             outputs.routes = Some(self.export_routes());
         }
         outputs.outbound.extend(self.send_updates(ctx));
-        self.last_update_at = ctx.now;
+        self.update_exchange.mark_periodic(ctx.now);
         outputs
     }
 
@@ -326,14 +348,18 @@ impl Ipv4RoutingProtocol for RipProtocol {
         self.expire_neighbor_vectors(ctx);
 
         let routes_changed = self.recompute_routes(ctx);
-        let periodic_due = (ctx.now - self.last_update_at) >= self.timers.update_interval;
+        let policy = ExchangePolicy::hybrid(
+            self.timers.update_interval,
+            self.timers.update_min_trigger_spacing_s,
+        );
+        let periodic_due = self.update_exchange.periodic_due(ctx.now, policy);
+        let triggered_due = routes_changed && self.update_exchange.trigger_due(ctx.now, policy);
 
         if routes_changed {
             outputs.routes = Some(self.export_routes());
         }
-        if routes_changed || periodic_due {
+        if triggered_due || periodic_due {
             outputs.outbound.extend(self.send_updates(ctx));
-            self.last_update_at = ctx.now;
         }
 
         outputs
@@ -360,7 +386,7 @@ impl Ipv4RoutingProtocol for RipProtocol {
         if self.recompute_routes(ctx) {
             outputs.routes = Some(self.export_routes());
             outputs.outbound.extend(self.send_updates(ctx));
-            self.last_update_at = ctx.now;
+            self.update_exchange.mark_triggered(ctx.now);
         }
 
         outputs
@@ -375,6 +401,14 @@ impl Ipv4RoutingProtocol for RipProtocol {
         out.insert(
             "neighbor_timeout_s".to_string(),
             json!(self.timers.neighbor_timeout),
+        );
+        out.insert(
+            "update_min_trigger_spacing_s".to_string(),
+            json!(self.timers.update_min_trigger_spacing_s),
+        );
+        out.insert(
+            "update_scope".to_string(),
+            json!(self.update_scope.as_str()),
         );
         out.insert("infinity_metric".to_string(), json!(self.infinity_metric));
         out.insert("poison_reverse".to_string(), json!(self.poison_reverse));
