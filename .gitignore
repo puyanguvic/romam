@@ -16,8 +16,6 @@ experiment/
 *.egg-info/
 .pytest_cache/
 .ruff_cache/
-results/runs/
-results/tables/
-results/figs/
+results/
 clab_topologies/generated/
 clab_topologies/clab-*/
