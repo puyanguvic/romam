@@ -37,6 +37,33 @@ impl Default for ForwardingConfig {
 }
 
 #[derive(Debug, Clone)]
+pub struct QdiscProfileConfig {
+    pub kind: String,
+    pub handle: Option<String>,
+    pub parent: Option<String>,
+    pub params: BTreeMap<String, String>,
+}
+
+#[derive(Debug, Clone)]
+pub struct QdiscConfig {
+    pub enabled: bool,
+    pub dry_run: bool,
+    pub default: Option<QdiscProfileConfig>,
+    pub interfaces: BTreeMap<String, QdiscProfileConfig>,
+}
+
+impl Default for QdiscConfig {
+    fn default() -> Self {
+        Self {
+            enabled: false,
+            dry_run: true,
+            default: None,
+            interfaces: BTreeMap::new(),
+        }
+    }
+}
+
+#[derive(Debug, Clone)]
 pub struct HttpManagementConfig {
     pub enabled: bool,
     pub bind_address: String,
@@ -68,6 +95,7 @@ pub struct DaemonConfig {
     pub neighbors: Vec<NeighborConfig>,
     pub protocol_params: Map<String, Value>,
     pub forwarding: ForwardingConfig,
+    pub qdisc: QdiscConfig,
     pub management: ManagementConfig,
 }
 
@@ -102,6 +130,22 @@ struct RawForwarding {
 }
 
 #[derive(Debug, Deserialize, Default)]
+struct RawQdiscProfile {
+    kind: Option<String>,
+    handle: Option<String>,
+    parent: Option<String>,
+    params: Option<BTreeMap<String, String>>,
+}
+
+#[derive(Debug, Deserialize, Default)]
+struct RawQdisc {
+    enabled: Option<bool>,
+    dry_run: Option<bool>,
+    default: Option<RawQdiscProfile>,
+    interfaces: Option<BTreeMap<String, RawQdiscProfile>>,
+}
+
+#[derive(Debug, Deserialize, Default)]
 struct RawManagementEndpoint {
     enabled: Option<bool>,
     bind: Option<String>,
@@ -126,6 +170,7 @@ struct RawDaemonConfig {
     #[serde(default)]
     protocol_params: BTreeMap<String, serde_yaml::Value>,
     forwarding: Option<RawForwarding>,
+    qdisc: Option<RawQdisc>,
     management: Option<RawManagement>,
     bind_address: Option<String>,
     bind_port: Option<u16>,
@@ -140,6 +185,7 @@ pub fn load_daemon_config(path: &Path) -> Result<DaemonConfig> {
     let bind = raw_cfg.bind.unwrap_or_default();
     let timers = raw_cfg.timers.unwrap_or_default();
     let forwarding_raw = raw_cfg.forwarding.unwrap_or_default();
+    let qdisc_raw = raw_cfg.qdisc.unwrap_or_default();
     let management_raw = raw_cfg.management.unwrap_or_default();
 
     let protocol = raw_cfg
@@ -191,6 +237,16 @@ pub fn load_daemon_config(path: &Path) -> Result<DaemonConfig> {
         )?,
         next_hop_ips: parse_int_key_map(forwarding_raw.next_hop_ips.unwrap_or_default())?,
     };
+    let qdisc = QdiscConfig {
+        enabled: qdisc_raw.enabled.unwrap_or(false),
+        dry_run: qdisc_raw.dry_run.unwrap_or(true),
+        default: qdisc_raw
+            .default
+            .as_ref()
+            .map(parse_qdisc_profile)
+            .transpose()?,
+        interfaces: parse_qdisc_interfaces(qdisc_raw.interfaces.unwrap_or_default())?,
+    };
 
     let bind_address = bind
         .address
@@ -224,6 +280,7 @@ pub fn load_daemon_config(path: &Path) -> Result<DaemonConfig> {
         neighbors,
         protocol_params,
         forwarding,
+        qdisc,
         management,
     })
 }
@@ -245,6 +302,46 @@ fn parse_int_key_map(raw: BTreeMap<String, String>) -> Result<BTreeMap<u32, Stri
         out.insert(parsed, value);
     }
     Ok(out)
+}
+
+fn parse_qdisc_interfaces(
+    raw: BTreeMap<String, RawQdiscProfile>,
+) -> Result<BTreeMap<String, QdiscProfileConfig>> {
+    let mut out = BTreeMap::new();
+    for (iface, profile) in raw {
+        let iface_name = iface.trim().to_string();
+        if iface_name.is_empty() {
+            continue;
+        }
+        out.insert(iface_name, parse_qdisc_profile(&profile)?);
+    }
+    Ok(out)
+}
+
+fn parse_qdisc_profile(raw: &RawQdiscProfile) -> Result<QdiscProfileConfig> {
+    let kind = raw
+        .kind
+        .as_deref()
+        .map(str::trim)
+        .filter(|v| !v.is_empty())
+        .ok_or_else(|| anyhow::anyhow!("qdisc profile requires non-empty 'kind'"))?
+        .to_string();
+    Ok(QdiscProfileConfig {
+        kind,
+        handle: raw
+            .handle
+            .as_deref()
+            .map(str::trim)
+            .filter(|v| !v.is_empty())
+            .map(str::to_string),
+        parent: raw
+            .parent
+            .as_deref()
+            .map(str::trim)
+            .filter(|v| !v.is_empty())
+            .map(str::to_string),
+        params: raw.params.clone().unwrap_or_default(),
+    })
 }
 
 fn endpoint_address(raw: Option<String>) -> String {

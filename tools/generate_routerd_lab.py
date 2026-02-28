@@ -256,6 +256,41 @@ def parse_args() -> argparse.Namespace:
         help="Base gRPC management port; actual node port = base + router_id.",
     )
     parser.add_argument(
+        "--qdisc-enabled",
+        action=argparse.BooleanOptionalAction,
+        default=False,
+        help="Enable runtime qdisc controller in routingd configs.",
+    )
+    parser.add_argument(
+        "--qdisc-dry-run",
+        action=argparse.BooleanOptionalAction,
+        default=True,
+        help="When qdisc is enabled, do not execute tc commands (default: enabled).",
+    )
+    parser.add_argument(
+        "--qdisc-default-kind",
+        default="",
+        help=(
+            "Default root qdisc kind for all interfaces "
+            "(e.g. fifo/pfifo_fast/ecn/red/fq_codel/prio/drr/netem/tbf)."
+        ),
+    )
+    parser.add_argument(
+        "--qdisc-default-handle",
+        default="",
+        help="Optional default root qdisc handle (e.g. 1:).",
+    )
+    parser.add_argument(
+        "--qdisc-default-parent",
+        default="",
+        help="Optional default parent selector (reserved for future classful extension).",
+    )
+    parser.add_argument(
+        "--qdisc-default-params-json",
+        default="",
+        help='JSON object for default qdisc params, e.g. {"limit":"10240","bands":"3"}.',
+    )
+    parser.add_argument(
         "--sudo",
         action=argparse.BooleanOptionalAction,
         default=False,
@@ -266,6 +301,7 @@ def parse_args() -> argparse.Namespace:
 
 def main() -> int:
     args = parse_args()
+    qdisc_default_params = parse_qdisc_params_json(str(args.qdisc_default_params_json))
     randomized_selection = (
         bool(args.ddr_randomized_selection)
         if args.ddr_randomized_selection is not None
@@ -322,6 +358,12 @@ def main() -> int:
         ddr_queue_level_scale_ms=float(args.ddr_queue_level_scale_ms),
         ddr_randomize_route_selection=bool(randomized_selection),
         ddr_rng_seed=int(args.ddr_rng_seed),
+        qdisc_enabled=bool(args.qdisc_enabled),
+        qdisc_dry_run=bool(args.qdisc_dry_run),
+        qdisc_default_kind=str(args.qdisc_default_kind).strip(),
+        qdisc_default_handle=str(args.qdisc_default_handle).strip(),
+        qdisc_default_parent=str(args.qdisc_default_parent).strip(),
+        qdisc_default_params=qdisc_default_params,
     )
     result = generate_routerd_lab(params)
     clab_bin = shutil.which("containerlab") or "containerlab"
@@ -363,6 +405,12 @@ def main() -> int:
     print(f"mgmt_grpc_enabled: {bool(args.mgmt_grpc_enabled)}")
     print(f"mgmt_grpc_bind: {args.mgmt_grpc_bind}")
     print(f"mgmt_grpc_port_base: {int(args.mgmt_grpc_port_base)}")
+    print(f"qdisc_enabled: {bool(args.qdisc_enabled)}")
+    print(f"qdisc_dry_run: {bool(args.qdisc_dry_run)}")
+    print(f"qdisc_default_kind: {str(args.qdisc_default_kind).strip()}")
+    print(f"qdisc_default_handle: {str(args.qdisc_default_handle).strip()}")
+    print(f"qdisc_default_parent: {str(args.qdisc_default_parent).strip()}")
+    print(f"qdisc_default_params: {qdisc_default_params}")
     print()
     print(
         "Deploy:  "
@@ -387,6 +435,19 @@ def resolve_source_topology_file(args: argparse.Namespace) -> Path:
     if not path.is_file():
         raise FileNotFoundError(f"Topology file does not exist: {path}")
     return path
+
+
+def parse_qdisc_params_json(raw: str) -> dict[str, str]:
+    text = str(raw).strip()
+    if not text:
+        return {}
+    try:
+        parsed = json.loads(text)
+    except json.JSONDecodeError as exc:
+        raise ValueError(f"invalid --qdisc-default-params-json: {exc}") from exc
+    if not isinstance(parsed, dict):
+        raise ValueError("--qdisc-default-params-json must be a JSON object")
+    return {str(k): str(v) for k, v in parsed.items()}
 
 
 def resolve_mgmt_settings(args: argparse.Namespace, lab_name: str) -> tuple[str, str, str]:

@@ -67,6 +67,12 @@ class LabGenParams:
     topk_explore_probability: float = 0.3
     topk_selection_hold_time_s: float = 3.0
     topk_rng_seed: int = 1
+    qdisc_enabled: bool = False
+    qdisc_dry_run: bool = True
+    qdisc_default_kind: str = ""
+    qdisc_default_handle: str = ""
+    qdisc_default_parent: str = ""
+    qdisc_default_params: Dict[str, str] | None = None
 
 
 def generate_routerd_lab(params: LabGenParams) -> Dict[str, str]:
@@ -169,6 +175,7 @@ def _build_routerd_config(
             rid_map=rid_map,
             router_host_ips=router_host_ips,
         ),
+        "qdisc": _build_qdisc_cfg(params=params),
         "management": {
             "http": {
                 "enabled": bool(params.mgmt_http_enabled),
@@ -243,6 +250,29 @@ def _build_routerd_config(
             f"Unsupported protocol '{params.protocol}'. Supported protocols: "
             + ", ".join(SUPPORTED_LAB_PROTOCOLS)
         )
+    return cfg
+
+
+def _build_qdisc_cfg(params: LabGenParams) -> Dict[str, Any]:
+    cfg: Dict[str, Any] = {
+        "enabled": bool(params.qdisc_enabled),
+        "dry_run": bool(params.qdisc_dry_run),
+    }
+    if not params.qdisc_enabled:
+        return cfg
+    if str(params.qdisc_default_kind).strip():
+        default_cfg: Dict[str, Any] = {
+            "kind": str(params.qdisc_default_kind).strip(),
+        }
+        if str(params.qdisc_default_handle).strip():
+            default_cfg["handle"] = str(params.qdisc_default_handle).strip()
+        if str(params.qdisc_default_parent).strip():
+            default_cfg["parent"] = str(params.qdisc_default_parent).strip()
+        if params.qdisc_default_params:
+            default_cfg["params"] = {
+                str(k): str(v) for k, v in dict(params.qdisc_default_params).items()
+            }
+        cfg["default"] = default_cfg
     return cfg
 
 

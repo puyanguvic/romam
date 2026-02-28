@@ -410,6 +410,20 @@ def extract_topk_routing_params(routing: dict[str, Any]) -> dict[str, Any]:
     }
 
 
+def extract_qdisc_params(config: dict[str, Any]) -> dict[str, Any]:
+    qdisc_cfg = dict(config.get("qdisc", {}) or {})
+    default_cfg = dict(qdisc_cfg.get("default", {}) or {})
+    params = dict(default_cfg.get("params", {}) or {})
+    return {
+        "enabled": bool(qdisc_cfg.get("enabled", False)),
+        "dry_run": bool(qdisc_cfg.get("dry_run", True)),
+        "default_kind": str(default_cfg.get("kind", "")).strip(),
+        "default_handle": str(default_cfg.get("handle", "")).strip(),
+        "default_parent": str(default_cfg.get("parent", "")).strip(),
+        "default_params": {str(k): str(v) for k, v in params.items()},
+    }
+
+
 def append_runlab_generator_args(runlab_cmd: list[str], config: dict[str, Any]) -> None:
     lab_cfg = dict(config.get("lab", {}) or {})
     lab_name = str(lab_cfg.get("lab_name", config.get("lab_name", ""))).strip()
@@ -462,6 +476,7 @@ def build_run_routerd_lab_cmd(
     ecmp_params: dict[str, Any] | None = None,
     topk_params: dict[str, Any] | None = None,
     ddr_params: dict[str, Any] | None = None,
+    qdisc_params: dict[str, Any] | None = None,
     lab_name_override: str = "",
 ) -> list[str]:
     runlab_cmd = [
@@ -530,6 +545,27 @@ def build_run_routerd_lab_cmd(
             runlab_cmd.append("--ddr-randomized-selection")
         else:
             runlab_cmd.append("--no-ddr-randomized-selection")
+    if qdisc_params is not None and bool(qdisc_params.get("enabled", False)):
+        runlab_cmd.append("--qdisc-enabled")
+        if bool(qdisc_params.get("dry_run", True)):
+            runlab_cmd.append("--qdisc-dry-run")
+        else:
+            runlab_cmd.append("--no-qdisc-dry-run")
+        default_kind = str(qdisc_params.get("default_kind", "")).strip()
+        if default_kind:
+            runlab_cmd.extend(["--qdisc-default-kind", default_kind])
+        default_handle = str(qdisc_params.get("default_handle", "")).strip()
+        if default_handle:
+            runlab_cmd.extend(["--qdisc-default-handle", default_handle])
+        default_parent = str(qdisc_params.get("default_parent", "")).strip()
+        if default_parent:
+            runlab_cmd.extend(["--qdisc-default-parent", default_parent])
+        default_params = dict(qdisc_params.get("default_params", {}) or {})
+        if default_params:
+            runlab_cmd.extend([
+                "--qdisc-default-params-json",
+                json.dumps(default_params, ensure_ascii=False, sort_keys=True),
+            ])
     append_runlab_generator_args(runlab_cmd, config)
     if lab_name_override.strip():
         runlab_cmd.extend(["--lab-name", lab_name_override.strip()])
@@ -1474,6 +1510,7 @@ def run_scenario_mode(
     ecmp_params = extract_ecmp_routing_params(routing)
     topk_params = extract_topk_routing_params(routing)
     ddr_params = extract_ddr_routing_params(routing, protocol=protocol)
+    qdisc_params = extract_qdisc_params(config)
 
     duration_s = max(1.0, float(config.get("duration_s", 60.0)))
     poll_interval_s = max(0.2, float(args.poll_interval_s))
@@ -1491,6 +1528,7 @@ def run_scenario_mode(
         ecmp_params=ecmp_params,
         topk_params=topk_params,
         ddr_params=ddr_params,
+        qdisc_params=qdisc_params,
     )
     runlab = launch_run_routerd_lab(
         cmd=runlab_cmd,
@@ -1866,6 +1904,7 @@ def run_convergence_benchmark_mode(
     ecmp_params = extract_ecmp_routing_params(routing)
     topk_params = extract_topk_routing_params(routing)
     ddr_params = extract_ddr_routing_params(routing, protocol=protocol)
+    qdisc_params = extract_qdisc_params(config)
 
     bench_cfg = dict(config.get("benchmark", {}) or {})
     repeats = max(1, int(bench_cfg.get("repeats", config.get("repeats", 1))))
@@ -1911,6 +1950,7 @@ def run_convergence_benchmark_mode(
             ecmp_params=ecmp_params,
             topk_params=topk_params,
             ddr_params=ddr_params,
+            qdisc_params=qdisc_params,
         )
         if lab_name_prefix and not explicit_lab_name:
             auto_lab_name = (

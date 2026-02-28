@@ -480,6 +480,12 @@ The unified config supports fault injection, e.g.:
 - `link_down` with `faults[].link: [r2, r3]`
 - `app_stop` / `app_start` with `faults[].node` + `faults[].app` (applied via `node_supervisor`)
 
+Optional queue-discipline runtime config:
+- `qdisc.enabled`: enable runtime qdisc controller in `routingd`
+- `qdisc.dry_run`: log `tc` operations without applying them
+- `qdisc.default.kind`: root qdisc kind (`fifo`, `pfifo_fast`, `ecn`, `red`, `fq_codel`, `prio`, `drr`, `netem`, `tbf`)
+- `qdisc.default.params`: key/value params passed to `tc qdisc replace`
+
 Cleanup command (when you keep lab running or need manual cleanup):
 
 ```bash

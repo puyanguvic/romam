@@ -34,6 +34,18 @@ pub struct RouteSnapshot {
     pub protocol: String,
 }
 
+#[derive(Debug, Clone, Serialize, Default, PartialEq, Eq)]
+pub struct QdiscSnapshot {
+    pub interface_name: String,
+    pub kind: Option<String>,
+    pub backlog_bytes: Option<u64>,
+    pub backlog_packets: Option<u64>,
+    pub drops: Option<u64>,
+    pub overlimits: Option<u64>,
+    pub requeues: Option<u64>,
+    pub error: Option<String>,
+}
+
 #[derive(Debug, Clone, Serialize)]
 pub struct DaemonSnapshot {
     pub router_id: u32,
@@ -49,6 +61,7 @@ pub struct DaemonSnapshot {
     pub neighbors: Vec<NeighborSnapshot>,
     pub routes: Vec<RouteSnapshot>,
     pub fib: Vec<RouteSnapshot>,
+    pub qdisc: Vec<QdiscSnapshot>,
 }
 
 impl DaemonSnapshot {
@@ -65,6 +78,7 @@ impl DaemonSnapshot {
         neighbors: Vec<NeighborInfo>,
         routes: Vec<Route>,
         fib: Vec<ForwardingEntry>,
+        qdisc: Vec<QdiscSnapshot>,
     ) -> Self {
         Self {
             router_id,
@@ -107,6 +121,7 @@ impl DaemonSnapshot {
                     protocol: item.protocol,
                 })
                 .collect(),
+            qdisc,
         }
     }
 }
@@ -225,6 +240,14 @@ fn handle_http_stream(
                 .clone();
             json!({"fib": fib})
         }
+        "/v1/qdisc" => {
+            let qdisc = snapshot
+                .read()
+                .map_err(|_| anyhow::anyhow!("management state lock poisoned"))?
+                .qdisc
+                .clone();
+            json!({"qdisc": qdisc})
+        }
         "/v1/metrics" => {
             let state = snapshot
                 .read()
@@ -249,6 +272,8 @@ fn handle_http_stream(
                 "forwarding_enabled": state.forwarding_enabled,
                 "forwarding_table": state.forwarding_table,
                 "protocol_metrics": state.protocol_metrics,
+                "qdisc_interfaces": state.qdisc.len(),
+                "qdisc": state.qdisc,
             })
         }
         "/v1/kernel-routes" => {
@@ -262,6 +287,7 @@ fn handle_http_stream(
         || path == "/v1/status"
         || path == "/v1/routes"
         || path == "/v1/fib"
+        || path == "/v1/qdisc"
         || path == "/v1/metrics"
         || path == "/v1/kernel-routes"
     {

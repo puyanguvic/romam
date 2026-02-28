@@ -1,4 +1,4 @@
-use std::collections::BTreeMap;
+use std::collections::{BTreeMap, BTreeSet};
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Arc;
 use std::time::{Duration, Instant};
@@ -12,7 +12,10 @@ use crate::model::control_plane::ExchangeScope;
 use crate::model::messages::{decode_message, encode_message};
 use crate::model::routing::{ForwardingTable, RouteTable};
 use crate::model::state::{NeighborInfo, NeighborTable};
-use crate::protocols::base::{Ipv4RoutingProtocol, ProtocolContext, RouterLink};
+use crate::protocols::base::{
+    Ipv4RoutingProtocol, ProtocolContext, ProtocolOutputs, QdiscAction, QdiscLinkSnapshot,
+    RouterLink,
+};
 use crate::protocols::ddr::{DdrParams, DdrProtocol, DdrTimers};
 use crate::protocols::ecmp::{EcmpParams, EcmpProtocol, EcmpTimers};
 use crate::protocols::ospf::{OspfProtocol, OspfTimers};
@@ -24,7 +27,8 @@ use crate::runtime::config::DaemonConfig;
 use crate::runtime::forwarding::{
     ForwardingApplier, LinuxForwardingApplier, NullForwardingApplier,
 };
-use crate::runtime::mgmt::{DaemonSnapshot, MgmtServer};
+use crate::runtime::mgmt::{DaemonSnapshot, MgmtServer, QdiscSnapshot};
+use crate::runtime::qdisc::{LinuxTcQdiscDriver, QdiscController, QdiscRuntimeStats};
 use crate::runtime::transport::UdpTransport;
 
 pub struct RouterDaemon {
@@ -35,6 +39,8 @@ pub struct RouterDaemon {
     route_table: RouteTable,
     forwarding_table: ForwardingTable,
     applier: Box<dyn ForwardingApplier>,
+    qdisc_controller: Option<QdiscController>,
+    qdisc_snapshots: BTreeMap<String, QdiscSnapshot>,
     policy: Box<dyn DecisionEngine>,
     mgmt: MgmtServer,
     running: Arc<AtomicBool>,
@@ -65,6 +71,14 @@ impl RouterDaemon {
         } else {
             Box::new(NullForwardingApplier)
         };
+        let qdisc_controller = if cfg.qdisc.enabled {
+            Some(QdiscController::new(
+                Box::new(LinuxTcQdiscDriver::new(cfg.qdisc.dry_run)),
+                &cfg.qdisc,
+            )?)
+        } else {
+            None
+        };
         let initial_snapshot = DaemonSnapshot::from_parts(
             cfg.router_id,
             &cfg.protocol,
@@ -78,6 +92,7 @@ impl RouterDaemon {
             neighbors.clone(),
             Vec::new(),
             Vec::new(),
+            Vec::new(),
         );
         let mgmt = MgmtServer::start(initial_snapshot, &cfg.management)?;
 
@@ -89,6 +104,8 @@ impl RouterDaemon {
             route_table: RouteTable::default(),
             forwarding_table: ForwardingTable::default(),
             applier,
+            qdisc_controller,
+            qdisc_snapshots: BTreeMap::new(),
             policy: Box::new(PassthroughDecisionEngine),
             mgmt,
             running: Arc::new(AtomicBool::new(true)),
@@ -114,6 +131,7 @@ impl RouterDaemon {
 
         let start_outputs = self.protocol.start(&self.context(self.now_secs()));
         self.apply_outputs(start_outputs)?;
+        self.apply_qdisc_profiles()?;
         self.publish_snapshot();
 
         let mut next_tick = self.now_secs() + self.cfg.tick_interval;
@@ -136,6 +154,7 @@ impl RouterDaemon {
                 let changed = self
                     .neighbor_table
                     .refresh_liveness(now, self.cfg.dead_interval);
+                let qdisc_changed = self.refresh_qdisc_snapshots();
                 for router_id in &changed {
                     let outputs = if self
                         .neighbor_table
@@ -150,7 +169,7 @@ impl RouterDaemon {
                     };
                     self.apply_outputs(outputs)?;
                 }
-                if !changed.is_empty() {
+                if !changed.is_empty() || qdisc_changed {
                     self.publish_snapshot();
                 }
                 let timer_outputs = self.protocol.on_timer(&self.context(now));
@@ -205,7 +224,7 @@ impl RouterDaemon {
         self.apply_outputs(outputs)
     }
 
-    fn apply_outputs(&mut self, outputs: crate::protocols::base::ProtocolOutputs) -> Result<()> {
+    fn apply_outputs(&mut self, outputs: ProtocolOutputs) -> Result<()> {
         for (neighbor_id, message) in outputs.outbound {
             let Some(neighbor) = self.neighbor_table.get(neighbor_id) else {
                 continue;
@@ -221,7 +240,12 @@ impl RouterDaemon {
             }
         }
 
+        let qdisc_changed = self.apply_qdisc_actions(outputs.qdisc_actions)?;
+
         let Some(protocol_routes) = outputs.routes else {
+            if qdisc_changed {
+                self.publish_snapshot();
+            }
             return Ok(());
         };
 
@@ -239,6 +263,9 @@ impl RouterDaemon {
             .replace_protocol_routes(self.protocol.name(), &protocol_routes);
         let fib_updated = self.forwarding_table.sync_from_routes(&selected_routes);
         if !rib_updated && !fib_updated {
+            if qdisc_changed {
+                self.publish_snapshot();
+            }
             return Ok(());
         }
 
@@ -275,11 +302,37 @@ impl RouterDaemon {
                 )
             })
             .collect();
+        let qdisc_by_neighbor: BTreeMap<u32, QdiscLinkSnapshot> = self
+            .neighbor_table
+            .iter()
+            .filter_map(|(router_id, info)| {
+                let iface = info
+                    .interface_name
+                    .as_deref()
+                    .map(str::trim)
+                    .filter(|name| !name.is_empty())?;
+                let snapshot = self.qdisc_snapshots.get(iface);
+                Some((
+                    *router_id,
+                    QdiscLinkSnapshot {
+                        interface_name: Some(iface.to_string()),
+                        kind: snapshot.and_then(|item| item.kind.clone()),
+                        backlog_bytes: snapshot.and_then(|item| item.backlog_bytes),
+                        backlog_packets: snapshot.and_then(|item| item.backlog_packets),
+                        drops: snapshot.and_then(|item| item.drops),
+                        overlimits: snapshot.and_then(|item| item.overlimits),
+                        requeues: snapshot.and_then(|item| item.requeues),
+                        error: snapshot.and_then(|item| item.error.clone()),
+                    },
+                ))
+            })
+            .collect();
 
         ProtocolContext {
             router_id: self.cfg.router_id,
             now,
             links,
+            qdisc_by_neighbor,
         }
     }
 
@@ -291,6 +344,139 @@ impl RouterDaemon {
         self.mgmt.publish(self.build_snapshot(self.now_secs()));
     }
 
+    fn apply_qdisc_profiles(&mut self) -> Result<()> {
+        let ifaces = self.qdisc_interfaces();
+        {
+            let Some(controller) = self.qdisc_controller.as_ref() else {
+                return Ok(());
+            };
+            controller.apply_to_interfaces(&ifaces)?;
+        }
+        let _ = self.refresh_qdisc_snapshots();
+        Ok(())
+    }
+
+    fn qdisc_interfaces(&self) -> Vec<String> {
+        self.cfg
+            .neighbors
+            .iter()
+            .filter_map(|n| {
+                n.interface_name
+                    .as_deref()
+                    .map(str::trim)
+                    .filter(|iface| !iface.is_empty())
+                    .map(str::to_string)
+            })
+            .collect::<BTreeSet<String>>()
+            .into_iter()
+            .collect()
+    }
+
+    fn refresh_qdisc_snapshots(&mut self) -> bool {
+        if self.qdisc_controller.is_none() {
+            let had_any = !self.qdisc_snapshots.is_empty();
+            self.qdisc_snapshots.clear();
+            return had_any;
+        }
+        let tracked = self.qdisc_interfaces();
+        let mut changed = false;
+        for iface in &tracked {
+            if self.refresh_qdisc_snapshot_for_interface(iface) {
+                changed = true;
+            }
+        }
+        let tracked_set: BTreeSet<String> = tracked.into_iter().collect();
+        let before = self.qdisc_snapshots.len();
+        self.qdisc_snapshots
+            .retain(|iface, _| tracked_set.contains(iface));
+        changed || self.qdisc_snapshots.len() != before
+    }
+
+    fn refresh_qdisc_snapshot_for_interface(&mut self, iface: &str) -> bool {
+        let Some(controller) = self.qdisc_controller.as_ref() else {
+            return false;
+        };
+        let next = match controller.stats_for_interface(iface) {
+            Ok(stats) => Self::qdisc_snapshot_from_stats(iface, stats),
+            Err(err) => QdiscSnapshot {
+                interface_name: iface.to_string(),
+                error: Some(err.to_string()),
+                ..QdiscSnapshot::default()
+            },
+        };
+        let changed = self.qdisc_snapshots.get(iface) != Some(&next);
+        self.qdisc_snapshots.insert(iface.to_string(), next);
+        changed
+    }
+
+    fn qdisc_snapshot_from_stats(iface: &str, stats: QdiscRuntimeStats) -> QdiscSnapshot {
+        QdiscSnapshot {
+            interface_name: iface.to_string(),
+            kind: stats.kind,
+            backlog_bytes: stats.backlog_bytes,
+            backlog_packets: stats.backlog_packets,
+            drops: stats.drops,
+            overlimits: stats.overlimits,
+            requeues: stats.requeues,
+            error: None,
+        }
+    }
+
+    fn apply_qdisc_actions(&mut self, actions: Vec<QdiscAction>) -> Result<bool> {
+        if actions.is_empty() {
+            return Ok(false);
+        }
+        if self.qdisc_controller.is_none() {
+            warn!(
+                "protocol emitted {} qdisc action(s) while qdisc runtime is disabled",
+                actions.len()
+            );
+            return Ok(false);
+        }
+
+        let mut changed = false;
+        for action in actions {
+            match action {
+                QdiscAction::ApplyDefault { interface_name } => {
+                    if let Some(controller) = self.qdisc_controller.as_ref() {
+                        controller.apply_for_interface(&interface_name)?;
+                    }
+                    if self.refresh_qdisc_snapshot_for_interface(&interface_name) {
+                        changed = true;
+                    }
+                }
+                QdiscAction::ApplyProfile {
+                    interface_name,
+                    kind,
+                    handle,
+                    params,
+                } => {
+                    if let Some(controller) = self.qdisc_controller.as_ref() {
+                        controller.apply_custom_for_interface(
+                            &interface_name,
+                            &kind,
+                            handle.as_deref(),
+                            &params,
+                        )?;
+                    }
+                    if self.refresh_qdisc_snapshot_for_interface(&interface_name) {
+                        changed = true;
+                    }
+                }
+                QdiscAction::Clear { interface_name } => {
+                    if let Some(controller) = self.qdisc_controller.as_ref() {
+                        controller.clear_for_interface(&interface_name)?;
+                    }
+                    if self.refresh_qdisc_snapshot_for_interface(&interface_name) {
+                        changed = true;
+                    }
+                }
+            }
+        }
+
+        Ok(changed)
+    }
+
     fn build_snapshot(&self, now: f64) -> DaemonSnapshot {
         let neighbors = self
             .neighbor_table
@@ -299,6 +485,7 @@ impl RouterDaemon {
             .collect::<Vec<_>>();
         let routes = self.route_table.snapshot();
         let fib = self.forwarding_table.snapshot();
+        let qdisc = self.qdisc_snapshots.values().cloned().collect::<Vec<_>>();
         DaemonSnapshot::from_parts(
             self.cfg.router_id,
             self.protocol.name(),
@@ -312,6 +499,7 @@ impl RouterDaemon {
             neighbors,
             routes,
             fib,
+            qdisc,
         )
     }
 

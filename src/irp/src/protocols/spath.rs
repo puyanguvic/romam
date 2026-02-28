@@ -299,6 +299,7 @@ mod tests {
             router_id: 1,
             now: 0.0,
             links,
+            qdisc_by_neighbor: BTreeMap::new(),
         };
 
         let outputs = spath.start(&ctx);
@@ -344,6 +345,7 @@ mod tests {
             router_id: 1,
             now: 0.0,
             links,
+            qdisc_by_neighbor: BTreeMap::new(),
         };
 
         spath

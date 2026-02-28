@@ -57,6 +57,24 @@ Supported in scenario mode:
 - `link_down` with `faults[].link: [nodeA, nodeB]`
 - `app_stop` / `app_start` with `faults[].node` + `faults[].app`
 
+## Optional Qdisc Runtime Config
+
+Scenario/benchmark configs can optionally include:
+
+```yaml
+qdisc:
+  enabled: true
+  dry_run: true
+  default:
+    kind: prio
+    handle: "1:"
+    params:
+      bands: "3"
+```
+
+This is translated into per-node `routingd` config and handled by
+`src/irp/src/runtime/qdisc` (Linux `tc` driver with profile-based mapping).
+
 ## Standardized Artifacts
 
 Each run emits:

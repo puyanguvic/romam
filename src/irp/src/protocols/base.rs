@@ -19,12 +19,42 @@ pub struct ProtocolContext {
     pub router_id: u32,
     pub now: f64,
     pub links: BTreeMap<u32, RouterLink>,
+    pub qdisc_by_neighbor: BTreeMap<u32, QdiscLinkSnapshot>,
+}
+
+#[derive(Debug, Clone, Default)]
+pub struct QdiscLinkSnapshot {
+    pub interface_name: Option<String>,
+    pub kind: Option<String>,
+    pub backlog_bytes: Option<u64>,
+    pub backlog_packets: Option<u64>,
+    pub drops: Option<u64>,
+    pub overlimits: Option<u64>,
+    pub requeues: Option<u64>,
+    pub error: Option<String>,
+}
+
+#[derive(Debug, Clone)]
+pub enum QdiscAction {
+    ApplyDefault {
+        interface_name: String,
+    },
+    ApplyProfile {
+        interface_name: String,
+        kind: String,
+        handle: Option<String>,
+        params: BTreeMap<String, String>,
+    },
+    Clear {
+        interface_name: String,
+    },
 }
 
 #[derive(Debug, Default, Clone)]
 pub struct ProtocolOutputs {
     pub outbound: Vec<(u32, ControlMessage)>,
     pub routes: Option<Vec<Route>>,
+    pub qdisc_actions: Vec<QdiscAction>,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -185,6 +215,7 @@ mod tests {
             router_id: 1,
             now: 0.0,
             links: BTreeMap::new(),
+            qdisc_by_neighbor: BTreeMap::new(),
         }
     }
 

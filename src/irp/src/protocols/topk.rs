@@ -366,6 +366,7 @@ mod tests {
             router_id: 1,
             now: 0.0,
             links,
+            qdisc_by_neighbor: BTreeMap::new(),
         };
 
         let outputs = topk.start(&ctx);
@@ -411,6 +412,7 @@ mod tests {
             router_id: 1,
             now: 0.0,
             links,
+            qdisc_by_neighbor: BTreeMap::new(),
         };
 
         topk.control_plane
@@ -426,6 +428,7 @@ mod tests {
                 router_id: ctx.router_id,
                 now: idx as f64,
                 links: ctx.links.clone(),
+                qdisc_by_neighbor: BTreeMap::new(),
             };
             let routes = topk.compute_routes(&probe_ctx);
             let to_4 = routes

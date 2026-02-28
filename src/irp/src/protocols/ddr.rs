@@ -930,6 +930,7 @@ mod tests {
             router_id: 1,
             now: 0.0,
             links,
+            qdisc_by_neighbor: BTreeMap::new(),
         };
 
         let outputs = ddr.start(&ctx);
@@ -969,6 +970,7 @@ mod tests {
             router_id: 1,
             now: 0.0,
             links,
+            qdisc_by_neighbor: BTreeMap::new(),
         };
         ddr.control_plane
             .upsert_lsa(1, 1, BTreeMap::from([(2_u32, 1.0), (3_u32, 1.0)]), 0.0);
@@ -1025,6 +1027,7 @@ mod tests {
             router_id: 1,
             now: 0.0,
             links,
+            qdisc_by_neighbor: BTreeMap::new(),
         };
 
         ddr.control_plane
@@ -1118,6 +1121,7 @@ qdisc fq_codel 0: dev eth1 root refcnt 2 limit 10240p\n\
             router_id: 1,
             now: 0.0,
             links,
+            qdisc_by_neighbor: BTreeMap::new(),
         };
         let mut payload = BTreeMap::new();
         payload.insert("queue_level".to_string(), json!(3));
@@ -1187,6 +1191,7 @@ qdisc fq_codel 0: dev eth1 root refcnt 2 limit 10240p\n\
             router_id: 1,
             now: 0.0,
             links,
+            qdisc_by_neighbor: BTreeMap::new(),
         };
         ddr.control_plane
             .upsert_lsa(1, 1, BTreeMap::from([(2_u32, 1.0), (3_u32, 1.0)]), 0.0);

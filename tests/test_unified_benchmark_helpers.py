@@ -257,6 +257,35 @@ def test_build_run_routerd_lab_cmd_includes_octopus_params() -> None:
     assert "--ddr-randomized-selection" in text
 
 
+def test_build_run_routerd_lab_cmd_includes_qdisc_params() -> None:
+    module = _load_module()
+    cmd = module.build_run_routerd_lab_cmd(
+        protocol="ospf",
+        topology_key="profile",
+        topology_value="line3",
+        use_sudo=False,
+        config={},
+        precheck_min_routes=0,
+        precheck_max_wait_s=20,
+        precheck_poll_interval_s=1.0,
+        precheck_tail_lines=120,
+        qdisc_params={
+            "enabled": True,
+            "dry_run": False,
+            "default_kind": "prio",
+            "default_handle": "1:",
+            "default_parent": "",
+            "default_params": {"bands": "3"},
+        },
+    )
+    text = " ".join(cmd)
+    assert "--qdisc-enabled" in text
+    assert "--no-qdisc-dry-run" in text
+    assert "--qdisc-default-kind prio" in text
+    assert "--qdisc-default-handle 1:" in text
+    assert "--qdisc-default-params-json" in text
+
+
 def test_write_standard_run_artifacts(tmp_path: Path) -> None:
     module = _load_module()
     topology_file = tmp_path / "demo.clab.yaml"
